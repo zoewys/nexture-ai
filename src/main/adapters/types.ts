@@ -2,6 +2,7 @@ import type {
   AdapterCapabilities,
   AgentEvent,
   AgentVendor,
+  CodexReasoningEffort,
   JSONSchema,
   PermissionMode,
   ResumeHandle
@@ -12,6 +13,8 @@ export interface RunTurnInput {
   prompt: string
   cwd: string
   model?: string
+  codexReasoningEffort?: CodexReasoningEffort
+  codexServiceTier?: string
   addDirs?: string[]
   appendSystemPrompt?: string
   outputSchema?: JSONSchema

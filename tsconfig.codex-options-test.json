@@ -1,0 +1,16 @@
+{
+  "extends": "./tsconfig.node.json",
+  "include": [
+    "src/main/adapters/codexArgs.ts",
+    "src/shared/types.ts"
+  ],
+  "compilerOptions": {
+    "composite": false,
+    "declaration": false,
+    "declarationMap": false,
+    "noEmit": false,
+    "outDir": ".agent-studio/codex-options-test",
+    "rootDir": ".",
+    "sourceMap": false
+  }
+}

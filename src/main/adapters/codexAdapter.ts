@@ -3,6 +3,7 @@ import type { CliAdapter, RunTurnInput } from './types'
 import { AsyncQueue } from './AsyncQueue'
 import { spawnProcess } from './ProcessManager'
 import { parseCodexLine } from './codexParser'
+import { buildCodexExecArgs } from './codexArgs'
 
 /**
  * Drives the Codex CLI in single-shot exec mode.
@@ -23,19 +24,11 @@ export class CodexAdapter implements CliAdapter {
     const queue = new AsyncQueue<AgentEvent>()
     const cmd = input.cliPath ?? 'codex'
 
-    const args = ['exec']
-    if (input.model) args.push('--model', input.model)
-    for (const dir of input.addDirs ?? []) args.push('--add-dir', dir)
-    args.push('--json')
-    if (input.resumeFrom?.sessionId) args.push('--resume', input.resumeFrom.sessionId)
-    args.push('--dangerously-bypass-approvals-and-sandbox')
-    args.push('--skip-git-repo-check')
-
     // Codex does not have --append-system-prompt; prepend to the prompt.
     const prompt = input.appendSystemPrompt
       ? `# System\n${input.appendSystemPrompt}\n\n# Task\n${input.prompt}`
       : input.prompt
-    args.push(prompt)
+    const args = buildCodexExecArgs(input, prompt)
 
     const handle = spawnProcess(
       { cmd, args, cwd: input.cwd, abortSignal: input.abortSignal },

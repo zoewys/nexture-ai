@@ -6,6 +6,7 @@ import { useAgents } from './useAgents'
 import { useCliModels } from './useCliModels'
 import { useWorkflows } from './useWorkflows'
 import { AgentManager } from './AgentManager'
+import { CodexOptions } from './CodexOptions'
 import { ModelSelect } from './ModelSelect'
 import { TranscriptViewer } from './TranscriptViewer'
 import { WorkflowPanel } from './WorkflowPanel'
@@ -24,6 +25,8 @@ export function App(): JSX.Element {
   const [cwd, setCwd] = useState('')
   const [prompt, setPrompt] = useState('')
   const [model, setModel] = useState('')
+  const [codexReasoningEffort, setCodexReasoningEffort] = useState<RunConfig['codexReasoningEffort']>()
+  const [codexServiceTier, setCodexServiceTier] = useState<string | undefined>()
   const [interjection, setInterjection] = useState('')
   const [workflowInput, setWorkflowInput] = useState('')
   const [workflowInputError, setWorkflowInputError] = useState<string | null>(null)
@@ -41,6 +44,8 @@ export function App(): JSX.Element {
     if (agent) {
       setVendor(agent.vendor)
       setModel(agent.model ?? '')
+      setCodexReasoningEffort(agent.codexReasoningEffort)
+      setCodexServiceTier(agent.codexServiceTier)
     }
   }
 
@@ -63,6 +68,8 @@ export function App(): JSX.Element {
       prompt: prompt.trim(),
       cwd: cwd.trim(),
       model: model.trim() || undefined,
+      codexReasoningEffort: vendor === 'codex' ? codexReasoningEffort : undefined,
+      codexServiceTier: vendor === 'codex' ? codexServiceTier : undefined,
       appendSystemPrompt: selectedAgent?.systemPrompt,
       permissionMode: selectedAgent?.permissionMode
     }
@@ -294,6 +301,17 @@ export function App(): JSX.Element {
                       onChange={setModel}
                     />
                   </label>
+
+                  {vendor === 'codex' && (
+                    <CodexOptions
+                      model={model}
+                      modelInfo={modelInfo}
+                      reasoningEffort={codexReasoningEffort}
+                      serviceTier={codexServiceTier}
+                      onReasoningEffortChange={setCodexReasoningEffort}
+                      onServiceTierChange={setCodexServiceTier}
+                    />
+                  )}
 
                   <label className="field">
                     <span>Project Directory</span>

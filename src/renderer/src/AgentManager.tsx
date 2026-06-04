@@ -8,6 +8,7 @@ import type {
 } from '@shared/types'
 import { ALL_VENDORS, PERMISSION_MODES } from '@shared/types'
 import type { AgentDraft } from './useAgents'
+import { CodexOptions } from './CodexOptions'
 import { ModelSelect } from './ModelSelect'
 import { Bot, Plus, Save, Trash2 } from './Icons'
 
@@ -133,6 +134,21 @@ export function AgentManager({ agents, clis, modelCatalog, onSave, onDelete, onC
                 />
               </label>
             </div>
+
+            {draft.vendor === 'codex' && (
+              <CodexOptions
+                model={draft.model ?? ''}
+                modelInfo={modelInfo}
+                reasoningEffort={draft.codexReasoningEffort}
+                serviceTier={draft.codexServiceTier}
+                onReasoningEffortChange={(codexReasoningEffort) =>
+                  setDraft((d) => ({ ...d, codexReasoningEffort }))
+                }
+                onServiceTierChange={(codexServiceTier) =>
+                  setDraft((d) => ({ ...d, codexServiceTier }))
+                }
+              />
+            )}
 
             <label className="field">
               <span>Permission Mode</span>

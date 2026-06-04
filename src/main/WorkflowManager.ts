@@ -206,6 +206,8 @@ export class WorkflowManager {
       prompt,
       cwd: run.projectPath,
       model: agent.model?.trim() || undefined,
+      codexReasoningEffort: agent.codexReasoningEffort,
+      codexServiceTier: agent.codexServiceTier?.trim() || undefined,
       appendSystemPrompt: agent.systemPrompt,
       permissionMode: agent.permissionMode,
       resumeFrom: {
@@ -264,6 +266,8 @@ export class WorkflowManager {
       prompt,
       cwd: run.projectPath,
       model: agent.model?.trim() || undefined,
+      codexReasoningEffort: agent.codexReasoningEffort,
+      codexServiceTier: agent.codexServiceTier?.trim() || undefined,
       appendSystemPrompt: agent.systemPrompt,
       permissionMode: agent.permissionMode
     }

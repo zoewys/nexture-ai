@@ -1,10 +1,13 @@
 import { spawn } from 'node:child_process'
 import type {
   AgentVendor,
+  CodexReasoningEffort,
+  CodexServiceTierOption,
   ModelCatalog,
   ModelOption,
   VendorModelCatalog
 } from '@shared/types'
+import { CODEX_REASONING_EFFORTS } from '@shared/types'
 import { withCliPath } from './cliEnv'
 
 interface CommandResult {
@@ -19,6 +22,9 @@ interface CodexRawModel {
   slug?: unknown
   display_name?: unknown
   visibility?: unknown
+  default_reasoning_level?: unknown
+  supported_reasoning_levels?: unknown
+  service_tiers?: unknown
 }
 
 const PROBE_MODEL = '__agent_studio_model_probe__'
@@ -74,10 +80,18 @@ async function listCodexModels(): Promise<VendorModelCatalog> {
   const rawModels = Array.isArray(raw?.models) ? (raw.models as CodexRawModel[]) : []
   const models = rawModels
     .filter((model) => model.visibility === 'list')
-    .map((model) => {
+    .map((model): ModelOption | null => {
       const id = typeof model.slug === 'string' ? model.slug : ''
       const label = typeof model.display_name === 'string' ? model.display_name : id
-      return id ? { id, label } : null
+      return id
+        ? {
+            id,
+            label,
+            codexReasoningEfforts: parseReasoningEfforts(model.supported_reasoning_levels),
+            codexDefaultReasoningEffort: parseReasoningEffort(model.default_reasoning_level),
+            codexServiceTiers: parseServiceTiers(model.service_tiers)
+          }
+        : null
     })
     .filter((model): model is ModelOption => model !== null)
 
@@ -199,6 +213,41 @@ function parseJsonObject(text: string): { models?: unknown } | null {
   } catch {
     return null
   }
+}
+
+function parseReasoningEfforts(value: unknown): CodexReasoningEffort[] {
+  if (!Array.isArray(value)) return []
+  return value
+    .map((item) => {
+      if (!item || typeof item !== 'object') return null
+      return parseReasoningEffort((item as Record<string, unknown>).effort)
+    })
+    .filter((effort): effort is CodexReasoningEffort => effort !== null)
+}
+
+function parseReasoningEffort(value: unknown): CodexReasoningEffort | undefined {
+  return typeof value === 'string' && isCodexReasoningEffort(value) ? value : undefined
+}
+
+function parseServiceTiers(value: unknown): CodexServiceTierOption[] {
+  if (!Array.isArray(value)) return []
+  return value
+    .map((item): CodexServiceTierOption | null => {
+      if (!item || typeof item !== 'object') return null
+      const raw = item as Record<string, unknown>
+      const id = typeof raw.id === 'string' ? raw.id : ''
+      if (!id) return null
+      return {
+        id,
+        label: typeof raw.name === 'string' && raw.name ? raw.name : id,
+        description: typeof raw.description === 'string' ? raw.description : undefined
+      }
+    })
+    .filter((tier): tier is CodexServiceTierOption => tier !== null)
+}
+
+function isCodexReasoningEffort(value: string): value is CodexReasoningEffort {
+  return (CODEX_REASONING_EFFORTS as string[]).includes(value)
 }
 
 function toOptions(ids: string[]): ModelOption[] {

@@ -18,6 +18,11 @@ export interface ModelOption {
   id: string
   /** Human-readable label from the CLI when available. */
   label: string
+  /** Codex-only reasoning levels supported by this model, when exposed by the CLI. */
+  codexReasoningEfforts?: CodexReasoningEffort[]
+  codexDefaultReasoningEffort?: CodexReasoningEffort
+  /** Codex-only speed/service tiers exposed by the CLI. */
+  codexServiceTiers?: CodexServiceTierOption[]
 }
 
 export type ModelCatalogSource = 'cli' | 'cli-help' | 'unavailable'
@@ -29,6 +34,24 @@ export interface VendorModelCatalog {
 }
 
 export type ModelCatalog = Record<AgentVendor, VendorModelCatalog>
+
+// ── Codex model controls ────────────────────────────────────────────────────
+
+export type CodexReasoningEffort = 'low' | 'medium' | 'high' | 'xhigh'
+
+export const CODEX_REASONING_EFFORTS: CodexReasoningEffort[] = [
+  'low',
+  'medium',
+  'high',
+  'xhigh'
+]
+
+export interface CodexServiceTierOption {
+  /** Exact string passed to Codex config `service_tier`. */
+  id: string
+  label: string
+  description?: string
+}
 
 // ── Normalized event stream ──────────────────────────────────────────────────
 // Every CLI's stdout is parsed down to this common stream so the orchestration
@@ -82,6 +105,10 @@ export interface RunConfig {
   prompt: string
   cwd: string
   model?: string
+  /** Codex-only: passed as `-c model_reasoning_effort="<value>"`. */
+  codexReasoningEffort?: CodexReasoningEffort
+  /** Codex-only: passed as `-c service_tier="<value>"`. */
+  codexServiceTier?: string
   addDirs?: string[]
   appendSystemPrompt?: string
   outputSchema?: JSONSchema
@@ -107,6 +134,8 @@ export interface AgentDefinition {
   role: string
   vendor: AgentVendor
   model?: string
+  codexReasoningEffort?: CodexReasoningEffort
+  codexServiceTier?: string
   /** System prompt injected via --append-system-prompt at run time. */
   systemPrompt: string
   /** CLI permission mode for this agent. Defaults to bypassPermissions. */

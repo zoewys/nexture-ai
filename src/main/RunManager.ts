@@ -100,6 +100,8 @@ export class RunManager {
       prompt: config.prompt,
       cwd: config.cwd,
       model: config.model,
+      codexReasoningEffort: config.codexReasoningEffort,
+      codexServiceTier: config.codexServiceTier,
       addDirs: config.addDirs,
       appendSystemPrompt: config.appendSystemPrompt,
       outputSchema: config.outputSchema,
