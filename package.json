@@ -14,7 +14,8 @@
     "test:codex-options": "node scripts/codexOptions.test.mjs",
     "typecheck:node": "tsc --noEmit -p tsconfig.node.json --composite false",
     "typecheck:web": "tsc --noEmit -p tsconfig.web.json --composite false",
-    "typecheck": "npm run typecheck:node && npm run typecheck:web"
+    "typecheck": "npm run typecheck:node && npm run typecheck:web",
+    "test:codex-stderr-noise": "node tests/codex-stderr-noise.test.mjs"
   },
   "dependencies": {
     "electron-updater": "^6.1.7"

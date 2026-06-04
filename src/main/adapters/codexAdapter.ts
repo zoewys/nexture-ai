@@ -42,14 +42,10 @@ export class CodexAdapter implements CliAdapter {
           }
         },
         onStderr: (text) => {
-          // Codex's MCP client logs noisy transport errors to stderr when an
-          // upstream MCP server is unreachable or its OAuth token expired.
-          // These don't affect the main exec flow, so suppress them rather
-          // than scaring the user with red text in the UI.
-          const filtered = text
-            .split('\n')
-            .filter((line) => line.trim() && !isMcpNoise(line))
-            .join('\n')
+          // Codex writes some non-actionable diagnostics to stderr. These do
+          // not affect the exec flow, so suppress them rather than filling the
+          // transcript with warning blocks.
+          const filtered = filterCodexStderr(text)
           if (filtered) queue.push({ kind: 'stderr', text: filtered })
         },
         onSpawnError: (err) => {
@@ -89,14 +85,25 @@ export class CodexAdapter implements CliAdapter {
   }
 }
 
-/** Recognize codex's MCP transport chatter so we don't surface it to the UI. */
-function isMcpNoise(text: string): boolean {
-  return (
-    /rmcp::transport::worker/.test(text) ||
-    /MCP grant token/.test(text) ||
-    /grant token not valid/.test(text) ||
-    /Missing or invalid access token/.test(text) ||
-    /AuthRequired\b/.test(text) ||
-    /UnexpectedContentType/.test(text)
+/** Remove Codex's benign stderr chatter while preserving actionable stderr. */
+function filterCodexStderr(text: string): string {
+  const withoutPluginAssetIconWarnings = text.replace(
+    /(?:\S+\s+WARN\s+)?codex_core_skills::loader: ignoring\s+interface\.icon_(?:small|large): icon path with '\.\.' must\s+resolve under plugin assets\/?/g,
+    ''
   )
+
+  return withoutPluginAssetIconWarnings
+    .split('\n')
+    .filter((line) => {
+      if (!line.trim()) return false
+      return !(
+        /rmcp::transport::worker/.test(line) ||
+        /MCP grant token/.test(line) ||
+        /grant token not valid/.test(line) ||
+        /Missing or invalid access token/.test(line) ||
+        /AuthRequired\b/.test(line) ||
+        /UnexpectedContentType/.test(line)
+      )
+    })
+    .join('\n')
 }
