@@ -17,6 +17,7 @@ import { CodexOptions } from './CodexOptions'
 import { ModelSelect } from './ModelSelect'
 import { TranscriptViewer } from './TranscriptViewer'
 import { WorkflowPanel } from './WorkflowPanel'
+import { formatHandoffDisplay } from './handoffDisplay'
 import { GitBranch, Play, Bot, FolderOpen, Send, Plus, RotateCcw, CheckCircle } from './Icons'
 
 type WorkspaceMode = 'workflow' | 'single' | 'agents'
@@ -625,20 +626,48 @@ function HandoffPanel({
 }: {
   handoff: NonNullable<WorkflowRun['steps'][number]['executions'][number]['handoff']>
 }): JSX.Element {
+  const display = formatHandoffDisplay(handoff)
+
   return (
     <div className="handoff-panel">
-      <div className="section-title"><CheckCircle size={14} /> 移交摘要</div>
-      <p>{handoff.summary}</p>
-      {handoff.artifacts.length > 0 && (
-        <ul>
-          {handoff.artifacts.map((artifact, index) => (
-            <li key={`${artifact.path}-${index}`}>
-              <strong>{artifact.path}</strong> · {artifact.description}
-            </li>
-          ))}
-        </ul>
+      <div className="handoff-panel-header">
+        <div className="section-title"><CheckCircle size={14} /> Parsed Handoff JSON</div>
+        <span className="handoff-panel-status">Ready to confirm</span>
+      </div>
+
+      <section className="handoff-section">
+        <h3>{display.summary.label}</h3>
+        <p>{display.summary.text}</p>
+      </section>
+
+      <section className="handoff-section">
+        <h3>{display.artifacts.label}</h3>
+        {display.artifacts.rows.length > 0 ? (
+          <div className="handoff-artifact-table" role="table" aria-label="Handoff artifacts">
+            <div className="handoff-artifact-row handoff-artifact-head" role="row">
+              {display.artifacts.headers.map((header) => (
+                <span key={header} role="columnheader">{header}</span>
+              ))}
+            </div>
+            {display.artifacts.rows.map((artifact, index) => (
+              <div className="handoff-artifact-row" role="row" key={`${artifact.path}-${index}`}>
+                <span className="handoff-artifact-type" role="cell">{artifact.type}</span>
+                <code role="cell">{artifact.path}</code>
+                <span role="cell">{artifact.description}</span>
+              </div>
+            ))}
+          </div>
+        ) : (
+          <p className="handoff-empty">{display.artifacts.emptyText}</p>
+        )}
+      </section>
+
+      {display.guidance && (
+        <section className="handoff-section">
+          <h3>{display.guidance.label}</h3>
+          <p>{display.guidance.text}</p>
+        </section>
       )}
-      {handoff.nextStepGuidance && <p className="field-hint">{handoff.nextStepGuidance}</p>}
     </div>
   )
 }
