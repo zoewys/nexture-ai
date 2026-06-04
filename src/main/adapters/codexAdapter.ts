@@ -44,11 +44,10 @@ export class CodexAdapter implements CliAdapter {
           for (const ev of parseCodexLine(line)) queue.push(ev)
         },
         onStderr: (text) => {
-          // Codex's MCP client logs noisy transport errors to stderr when an
-          // upstream MCP server is unreachable or its OAuth token expired.
-          // These don't affect the main exec flow, so suppress them rather
-          // than scaring the user with red text in the UI.
-          if (isMcpNoise(text)) return
+          // Codex writes some non-actionable diagnostics to stderr. These do
+          // not affect the exec flow, so suppress them rather than filling the
+          // transcript with warning blocks.
+          if (isCodexStderrNoise(text)) return
           queue.push({ kind: 'stderr', text })
         },
         onSpawnError: (err) => {
@@ -86,9 +85,14 @@ export class CodexAdapter implements CliAdapter {
   }
 }
 
-/** Recognize codex's MCP transport chatter so we don't surface it to the UI. */
-function isMcpNoise(text: string): boolean {
+/** Recognize Codex's benign stderr chatter so we don't surface it to the UI. */
+function isCodexStderrNoise(text: string): boolean {
+  const normalized = text.replace(/\s+/g, ' ')
+  const pluginAssetIconWarning =
+    /codex_core_skills::loader: ignoring interface\.icon_(?:small|large): icon path with '\.\.' must resolve under plugin assets\//.test(normalized)
+
   return (
+    pluginAssetIconWarning ||
     /rmcp::transport::worker/.test(text) ||
     /MCP grant token/.test(text) ||
     /grant token not valid/.test(text) ||
