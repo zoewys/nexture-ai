@@ -1,5 +1,12 @@
 import { useEffect, useMemo, useState } from 'react'
-import type { AgentDefinition, AgentVendor, CliCheckResult, RunConfig, WorkflowRun } from '@shared/types'
+import type {
+  AgentDefinition,
+  AgentEvent,
+  AgentVendor,
+  CliCheckResult,
+  RunConfig,
+  WorkflowRun
+} from '@shared/types'
 import { ALL_VENDORS } from '@shared/types'
 import { useRun } from './useRun'
 import { useAgents } from './useAgents'
@@ -81,28 +88,31 @@ export function App(): JSX.Element {
     if (dir) setCwd(dir)
   }
 
-  const canResume = !state.running && state.sessionId !== null && vendor === 'claude'
+  const canFollowUp = !state.running && state.events.length > 0
+  const canResume = canFollowUp && state.sessionId !== null
   const canInterject = state.running && vendor === 'claude'
-  const composerEnabled = canResume || canInterject
+  const composerEnabled = canFollowUp || canInterject
   const modelInfo = modelCatalog?.[vendor] ?? null
 
   const handleComposerSend = async (): Promise<void> => {
     const text = interjection.trim()
-    if (!text) return
-    setInterjection('')
-    if (state.running) {
+    if (!text || !composerEnabled) return
+    if (canInterject) {
+      setInterjection('')
       await push(text)
-    } else if (canResume) {
+    } else if (canFollowUp) {
+      setInterjection('')
+      const resumeFrom = state.sessionId ? { sessionId: state.sessionId, vendor } : undefined
       const config: RunConfig = {
         vendor,
-        prompt: text,
+        prompt: resumeFrom ? text : buildSingleRunFollowUpPrompt(prompt, state.events, text),
         cwd: cwd.trim(),
         model: model.trim() || undefined,
-        resumeFrom: { sessionId: state.sessionId!, vendor },
+        resumeFrom,
         appendSystemPrompt: selectedAgent?.systemPrompt,
         permissionMode: selectedAgent?.permissionMode
       }
-      await continueSession(config)
+      await continueSession(config, text)
     }
   }
 
@@ -115,17 +125,24 @@ export function App(): JSX.Element {
   const selectedWorkflowAgent = selectedWorkflowStepState
     ? agents.find((agent) => agent.id === selectedWorkflowStepState.agentId) ?? null
     : null
+  const workflowStepStatus = selectedWorkflowStepState?.status ?? null
+  const workflowCanInterject =
+    selectedWorkflowAgent?.vendor === 'claude' && workflowStepStatus === 'running'
+  const workflowCanContinue =
+    !!selectedWorkflowExecution?.sessionId &&
+    workflowStepStatus !== null &&
+    workflowStepStatus !== 'pending' &&
+    workflowStepStatus !== 'running'
   const workflowComposerEnabled =
-    !!workflows.currentRun &&
-    selectedWorkflowAgent?.vendor === 'claude' &&
-    selectedWorkflowStepState?.status !== 'pending' &&
-    !!selectedWorkflowExecution?.sessionId
+    !!workflows.currentRun && (workflowCanInterject || workflowCanContinue)
   const workflowComposerPlaceholder = !workflows.currentRun
     ? '请先启动一个工作流...'
-    : selectedWorkflowAgent?.vendor !== 'claude'
-        ? '仅 Claude 步骤支持实时对话'
+    : !selectedWorkflowAgent
+        ? '当前步骤没有可用 agent'
+        : selectedWorkflowStepState?.status === 'running' && selectedWorkflowAgent.vendor !== 'claude'
+          ? `${selectedWorkflowAgent.vendor} 运行中暂不支持实时输入`
         : !selectedWorkflowExecution?.sessionId
-          ? '当前步骤暂无活跃会话'
+          ? '当前步骤暂无可继续的会话'
           : selectedWorkflowStepState?.status === 'running'
             ? '向运行中的 agent 发送消息...'
             : selectedWorkflowStepState?.status === 'error'
@@ -399,12 +416,16 @@ export function App(): JSX.Element {
                         disabled={!composerEnabled}
                         placeholder={
                           canInterject
-                            ? 'Interject (only affects the current agent)...'
+                            ? '向运行中的 agent 发送消息...'
                             : canResume
-                              ? 'Continue this session...'
-                              : vendor === 'claude'
-                                ? 'Start a run first to create a session...'
-                                : 'Only claude supports session resume'
+                              ? '继续此会话...'
+                              : canFollowUp
+                                ? '继续对话（将基于当前 transcript 重建上下文）...'
+                                : vendor === 'claude'
+                                  ? '先启动一次运行以创建会话...'
+                                  : state.running
+                                    ? `${vendor} 运行中暂不支持实时输入`
+                                    : '先启动一次运行以创建对话...'
                         }
                         onChange={(e) => setInterjection(e.target.value)}
                         onKeyDown={(e) => {
@@ -416,7 +437,7 @@ export function App(): JSX.Element {
                         disabled={!composerEnabled}
                         type="button"
                       >
-                        <Send size={14} /> Send
+                        <Send size={14} /> 发送
                       </button>
                     </div>
                   )}
@@ -432,6 +453,35 @@ export function App(): JSX.Element {
       </div>
     </div>
   )
+}
+
+function buildSingleRunFollowUpPrompt(
+  initialPrompt: string,
+  events: AgentEvent[],
+  nextText: string
+): string {
+  const transcript = events
+    .flatMap((event): string[] => {
+      if (event.kind === 'message') return [`Assistant: ${event.text}`]
+      if (event.kind === 'system' && event.text.startsWith('↳ you: ')) {
+        return [`User: ${event.text.slice('↳ you: '.length)}`]
+      }
+      return []
+    })
+    .join('\n\n')
+
+  return [
+    'Continue the earlier conversation. The CLI did not provide a resumable session id, so use this transcript as context.',
+    '',
+    initialPrompt.trim() ? `User: ${initialPrompt.trim()}` : '',
+    transcript,
+    '',
+    '---',
+    '',
+    `Now respond to this new message:\n${nextText}`
+  ]
+    .filter((part) => part.trim())
+    .join('\n\n')
 }
 
 // ── workflow runtime sub-components ─────────────────────────────────────
@@ -561,7 +611,7 @@ function WorkflowRuntime({
             }}
           />
           <button onClick={() => void onComposerSend()} disabled={!composerEnabled} type="button">
-            <Send size={14} /> Send
+            <Send size={14} /> 发送
           </button>
         </div>
         {composerError && <div className="workflow-input-error">{composerError}</div>}

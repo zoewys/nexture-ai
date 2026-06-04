@@ -1,126 +1,243 @@
 import type { AgentEvent } from '@shared/types'
 
-/**
- * Parses one line of `codex exec --json` stdout into zero or more normalized
- * AgentEvents.  Defensive: unknown shapes produce no events rather than
- * throwing, so a CLI format tweak can't crash the run.
- *
- * Codex --json output is newline-delimited JSON.  Observed shapes overlap
- * heavily with the Claude stream-json envelope:
- *
- *   {"type":"system","subtype":"init","session_id":"…","model":"…"}
- *   {"type":"assistant","message":{"content":[{type:"text",text},…]}}
- *   {"type":"user","message":{"content":[{type:"tool_result",tool_use_id,content,is_error}]}}
- *   {"type":"result","subtype":"success"|"error…","usage":{input_tokens,output_tokens},"session_id":"…"}
- *   {"type":"stream_event","event":{"delta":{"type":"text_delta","text":"…"}}}
- */
-export function parseCodexLine(line: string): AgentEvent[] {
-  let obj: any
-  try {
-    obj = JSON.parse(line)
-  } catch {
-    // Not JSON — surface as a system note so the UI isn't silent.
-    return [{ kind: 'system', text: line }]
+type CodexItem = Record<string, unknown> & { id?: unknown; type?: unknown }
+
+export function createCodexParser(): (line: string) => AgentEvent[] {
+  let sessionId = ''
+  const lastTextByItem = new Map<string, string>()
+
+  const deltaForText = (id: string, text: string): string => {
+    const previous = lastTextByItem.get(id) ?? ''
+    lastTextByItem.set(id, text)
+    return text.startsWith(previous) ? text.slice(previous.length) : text
   }
-  if (!obj || typeof obj !== 'object') return []
 
-  const sessionId: string = obj.session_id ?? ''
+  return function parseCodexLine(line: string): AgentEvent[] {
+    const trimmed = line.trim()
+    if (!trimmed || /^Reading additional input from stdin/i.test(trimmed)) return []
 
-  switch (obj.type) {
-    case 'system':
-      if (obj.subtype === 'init' && sessionId) {
-        return [{ kind: 'session-started', sessionId, vendor: 'codex' }]
-      }
-      return []
-
-    case 'assistant':
-      return parseAssistantContent(obj?.message?.content)
-
-    case 'user':
-      return parseToolResults(obj?.message?.content)
-
-    case 'result': {
-      const events: AgentEvent[] = []
-      const usage = obj.usage
-      if (usage) {
-        events.push({
-          kind: 'usage',
-          inputTokens: num(usage.input_tokens),
-          outputTokens: num(usage.output_tokens),
-          costUsd: typeof obj.total_cost_usd === 'number' ? obj.total_cost_usd : undefined
-        })
-      }
-      const isError =
-        typeof obj.subtype === 'string' && obj.subtype !== 'success'
-      events.push({
-        kind: 'turn-done',
-        sessionId,
-        reason: isError ? 'error' : 'complete'
-      })
-      return events
-    }
-
-    case 'stream_event': {
-      const delta = obj?.event?.delta
-      if (delta?.type === 'text_delta' && typeof delta.text === 'string') {
-        return [{ kind: 'message-delta', text: delta.text }]
-      }
+    let obj: Record<string, unknown>
+    try {
+      obj = JSON.parse(trimmed) as Record<string, unknown>
+    } catch {
       return []
     }
+
+    switch (obj.type) {
+      case 'thread.started': {
+        const threadId = stringValue(obj.thread_id)
+        if (!threadId) return []
+        sessionId = threadId
+        return [{ kind: 'session-started', sessionId: threadId, vendor: 'codex' }]
+      }
+
+      case 'turn.started':
+        return []
+
+      case 'item.started':
+        return parseItemStarted(itemValue(obj.item))
+
+      case 'item.updated':
+        return parseItemUpdated(itemValue(obj.item), deltaForText)
+
+      case 'item.completed':
+        return parseItemCompleted(itemValue(obj.item), lastTextByItem)
+
+      case 'turn.completed':
+        return [
+          {
+            kind: 'usage',
+            inputTokens: num((obj.usage as Record<string, unknown> | undefined)?.input_tokens),
+            outputTokens: num((obj.usage as Record<string, unknown> | undefined)?.output_tokens)
+          },
+          { kind: 'turn-done', sessionId, reason: 'complete' }
+        ]
+
+      case 'turn.failed': {
+        const message =
+          stringValue((obj.error as Record<string, unknown> | undefined)?.message) ??
+          'codex turn failed'
+        return [
+          { kind: 'error', recoverable: false, message },
+          { kind: 'turn-done', sessionId, reason: 'error' }
+        ]
+      }
+
+      case 'error':
+        return [
+          {
+            kind: 'error',
+            recoverable: false,
+            message: stringValue(obj.message) ?? 'codex error',
+            raw: obj
+          }
+        ]
+
+      default:
+        return []
+    }
+  }
+}
+
+export const parseCodexLine = createCodexParser()
+
+function parseItemStarted(item: CodexItem | null): AgentEvent[] {
+  if (!item) return []
+  const id = stringValue(item.id) ?? ''
+  switch (item.type) {
+    case 'command_execution': {
+      const command = stringValue(item.command) ?? ''
+      return [{ kind: 'tool-call', id, name: 'bash', input: { command } }]
+    }
+    case 'mcp_tool_call': {
+      const server = stringValue(item.server) ?? 'unknown'
+      const tool = stringValue(item.tool) ?? 'unknown'
+      return [
+        {
+          kind: 'tool-call',
+          id,
+          name: `mcp:${server}:${tool}`,
+          input: item.arguments ?? {}
+        }
+      ]
+    }
+    default:
+      return []
+  }
+}
+
+function parseItemUpdated(
+  item: CodexItem | null,
+  deltaForText: (id: string, text: string) => string
+): AgentEvent[] {
+  if (!item) return []
+  const id = stringValue(item.id) ?? ''
+  const text = stringValue(item.text)
+  if (!id || !text) return []
+
+  const delta = deltaForText(id, text)
+  if (!delta) return []
+
+  switch (item.type) {
+    case 'agent_message':
+      return [{ kind: 'message-delta', text: delta }]
+    case 'reasoning':
+      return [{ kind: 'thinking', text: delta }]
+    default:
+      return []
+  }
+}
+
+function parseItemCompleted(
+  item: CodexItem | null,
+  lastTextByItem: Map<string, string>
+): AgentEvent[] {
+  if (!item) return []
+  const id = stringValue(item.id) ?? ''
+
+  switch (item.type) {
+    case 'agent_message': {
+      if (id) lastTextByItem.delete(id)
+      const text = stringValue(item.text)
+      return text ? [{ kind: 'message', role: 'assistant', text }] : []
+    }
+
+    case 'reasoning': {
+      if (id) lastTextByItem.delete(id)
+      const text = stringValue(item.text)
+      return text ? [{ kind: 'thinking', text }] : []
+    }
+
+    case 'command_execution': {
+      return [
+        {
+          kind: 'tool-result',
+          id,
+          ok: item.status === 'completed' && num(item.exit_code) === 0,
+          output: item.aggregated_output ?? ''
+        }
+      ]
+    }
+
+    case 'mcp_tool_call': {
+      const error = item.error as Record<string, unknown> | null | undefined
+      return [
+        {
+          kind: 'tool-result',
+          id,
+          ok: item.status === 'success',
+          output:
+            (item.result as Record<string, unknown> | undefined)?.content ??
+            item.result ??
+            error?.message ??
+            error ??
+            ''
+        }
+      ]
+    }
+
+    case 'file_change':
+      return parseFileChanges(item.changes)
+
+    case 'web_search':
+      return [
+        {
+          kind: 'tool-result',
+          id,
+          ok: true,
+          output: item.query ?? item
+        }
+      ]
+
+    case 'todo_list':
+      return [{ kind: 'system', text: `todo: ${safeStringify(item)}` }]
+
+    case 'error':
+      return [
+        {
+          kind: 'error',
+          recoverable: false,
+          message: stringValue(item.message) ?? stringValue(item.text) ?? 'codex item error',
+          raw: item
+        }
+      ]
 
     default:
-      // Best-effort: if the object carries a top-level text or content
-      // string, forward it so the user sees something rather than nothing.
-      if (typeof obj.text === 'string' && obj.text.length > 0) {
-        return [{ kind: 'message', role: 'assistant', text: obj.text }]
-      }
-      if (typeof obj.content === 'string' && obj.content.length > 0) {
-        return [{ kind: 'message', role: 'assistant', text: obj.content }]
-      }
       return []
   }
 }
 
-function parseAssistantContent(content: unknown): AgentEvent[] {
-  if (!Array.isArray(content)) return []
-  const events: AgentEvent[] = []
-  for (const block of content) {
-    if (!block || typeof block !== 'object') continue
-    const b = block as any
-    if (b.type === 'text' && typeof b.text === 'string' && b.text.length > 0) {
-      events.push({ kind: 'message', role: 'assistant', text: b.text })
-    } else if (b.type === 'thinking' && typeof b.thinking === 'string') {
-      events.push({ kind: 'thinking', text: b.thinking })
-    } else if (b.type === 'tool_use') {
-      events.push({
-        kind: 'tool-call',
-        id: String(b.id ?? ''),
-        name: String(b.name ?? 'unknown'),
-        input: b.input ?? {}
-      })
-    }
-  }
-  return events
+function parseFileChanges(changes: unknown): AgentEvent[] {
+  if (!Array.isArray(changes)) return []
+  return changes
+    .map((change): AgentEvent | null => {
+      if (!change || typeof change !== 'object') return null
+      const item = change as Record<string, unknown>
+      const path = stringValue(item.path)
+      if (!path) return null
+      const kind = item.kind
+      const op = kind === 'add' ? 'create' : kind === 'delete' ? 'delete' : 'modify'
+      return { kind: 'file-changed', path, op }
+    })
+    .filter((event): event is AgentEvent => event !== null)
 }
 
-function parseToolResults(content: unknown): AgentEvent[] {
-  if (!Array.isArray(content)) return []
-  const events: AgentEvent[] = []
-  for (const block of content) {
-    if (!block || typeof block !== 'object') continue
-    const b = block as any
-    if (b.type === 'tool_result') {
-      events.push({
-        kind: 'tool-result',
-        id: String(b.tool_use_id ?? ''),
-        ok: b.is_error !== true,
-        output: b.content ?? ''
-      })
-    }
-  }
-  return events
+function itemValue(value: unknown): CodexItem | null {
+  return value && typeof value === 'object' ? (value as CodexItem) : null
 }
 
-function num(v: unknown): number {
-  return typeof v === 'number' && Number.isFinite(v) ? v : 0
+function stringValue(value: unknown): string | null {
+  return typeof value === 'string' ? value : null
+}
+
+function num(value: unknown): number {
+  return typeof value === 'number' && Number.isFinite(value) ? value : 0
+}
+
+function safeStringify(value: unknown): string {
+  try {
+    return JSON.stringify(value)
+  } catch {
+    return String(value)
+  }
 }

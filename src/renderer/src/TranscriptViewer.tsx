@@ -219,7 +219,13 @@ function groupEvents(events: AgentEvent[]): Block[] {
         pending += ev.text
         break
       case 'message':
-        flush()
+        if (pending) {
+          if (ev.text.startsWith(pending)) {
+            pending = ''
+          } else {
+            flush()
+          }
+        }
         blocks.push({ kind: 'message', text: ev.text, role: ev.role })
         break
       case 'thinking':

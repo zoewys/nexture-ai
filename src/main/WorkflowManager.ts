@@ -170,14 +170,11 @@ export class WorkflowManager {
     const step = run.steps[stepIndex]
     const previous = latestExecution(step)
     if (!previous?.sessionId) {
-      throw new Error('Selected workflow step has no Claude session to continue')
+      throw new Error('Selected workflow step has no session to continue')
     }
 
     const agent = this.agentStore.list().find((candidate) => candidate.id === step.agentId)
     if (!agent) throw new Error(`Agent not found: ${step.agentId}`)
-    if (agent.vendor !== 'claude') {
-      throw new Error('Only Claude workflow steps can continue a finished conversation')
-    }
 
     const prompt = [
       clean,
