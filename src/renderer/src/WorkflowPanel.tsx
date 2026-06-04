@@ -1,6 +1,7 @@
 import { useEffect, useMemo, useState } from 'react'
 import type { AgentDefinition, WorkflowTemplate } from '@shared/types'
 import type { WorkflowDraft } from './useWorkflows'
+import { GitBranch, Plus, Save, Trash2, Play, FolderOpen, X } from './Icons'
 
 export interface WorkflowPanelProps {
   agents: AgentDefinition[]
@@ -71,12 +72,12 @@ export function WorkflowPanel({
 
   return (
     <section className="workflow-panel">
-      <div className="section-title">工作流</div>
+      <div className="section-title"><GitBranch size={14} /> Workflow</div>
 
       <label className="field">
-        <span>模板</span>
+        <span>Template</span>
         <select value={templateId} onChange={(e) => setTemplateId(e.target.value)}>
-          <option value="">新建工作流</option>
+          <option value="">New Workflow</option>
           {templates.map((template) => (
             <option key={template.id} value={template.id}>
               {template.name}
@@ -86,23 +87,23 @@ export function WorkflowPanel({
       </label>
 
       <label className="field">
-        <span>名称</span>
-        <input value={name} placeholder="例如：需求 → 开发" onChange={(e) => setName(e.target.value)} />
+        <span>Name</span>
+        <input value={name} placeholder='e.g. "Design → Develop → Test"' onChange={(e) => setName(e.target.value)} />
       </label>
 
       <label className="field">
-        <span>描述</span>
-        <input value={description} placeholder="可选" onChange={(e) => setDescription(e.target.value)} />
+        <span>Description</span>
+        <input value={description} placeholder="Optional" onChange={(e) => setDescription(e.target.value)} />
       </label>
 
       <div className="workflow-steps-editor">
         <div className="field-row field-row-between">
-          <span className="mini-label">步骤</span>
+          <span className="mini-label">Steps</span>
           <button type="button" onClick={addStep} disabled={agents.length === 0}>
-            + 步骤
+            <Plus size={14} /> Step
           </button>
         </div>
-        {stepAgentIds.length === 0 && <div className="field-hint">至少添加一个智能体步骤。</div>}
+        {stepAgentIds.length === 0 && <div className="field-hint">Add at least one agent step.</div>}
         {stepAgentIds.map((agentId, index) => (
           <div className="workflow-step-edit" key={`${index}-${agentId}`}>
             <span>{index + 1}</span>
@@ -116,7 +117,7 @@ export function WorkflowPanel({
             >
               {agents.map((agent) => (
                 <option key={agent.id} value={agent.id}>
-                  {agent.name || '未命名'} · {agent.vendor}
+                  {agent.name || 'Unnamed'} · {agent.vendor}
                 </option>
               ))}
             </select>
@@ -124,7 +125,7 @@ export function WorkflowPanel({
               type="button"
               onClick={() => setStepAgentIds((prev) => prev.filter((_, i) => i !== index))}
             >
-              移除
+              <X size={14} /> Remove
             </button>
           </div>
         ))}
@@ -132,38 +133,38 @@ export function WorkflowPanel({
 
       <div className="actions">
         <button type="button" className="primary" disabled={!canSave} onClick={saveTemplate}>
-          保存工作流
+          <Save size={14} /> Save Workflow
         </button>
         {selectedTemplate && (
           <button type="button" onClick={() => onDelete(selectedTemplate.id)}>
-            删除
+            <Trash2 size={14} /> Delete
           </button>
         )}
       </div>
 
       <label className="field">
-        <span>项目目录</span>
+        <span>Project Directory</span>
         <div className="field-row">
           <input value={projectPath} placeholder="/path/to/project" onChange={(e) => setProjectPath(e.target.value)} />
           <button type="button" onClick={pickDir}>
-            选择
+            <FolderOpen size={14} /> Browse
           </button>
         </div>
       </label>
 
       <label className="field">
-        <span>初始需求</span>
+        <span>Initial Prompt</span>
         <textarea
           className="workflow-prompt"
           value={initialPrompt}
-          placeholder="描述这个工作流要完成的任务..."
+          placeholder="Describe the task for this workflow..."
           onChange={(e) => setInitialPrompt(e.target.value)}
         />
       </label>
 
       <div className="actions">
         <button type="button" className="primary" disabled={!canStart} onClick={startRun}>
-          启动工作流
+          <Play size={14} /> Start Workflow
         </button>
       </div>
     </section>

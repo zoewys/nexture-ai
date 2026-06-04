@@ -9,6 +9,7 @@ import type {
 import { ALL_VENDORS, PERMISSION_MODES } from '@shared/types'
 import type { AgentDraft } from './useAgents'
 import { ModelSelect } from './ModelSelect'
+import { Bot, Plus, Save, Trash2 } from './Icons'
 
 export interface AgentManagerProps {
   agents: AgentDefinition[]
@@ -57,120 +58,115 @@ export function AgentManager({ agents, clis, modelCatalog, onSave, onDelete, onC
   }
 
   return (
-    // eslint-disable-next-line jsx-a11y/click-events-have-key-events
-    <div className="modal-overlay" onClick={onClose} role="dialog">
-      <div className="modal" onClick={(e) => e.stopPropagation()}>
-        <div className="modal-body">
-          {/* ── sidebar: agent list ──────────────────────────────────── */}
-          <aside className="agent-list">
-            <div className="agent-list-header">
-              <span>智能体</span>
-              <button className="primary" onClick={startNew} type="button">+ 新建</button>
-            </div>
-            {agents.length === 0 && (
-              <div className="transcript-empty">还没有定义智能体。</div>
-            )}
-            {agents.map((a) => (
-              <button
-                key={a.id}
-                className={`agent-item ${editingId === a.id ? 'agent-item-active' : ''}`}
-                onClick={() => select(a)}
-              type="button"
-            >
-                <div className="agent-item-name">{a.name || '未命名'}</div>
-                <div className="agent-item-meta">
-                  {a.role} · {a.vendor}
-                  {a.model ? ` · ${a.model}` : ''}
-                </div>
-              </button>
-            ))}
-          </aside>
-
-          {/* ── main: editor form ────────────────────────────────────── */}
-          <div className="agent-editor">
-            {editingId === null && !isNew ? (
-              <div className="transcript-empty">选择一个智能体，或新建一个。</div>
-            ) : (
-              <>
-                <label className="field">
-                  <span>名称</span>
-                  <input
-                    value={draft.name}
-                    placeholder="例如：资深产品经理"
-                    onChange={(e) => setDraft((d) => ({ ...d, name: e.target.value }))}
-                  />
-                </label>
-
-                <label className="field">
-                  <span>角色</span>
-                  <input
-                    value={draft.role}
-                    placeholder="例如：产品、设计、开发、测试"
-                    onChange={(e) => setDraft((d) => ({ ...d, role: e.target.value }))}
-                  />
-                </label>
-
-                <div className="field-row">
-                  <label className="field field-grow">
-                    <span>CLI 类型</span>
-                    <select
-                      value={draft.vendor}
-                      onChange={(e) => setDraft((d) => ({ ...d, vendor: e.target.value as AgentVendor }))}
-                    >
-                      {ALL_VENDORS.map((v) => (
-                        <option key={v} value={v}>
-                          {v}
-                          {!cliAvailable(v) ? '（未安装）' : ''}
-                        </option>
-                      ))}
-                    </select>
-                  </label>
-
-                  <label className="field field-grow">
-                    <span>模型（可选）</span>
-                    <ModelSelect
-                      value={draft.model ?? ''}
-                      modelInfo={modelInfo}
-                      onChange={(model) => setDraft((d) => ({ ...d, model }))}
-                    />
-                  </label>
-                </div>
-
-                <label className="field">
-                  <span>权限模式</span>
-                  <select
-                    value={draft.permissionMode ?? 'bypassPermissions'}
-                    onChange={(e) => setDraft((d) => ({ ...d, permissionMode: e.target.value as PermissionMode }))}
-                  >
-                    {PERMISSION_MODES.map((m) => (
-                      <option key={m} value={m}>{permissionModeLabel(m)}</option>
-                    ))}
-                  </select>
-                </label>
-
-                <label className="field field-grow">
-                  <span>系统提示词</span>
-                  <textarea
-                    value={draft.systemPrompt}
-                    placeholder="你是一名资深产品经理。你的职责是..."
-                    onChange={(e) => setDraft((d) => ({ ...d, systemPrompt: e.target.value }))}
-                  />
-                </label>
-
-                <div className="actions">
-                  <button className="primary" onClick={handleSave} disabled={!draft.name.trim()} type="button">
-                    {isNew ? '创建' : '保存'}
-                  </button>
-                  {!isNew && (
-                    <button onClick={handleDelete} type="button" style={{ color: 'var(--red)' }}>
-                      删除
-                    </button>
-                  )}
-                </div>
-              </>
-            )}
-          </div>
+    <div className="agent-manager-body">
+      <aside className="agent-list">
+        <div className="agent-list-header">
+          <span><Bot size={14} /> Agents</span>
+          <button className="primary" onClick={startNew} type="button">
+            <Plus size={14} /> New
+          </button>
         </div>
+        {agents.length === 0 && (
+          <div className="transcript-empty">No agents defined yet.</div>
+        )}
+        {agents.map((a) => (
+          <button
+            key={a.id}
+            className={`agent-item ${editingId === a.id ? 'agent-item-active' : ''}`}
+            onClick={() => select(a)}
+          type="button"
+        >
+            <div className="agent-item-name">{a.name || 'Unnamed'}</div>
+            <div className="agent-item-meta">
+              {a.role} · {a.vendor}
+              {a.model ? ` · ${a.model}` : ''}
+            </div>
+          </button>
+        ))}
+      </aside>
+
+      <div className="agent-editor">
+        {editingId === null && !isNew ? (
+          <div className="transcript-empty">Select an agent or create one.</div>
+        ) : (
+          <>
+            <label className="field">
+              <span>Name</span>
+              <input
+                value={draft.name}
+                placeholder='e.g. "Senior Product Manager"'
+                onChange={(e) => setDraft((d) => ({ ...d, name: e.target.value }))}
+              />
+            </label>
+
+            <label className="field">
+              <span>Role</span>
+              <input
+                value={draft.role}
+                placeholder='e.g. "product", "dev", "test"'
+                onChange={(e) => setDraft((d) => ({ ...d, role: e.target.value }))}
+              />
+            </label>
+
+            <div className="field-row">
+              <label className="field field-grow">
+                <span>CLI</span>
+                <select
+                  value={draft.vendor}
+                  onChange={(e) => setDraft((d) => ({ ...d, vendor: e.target.value as AgentVendor }))}
+                >
+                  {ALL_VENDORS.map((v) => (
+                    <option key={v} value={v}>
+                      {v}
+                      {!cliAvailable(v) ? ' (not installed)' : ''}
+                    </option>
+                  ))}
+                </select>
+              </label>
+
+              <label className="field field-grow">
+                <span>Model</span>
+                <ModelSelect
+                  value={draft.model ?? ''}
+                  modelInfo={modelInfo}
+                  onChange={(model) => setDraft((d) => ({ ...d, model }))}
+                />
+              </label>
+            </div>
+
+            <label className="field">
+              <span>Permission Mode</span>
+              <select
+                value={draft.permissionMode ?? 'bypassPermissions'}
+                onChange={(e) => setDraft((d) => ({ ...d, permissionMode: e.target.value as PermissionMode }))}
+              >
+                {PERMISSION_MODES.map((m) => (
+                  <option key={m} value={m}>{permissionModeLabel(m)}</option>
+                ))}
+              </select>
+            </label>
+
+            <label className="field field-grow">
+              <span>System Prompt</span>
+              <textarea
+                value={draft.systemPrompt}
+                placeholder="You are a senior product manager. Your job is to..."
+                onChange={(e) => setDraft((d) => ({ ...d, systemPrompt: e.target.value }))}
+              />
+            </label>
+
+            <div className="actions">
+              <button className="primary" onClick={handleSave} disabled={!draft.name.trim()} type="button">
+                <Save size={14} /> {isNew ? 'Create' : 'Save'}
+              </button>
+              {!isNew && (
+                <button onClick={handleDelete} type="button" className="btn-danger">
+                  <Trash2 size={14} /> Delete
+                </button>
+              )}
+            </div>
+          </>
+        )}
       </div>
     </div>
   )
@@ -179,12 +175,12 @@ export function AgentManager({ agents, clis, modelCatalog, onSave, onDelete, onC
 function permissionModeLabel(mode: PermissionMode): string {
   switch (mode) {
     case 'default':
-      return '默认'
+      return 'Default'
     case 'acceptEdits':
-      return '自动接受编辑'
+      return 'Accept Edits'
     case 'bypassPermissions':
-      return '跳过权限确认'
+      return 'Bypass Permissions'
     case 'plan':
-      return '计划模式'
+      return 'Plan Mode'
   }
 }

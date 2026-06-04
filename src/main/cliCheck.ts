@@ -31,10 +31,9 @@ function probe(cmd: string): Promise<boolean> {
 }
 
 export async function checkClis(): Promise<CliCheckResult> {
-  const [claude, gemini, codex] = await Promise.all([
+  const [claude, codex] = await Promise.all([
     probe('claude'),
-    probe('gemini'),
     probe('codex')
   ])
-  return { claude, gemini, codex }
+  return { claude, codex }
 }

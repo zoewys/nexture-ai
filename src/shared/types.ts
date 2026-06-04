@@ -7,9 +7,9 @@
 
 // ── Vendors ────────────────────────────────────────────────────────────────
 
-export type AgentVendor = 'claude' | 'gemini' | 'codex'
+export type AgentVendor = 'claude' | 'codex'
 
-export const ALL_VENDORS: AgentVendor[] = ['claude', 'gemini', 'codex']
+export const ALL_VENDORS: AgentVendor[] = ['claude', 'codex']
 
 // ── CLI model catalogs ──────────────────────────────────────────────────────
 
@@ -101,7 +101,7 @@ export const PERMISSION_MODES: PermissionMode[] = ['default', 'acceptEdits', 'by
 
 export interface AgentDefinition {
   id: string
-  /** Display name, e.g. "资深产品经理". */
+  /** Display name, e.g. "Senior Product Manager". */
   name: string
   /** Free-form role label, e.g. "product" / "design" / "dev" / "test". */
   role: string
@@ -254,6 +254,5 @@ export interface RunEventEnvelope {
 
 export interface CliCheckResult {
   claude: boolean
-  gemini: boolean
   codex: boolean
 }

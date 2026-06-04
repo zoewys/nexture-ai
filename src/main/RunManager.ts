@@ -66,7 +66,7 @@ export class RunManager {
 
       if (!resumeFailed) return
 
-      onEvent(id, { kind: 'system', text: 'resume 失败，改用转录重建上下文重试' })
+      onEvent(id, { kind: 'system', text: 'resume failed, retrying with transcript context' })
       const rebuiltPrompt = this.transcripts.buildResumePrompt(
         config.resumeFrom!.sessionId,
         config.prompt

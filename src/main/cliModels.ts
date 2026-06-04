@@ -24,20 +24,17 @@ interface CodexRawModel {
 const PROBE_MODEL = '__agent_studio_model_probe__'
 
 export async function listCliModels(): Promise<ModelCatalog> {
-  const [claude, gemini, codex] = await Promise.all([
+  const [claude, codex] = await Promise.all([
     listVendorModels('claude'),
-    listVendorModels('gemini'),
     listVendorModels('codex')
   ])
-  return { claude, gemini, codex }
+  return { claude, codex }
 }
 
 async function listVendorModels(vendor: AgentVendor): Promise<VendorModelCatalog> {
   switch (vendor) {
     case 'claude':
       return listClaudeModels()
-    case 'gemini':
-      return listGeminiModels()
     case 'codex':
       return listCodexModels()
   }
@@ -54,7 +51,7 @@ async function listClaudeModels(): Promise<VendorModelCatalog> {
     return {
       models: toOptions(probeModels),
       source: 'cli',
-      message: '已从 Claude 模型校验结果读取'
+      message: 'Read from Claude CLI model validation'
     }
   }
 
@@ -64,24 +61,11 @@ async function listClaudeModels(): Promise<VendorModelCatalog> {
     return {
       models: toOptions(helpModels),
       source: 'cli-help',
-      message: 'Claude CLI 只在帮助信息中暴露模型别名'
+      message: 'Claude CLI only exposes model aliases in help text'
     }
   }
 
-  return unavailable('Claude CLI 未暴露可选模型')
-}
-
-async function listGeminiModels(): Promise<VendorModelCatalog> {
-  const help = await runCommand('gemini', ['--help'], 5000)
-  const choices = extractChoicesForOption(`${help.stdout}\n${help.stderr}`, '--model')
-  if (choices.length > 0) {
-    return {
-      models: toOptions(choices),
-      source: 'cli-help',
-      message: '已从 gemini --help 读取'
-    }
-  }
-  return unavailable('Gemini CLI 未暴露可选模型；可以手动输入模型 ID')
+  return unavailable('Claude CLI did not expose available models')
 }
 
 async function listCodexModels(): Promise<VendorModelCatalog> {
@@ -101,10 +85,10 @@ async function listCodexModels(): Promise<VendorModelCatalog> {
     return {
       models,
       source: 'cli',
-      message: '已从 codex debug models 读取'
+      message: 'Read from codex debug models'
     }
   }
-  return unavailable('Codex CLI 未返回模型目录')
+  return unavailable('Codex CLI did not return model catalog')
 }
 
 function runCommand(cmd: string, args: string[], timeoutMs: number): Promise<CommandResult> {

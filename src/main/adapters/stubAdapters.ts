@@ -3,9 +3,8 @@ import type { CliAdapter, RunTurnInput } from './types'
 import { AsyncQueue } from './AsyncQueue'
 
 /**
- * Placeholder adapters for gemini/codex. M1 ships claude end-to-end; these
- * keep the factory total so the UI can list all vendors without crashing, and
- * get real implementations in M3 (see IMPLEMENTATION_PLAN.md §5).
+ * Placeholder adapters for vendors that are not yet implemented.
+ * See codexAdapter.ts for the real Codex implementation.
  */
 class StubAdapter implements CliAdapter {
   readonly capabilities: AdapterCapabilities = {
@@ -26,6 +25,3 @@ class StubAdapter implements CliAdapter {
     return queue
   }
 }
-
-export const geminiAdapter = (): CliAdapter => new StubAdapter('gemini')
-export const codexAdapter = (): CliAdapter => new StubAdapter('codex')

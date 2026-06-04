@@ -459,7 +459,7 @@ button:disabled {
   flex: 1;
   min-height: 0;
   overflow-y: auto;
-  padding: 16px;
+  padding: 0 16px 16px;
   display: flex;
   flex-direction: column;
   gap: 8px;
@@ -616,31 +616,432 @@ button:disabled {
   }
 }
 
-/* ── Agent Manager modal ─────────────────────────────────────────────── */
+/* ── CLI-style Transcript ───────────────────────────────────────────────── */
 
-.modal-overlay {
-  position: fixed;
-  inset: 0;
-  background: rgba(0, 0, 0, 0.6);
+/* ── status bar (sticky, always visible) ───────────────────────────────── */
+
+.status-bar {
+  position: sticky;
+  top: 0;
+  z-index: 5;
+  display: flex;
+  align-items: baseline;
+  gap: 8px;
+  padding: 10px 16px;
+  margin: 0 -16px;
+  background: var(--bg-panel);
+  border-bottom: 1px solid var(--border);
+  font-size: 13px;
+  font-weight: 500;
+}
+
+.status-dot {
+  display: inline-block;
+  width: 7px;
+  height: 7px;
+  border-radius: 50%;
+  flex-shrink: 0;
+}
+
+.status-dot-stream {
+  background: var(--accent);
+  animation: think-pulse 0.8s ease-in-out infinite;
+}
+
+.status-dot-think {
+  background: var(--purple);
+  animation: think-pulse 1.2s ease-in-out infinite;
+}
+
+.status-dot-tool {
+  background: var(--accent);
+  animation: think-pulse 0.6s ease-in-out infinite;
+}
+
+@keyframes think-pulse {
+  0%, 100% { opacity: 0.3; }
+  50% { opacity: 1; }
+}
+
+.status-hint {
+  color: var(--text-dim);
+  font-size: 12px;
+  font-weight: 400;
+  font-style: italic;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.status-icon { font-size: 14px; }
+
+.status-tool-name { font-weight: 600; }
+
+.status-tool-target {
+  color: var(--text-dim);
+  font-family: 'SF Mono', Menlo, monospace;
+  font-size: 12px;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.status-marker {
+  font-size: 12px;
+  font-weight: 700;
+  flex-shrink: 0;
+}
+
+.status-bar-read   { border-left: 3px solid #6c8cff; }
+.status-bar-write  { border-left: 3px solid #d4a548; }
+.status-bar-exec   { border-left: 3px solid #4caf7d; }
+.status-bar-search { border-left: 3px solid #b48ead; }
+.status-bar-task   { border-left: 3px solid #56b6c2; }
+
+.status-bar-think {
+  color: var(--purple);
+}
+
+.status-bar-result {
+  color: var(--text-dim);
+  font-weight: 400;
+}
+
+.status-bar-err {
+  color: var(--red);
+  font-weight: 500;
+}
+
+/* ── message ───────────────────────────────────────────────────────────── */
+
+.cli-msg {
+  font-size: 14px;
+  line-height: 1.65;
+  padding: 6px 0;
+  white-space: pre-wrap;
+  word-break: break-word;
+}
+
+.cli-msg p { margin: 0 0 8px; }
+.cli-msg p:last-child { margin-bottom: 0; }
+
+.cli-msg h1, .cli-msg h2, .cli-msg h3, .cli-msg h4 {
+  margin: 12px 0 4px;
+  font-weight: 600;
+  line-height: 1.35;
+}
+
+.cli-msg h1 { font-size: 18px; }
+.cli-msg h2 { font-size: 16px; }
+.cli-msg h3 { font-size: 15px; }
+.cli-msg h4 { font-size: 14px; }
+
+.cli-msg pre {
+  margin: 6px 0;
+  padding: 10px 14px;
+  border-radius: 6px;
+  background: #1a1b1e;
+  border: 1px solid var(--border);
+  overflow-x: auto;
+  font-size: 12px;
+  line-height: 1.5;
+  font-family: 'SF Mono', Menlo, monospace;
+  white-space: pre;
+  word-break: normal;
+}
+
+.cli-msg code {
+  font-family: 'SF Mono', Menlo, monospace;
+  font-size: 12px;
+  background: var(--bg-input);
+  padding: 1px 5px;
+  border-radius: 3px;
+}
+
+.cli-msg pre code {
+  background: none;
+  padding: 0;
+  border-radius: 0;
+  font-size: inherit;
+}
+
+.cli-msg ul, .cli-msg ol {
+  margin: 4px 0 8px;
+  padding-left: 20px;
+}
+
+.cli-msg li {
+  margin: 2px 0;
+  line-height: 1.5;
+}
+
+.cli-msg strong { font-weight: 600; }
+.cli-msg em { font-style: italic; }
+
+.cli-msg blockquote {
+  margin: 6px 0;
+  padding: 4px 12px;
+  border-left: 3px solid var(--accent-dim);
+  color: var(--text-dim);
+}
+
+/* ── thinking ──────────────────────────────────────────────────────────── */
+
+.cli-think {
+  margin: 6px 0;
+  border-radius: 6px;
+  background: rgba(180, 142, 173, 0.06);
+  border: 1px solid rgba(180, 142, 173, 0.18);
+  padding: 8px 12px;
+}
+
+.cli-think-head {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  font-size: 12px;
+  font-weight: 600;
+  color: var(--purple);
+  text-transform: uppercase;
+  letter-spacing: 0.04em;
+  margin-bottom: 4px;
+  user-select: none;
+}
+
+.cli-clickable { cursor: pointer; }
+
+.cli-think-dot {
+  width: 7px;
+  height: 7px;
+  border-radius: 50%;
+  background: var(--purple);
+  animation: think-pulse 1.2s ease-in-out infinite;
+}
+
+.cli-think-toggle {
+  color: var(--accent);
+  font-size: 11px;
+  font-weight: 400;
+  text-transform: none;
+  letter-spacing: normal;
+  margin-left: auto;
+}
+
+.cli-think-body {
+  margin: 0;
+  font-size: 12px;
+  line-height: 1.5;
+  white-space: pre-wrap;
+  font-style: italic;
+  color: var(--text-dim);
+}
+
+/* ── tool status cards ─────────────────────────────────────────────────── */
+
+.cli-tool {
+  margin: 6px 0;
+  border-radius: 6px;
+  padding: 8px 12px;
+  border-left: 3px solid var(--border);
+  background: var(--bg-input);
+}
+
+.cli-tool-read   { border-left-color: #6c8cff; background: rgba(108,140,255,0.07); }
+.cli-tool-write  { border-left-color: #d4a548; background: rgba(212,165,72,0.07); }
+.cli-tool-exec   { border-left-color: #4caf7d; background: rgba(76,175,125,0.07); }
+.cli-tool-search { border-left-color: #b48ead; background: rgba(180,142,173,0.07); }
+.cli-tool-task   { border-left-color: #56b6c2; background: rgba(86,182,194,0.07); }
+.cli-tool-other  { border-left-color: var(--border); }
+
+.cli-tool-head {
+  display: flex;
+  align-items: baseline;
+  gap: 8px;
+  font-size: 13px;
+}
+
+.cli-tool-icon {
+  font-size: 14px;
+  flex-shrink: 0;
+}
+
+.cli-tool-name {
+  font-weight: 600;
+  color: var(--text);
+  flex-shrink: 0;
+}
+
+.cli-tool-target {
+  color: var(--text-dim);
+  font-family: 'SF Mono', Menlo, monospace;
+  font-size: 12px;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.cli-tool-detail {
+  margin-top: 6px;
+}
+
+.cli-tool-detail summary {
+  cursor: pointer;
+  color: var(--text-dim);
+  font-size: 11px;
+}
+
+.cli-tool-detail pre {
+  margin: 4px 0 0;
+  font-size: 11px;
+  white-space: pre-wrap;
+  word-break: break-word;
+  font-family: 'SF Mono', Menlo, monospace;
+  color: var(--text-dim);
+  max-height: 160px;
+  overflow-y: auto;
+}
+
+/* ── tool results ──────────────────────────────────────────────────────── */
+
+.cli-result {
+  margin: -2px 0 8px 8px;
+  padding: 3px 0;
+  font-size: 12px;
+  color: var(--text-dim);
+  display: flex;
+  align-items: baseline;
+  gap: 6px;
+}
+
+.cli-result-marker {
+  font-size: 11px;
+  color: var(--green);
+}
+
+.cli-result-err .cli-result-marker { color: var(--red); }
+
+.cli-result-status { flex: 1; }
+
+.cli-result-detail {
+  margin-top: 4px;
+  width: 100%;
+}
+
+.cli-result-detail summary {
+  cursor: pointer;
+  color: var(--text-dim);
+  font-size: 11px;
+}
+
+.cli-result-detail pre {
+  margin: 4px 0 0;
+  font-size: 11px;
+  white-space: pre-wrap;
+  word-break: break-word;
+  font-family: 'SF Mono', Menlo, monospace;
+  color: var(--text-dim);
+  background: var(--bg-input);
+  border-radius: 4px;
+  padding: 6px 10px;
+  max-height: 120px;
+  overflow-y: auto;
+}
+
+/* ── stderr / error / system ───────────────────────────────────────────── */
+
+.cli-stderr {
+  color: var(--yellow);
+  font-family: 'SF Mono', Menlo, monospace;
+  font-size: 12px;
+  white-space: pre-wrap;
+  background: rgba(212, 165, 72, 0.06);
+  border-radius: 4px;
+  padding: 6px 10px;
+  margin: 4px 0;
+}
+
+.cli-err {
+  display: flex;
+  align-items: flex-start;
+  gap: 8px;
+  color: var(--red);
+  background: rgba(224, 108, 117, 0.08);
+  border-left: 2px solid var(--red);
+  border-radius: 0 4px 4px 0;
+  padding: 8px 12px;
+  margin: 6px 0;
+  font-size: 13px;
+}
+
+.cli-err-icon {
+  font-weight: 700;
+  font-size: 14px;
+  flex-shrink: 0;
+  width: 18px;
+  height: 18px;
+  border-radius: 50%;
+  background: var(--red);
+  color: #fff;
   display: flex;
   align-items: center;
   justify-content: center;
-  z-index: 100;
+  font-size: 11px;
+  line-height: 1;
 }
 
-.modal {
-  background: var(--bg-panel);
-  border: 1px solid var(--border);
-  border-radius: 10px;
-  width: 780px;
-  max-width: 92vw;
-  max-height: 84vh;
+.cli-rule {
   display: flex;
-  flex-direction: column;
-  box-shadow: 0 8px 32px rgba(0, 0, 0, 0.4);
+  align-items: center;
+  gap: 10px;
+  margin: 14px 0;
+  color: var(--text-dim);
+  font-size: 11px;
 }
 
-.modal-body {
+.cli-rule::before,
+.cli-rule::after {
+  content: '';
+  flex: 1;
+  height: 1px;
+  background: var(--border);
+}
+
+.cli-rule span {
+  text-transform: uppercase;
+  letter-spacing: 0.06em;
+}
+
+.cli-file {
+  color: var(--purple);
+  font-family: 'SF Mono', Menlo, monospace;
+  font-size: 12px;
+  padding: 2px 0;
+}
+
+.cli-user-input {
+  color: var(--green);
+  font-size: 13px;
+  padding: 4px 0;
+  white-space: pre-wrap;
+  word-break: break-word;
+  font-weight: 500;
+}
+
+.cli-think pre {
+  margin: 0;
+  font-size: 12px;
+  line-height: 1.5;
+  white-space: pre-wrap;
+  font-style: normal;
+}
+
+/* ── Agent Manager (full page) ─────────────────────────────────────────── */
+
+.agent-page {
+  grid-column: 2 / 4;
+}
+
+.agent-manager-body {
   display: flex;
   flex: 1;
   min-height: 0;

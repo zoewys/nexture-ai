@@ -9,8 +9,9 @@ import { AgentManager } from './AgentManager'
 import { ModelSelect } from './ModelSelect'
 import { TranscriptViewer } from './TranscriptViewer'
 import { WorkflowPanel } from './WorkflowPanel'
+import { GitBranch, Play, Bot, FolderOpen, Send, Plus, RotateCcw, CheckCircle } from './Icons'
 
-type WorkspaceMode = 'workflow' | 'single'
+type WorkspaceMode = 'workflow' | 'single' | 'agents'
 
 export function App(): JSX.Element {
   const { state, start, continueSession, push, abort, reset } = useRun()
@@ -28,7 +29,6 @@ export function App(): JSX.Element {
   const [workflowInputError, setWorkflowInputError] = useState<string | null>(null)
   const [selectedAgentId, setSelectedAgentId] = useState<string | null>(null)
   const [selectedWorkflowStep, setSelectedWorkflowStep] = useState(0)
-  const [showManager, setShowManager] = useState(false)
 
   const selectedAgent = useMemo(
     () => agents.find((a) => a.id === selectedAgentId) ?? null,
@@ -114,21 +114,21 @@ export function App(): JSX.Element {
     selectedWorkflowStepState?.status !== 'pending' &&
     !!selectedWorkflowExecution?.sessionId
   const workflowComposerPlaceholder = !workflows.currentRun
-    ? '先启动工作流...'
+    ? 'Start a workflow first...'
     : selectedWorkflowAgent?.vendor !== 'claude'
-        ? '只有 Claude 步骤支持交互对话'
+        ? 'Only Claude steps support live chat'
         : !selectedWorkflowExecution?.sessionId
-          ? '当前步骤还没有可继续的会话'
+          ? 'No active session for this step'
           : selectedWorkflowStepState?.status === 'running'
-            ? '给当前运行中的智能体发送消息...'
+            ? 'Send a message to the running agent...'
             : selectedWorkflowStepState?.status === 'error'
-              ? '输入修复指令，例如：只输出合法 handoff JSON...'
+              ? 'Enter a fix, e.g. "output valid handoff JSON..."'
               : selectedWorkflowStepState?.status === 'done' ||
                   selectedWorkflowStepState?.status === 'stale'
-                ? '继续这个步骤的会话；发送后下游步骤会标记为需重跑...'
+                ? 'Continue this session — downstream steps will be marked stale...'
                 : selectedWorkflowStepState?.status === 'awaiting-confirm'
-                  ? '继续和当前步骤对话，会重新生成交接信息...'
-                  : '当前步骤不能对话'
+                  ? 'Continue chatting — the handoff will be regenerated...'
+                  : 'Cannot chat with this step'
 
   const startWorkflow = async (
     templateId: string,
@@ -153,238 +153,270 @@ export function App(): JSX.Element {
     }
   }
 
-  const subtitle =
-    mode === 'workflow'
-      ? workflows.currentRun
-        ? `M2 · 工作流 · ${workflowRunStatusLabel(workflows.currentRun.status)}`
-        : 'M2 · 工作流'
-      : `M1 · 单智能体 · ${vendor}`
+  const handleDeleteAgent = (id: string) => {
+    removeAgent(id)
+    if (selectedAgentId === id) {
+      setSelectedAgentId(null)
+      setVendor('claude')
+      setModel('')
+    }
+  }
+
+  const subtitle = () => {
+    switch (mode) {
+      case 'agents':
+        return `Agent Library · ${agents.length}`
+      case 'workflow':
+        return workflows.currentRun
+          ? `Workflow · ${workflowRunStatusLabel(workflows.currentRun.status)}`
+          : 'Workflow'
+      case 'single':
+        return `Single Run · ${vendor}`
+    }
+  }
+
+  const isAgents = mode === 'agents'
 
   return (
-    <>
-      <div className="app">
-        <header className="app-header">
-          <h1>智能体工作台</h1>
-          <span className="app-subtitle">{subtitle}</span>
-        </header>
+    <div className="app">
+      <header className="app-header">
+        <h1>Agent Studio</h1>
+        <span className="app-subtitle">{subtitle()}</span>
+      </header>
 
-        <div className="app-body">
-          <nav className="mode-rail" aria-label="工作区模式">
-            <button
-              type="button"
-              className={`mode-item ${mode === 'workflow' ? 'mode-item-active' : ''}`}
-              onClick={() => setMode('workflow')}
-            >
-              <span className="mode-icon">流</span>
-              <span>工作流</span>
-            </button>
-            <button
-              type="button"
-              className={`mode-item ${mode === 'single' ? 'mode-item-active' : ''}`}
-              onClick={() => setMode('single')}
-            >
-              <span className="mode-icon">单</span>
-              <span>单次运行</span>
-            </button>
-            <button type="button" className="mode-item" onClick={() => setShowManager(true)}>
-              <span className="mode-icon">{agents.length}</span>
-              <span>智能体</span>
-            </button>
-          </nav>
+      <div className="app-body">
+        <nav className="mode-rail" aria-label="Workspace modes">
+          <button
+            type="button"
+            className={`mode-item ${mode === 'workflow' ? 'mode-item-active' : ''}`}
+            onClick={() => setMode('workflow')}
+          >
+            <span className="mode-icon"><GitBranch /></span>
+            <span>Workflow</span>
+          </button>
+          <button
+            type="button"
+            className={`mode-item ${mode === 'single' ? 'mode-item-active' : ''}`}
+            onClick={() => setMode('single')}
+          >
+            <span className="mode-icon"><Play /></span>
+            <span>Single Run</span>
+          </button>
+          <button
+            type="button"
+            className={`mode-item ${isAgents ? 'mode-item-active' : ''}`}
+            onClick={() => setMode(isAgents ? 'workflow' : 'agents')}
+          >
+            <span className="mode-icon"><Bot /></span>
+            <span>Agents</span>
+          </button>
+        </nav>
 
-          <aside className="panel panel-config">
-            <div className="workspace-panel-header">
-              <span className="section-title">{mode === 'workflow' ? '工作流配置' : '单智能体配置'}</span>
-              <h2>{mode === 'workflow' ? '编排并运行多个智能体' : '直接运行一个智能体'}</h2>
-              <p>
-                {mode === 'workflow'
-                  ? '创建线性流程，并在右侧运行区逐步审阅 handoff。'
-                  : '选择预设智能体，或手动配置一次 CLI 运行。'}
-              </p>
-            </div>
+        {isAgents ? (
+          <div className="panel agent-page">
+            <AgentManager
+              agents={agents}
+              clis={clis}
+              modelCatalog={modelCatalog}
+              onSave={saveAgent}
+              onDelete={handleDeleteAgent}
+              onClose={() => setMode('workflow')}
+            />
+          </div>
+        ) : (
+          <>
+            <aside className="panel panel-config">
+              <div className="workspace-panel-header">
+                <span className="section-title">
+                  {mode === 'workflow' ? 'Workflow Config' : 'Single Run Config'}
+                </span>
+                <h2>
+                  {mode === 'workflow' ? 'Orchestrate multiple agents' : 'Run a single agent'}
+                </h2>
+                <p>
+                  {mode === 'workflow'
+                    ? 'Create a linear pipeline and review handoffs in the run panel.'
+                    : 'Pick a preset agent or configure a one-shot CLI run.'}
+                </p>
+              </div>
 
-            {mode === 'workflow' ? (
-              <WorkflowPanel
-                agents={agents}
-                templates={workflows.templates}
-                onSave={workflows.save}
-                onDelete={workflows.remove}
-                onStart={startWorkflow}
-              />
-            ) : (
-              <>
-                <label className="field">
-                  <span>智能体</span>
-                  <div className="field-row">
+              {mode === 'workflow' ? (
+                <WorkflowPanel
+                  agents={agents}
+                  templates={workflows.templates}
+                  onSave={workflows.save}
+                  onDelete={workflows.remove}
+                  onStart={startWorkflow}
+                />
+              ) : (
+                <>
+                  <label className="field">
+                    <span>Agent</span>
+                    <div className="field-row">
+                      <select
+                        value={selectedAgentId ?? ''}
+                        onChange={(e) => handleSelectAgent(e.target.value)}
+                      >
+                        <option value="">None — manual config</option>
+                        {agents.map((a) => (
+                          <option key={a.id} value={a.id}>
+                            {a.name || 'Unnamed'}
+                          </option>
+                        ))}
+                      </select>
+                      <button onClick={() => setMode('agents')} type="button">
+                        Manage
+                      </button>
+                    </div>
+                  </label>
+
+                  <label className="field">
+                    <span>CLI</span>
                     <select
-                      value={selectedAgentId ?? ''}
-                      onChange={(e) => handleSelectAgent(e.target.value)}
+                      value={vendor}
+                      onChange={(e) => setVendor(e.target.value as AgentVendor)}
                     >
-                      <option value="">不使用预设，手动配置</option>
-                      {agents.map((a) => (
-                        <option key={a.id} value={a.id}>
-                          {a.name || '未命名'}
+                      {ALL_VENDORS.map((v) => (
+                        <option key={v} value={v}>
+                          {v}
+                          {clis && !clis[v] ? ' (not installed)' : ''}
                         </option>
                       ))}
                     </select>
-                    <button onClick={() => setShowManager(true)} type="button">
-                      管理
-                    </button>
-                  </div>
-                </label>
+                  </label>
 
-                <label className="field">
-                  <span>CLI 类型</span>
-                  <select value={vendor} onChange={(e) => setVendor(e.target.value as AgentVendor)}>
-                    {ALL_VENDORS.map((v) => (
-                      <option key={v} value={v}>
-                        {v}
-                        {clis && !clis[v] ? '（未安装）' : ''}
-                      </option>
-                    ))}
-                  </select>
-                </label>
-
-                <label className="field">
-                  <span>模型（可选）</span>
-                  <ModelSelect
-                    value={model}
-                    loading={modelsLoading}
-                    modelInfo={modelInfo}
-                    onChange={setModel}
-                  />
-                </label>
-
-                <label className="field">
-                  <span>项目目录</span>
-                  <div className="field-row">
-                    <input
-                      value={cwd}
-                      placeholder="/path/to/project"
-                      onChange={(e) => setCwd(e.target.value)}
+                  <label className="field">
+                    <span>Model</span>
+                    <ModelSelect
+                      value={model}
+                      loading={modelsLoading}
+                      modelInfo={modelInfo}
+                      onChange={setModel}
                     />
-                    <button onClick={handlePickDir} type="button">
-                      选择
-                    </button>
-                  </div>
-                </label>
+                  </label>
 
-                <label className="field field-grow">
-                  <span>任务描述</span>
-                  <textarea
-                    value={prompt}
-                    placeholder="描述这次要交给智能体处理的任务..."
-                    onChange={(e) => setPrompt(e.target.value)}
-                  />
-                </label>
+                  <label className="field">
+                    <span>Project Directory</span>
+                    <div className="field-row">
+                      <input
+                        value={cwd}
+                        placeholder="/path/to/project"
+                        onChange={(e) => setCwd(e.target.value)}
+                      />
+                      <button onClick={handlePickDir} type="button">
+                        <FolderOpen size={14} /> Browse
+                      </button>
+                    </div>
+                  </label>
 
-                {!cliAvailable && (
-                  <div className="warn">
-                    没有在 PATH 中检测到 {vendor} CLI。请先安装，或选择其他 CLI。
-                  </div>
-                )}
-
-                <div className="actions">
-                  <button className="primary" disabled={!canStart} onClick={handleStart} type="button">
-                    {state.running ? '运行中...' : '开始运行'}
-                  </button>
-                  {state.running && (
-                    <button onClick={abort} type="button">
-                      停止
-                    </button>
-                  )}
-                  {!state.running && state.events.length > 0 && (
-                    <button onClick={reset} type="button">
-                      清空
-                    </button>
-                  )}
-                </div>
-              </>
-            )}
-          </aside>
-
-          <main className="panel panel-runtime">
-            {mode === 'workflow' ? (
-              <WorkflowRuntime
-                agents={agents}
-                currentRun={workflows.currentRun}
-                selectedStepIndex={selectedWorkflowStep}
-                selectedExecution={selectedWorkflowExecution}
-                onSelectStep={setSelectedWorkflowStep}
-                onConfirm={workflows.confirmStep}
-                onRerun={workflows.rerunStep}
-                onAbort={workflows.abort}
-                onClearRun={workflows.clearRun}
-                composerValue={workflowInput}
-                composerEnabled={workflowComposerEnabled}
-                composerPlaceholder={workflowComposerPlaceholder}
-                composerError={workflowInputError}
-                onComposerChange={(value) => {
-                  setWorkflowInput(value)
-                  setWorkflowInputError(null)
-                }}
-                onComposerSend={handleWorkflowInputSend}
-              />
-            ) : (
-              <>
-                <TranscriptViewer events={state.events} />
-
-                {state.events.length > 0 && (
-                  <div className="interject">
-                    <input
-                      value={interjection}
-                      disabled={!composerEnabled}
-                      placeholder={
-                        canInterject
-                          ? '插入消息（只影响当前智能体）...'
-                          : canResume
-                            ? '继续这个会话...'
-                            : vendor === 'claude'
-                              ? '先开始运行，创建一个会话...'
-                              : '只有 claude 支持继续会话'
-                      }
-                      onChange={(e) => setInterjection(e.target.value)}
-                      onKeyDown={(e) => {
-                        if (e.key === 'Enter') void handleComposerSend()
-                      }}
+                  <label className="field field-grow">
+                    <span>Prompt</span>
+                    <textarea
+                      value={prompt}
+                      placeholder="Describe the task for the agent..."
+                      onChange={(e) => setPrompt(e.target.value)}
                     />
-                    <button onClick={handleComposerSend} disabled={!composerEnabled} type="button">
-                      发送
-                    </button>
-                  </div>
-                )}
-              </>
-            )}
+                  </label>
 
-            {mode === 'workflow' && selectedWorkflowHandoff && (
-              <HandoffPanel handoff={selectedWorkflowHandoff} />
-            )}
-          </main>
-        </div>
+                  {!cliAvailable && (
+                    <div className="warn">
+                      {vendor} CLI not found in PATH. Install it or pick another CLI.
+                    </div>
+                  )}
+
+                  <div className="actions">
+                    <button
+                      className="primary"
+                      disabled={!canStart}
+                      onClick={handleStart}
+                      type="button"
+                    >
+                      <Play size={14} /> {state.running ? 'Running...' : 'Start Run'}
+                    </button>
+                    {state.running && (
+                      <button onClick={abort} type="button">
+                        Stop
+                      </button>
+                    )}
+                    {!state.running && state.events.length > 0 && (
+                      <button onClick={reset} type="button">
+                        <RotateCcw size={14} /> Clear
+                      </button>
+                    )}
+                  </div>
+                </>
+              )}
+            </aside>
+
+            <main className="panel panel-runtime">
+              {mode === 'workflow' ? (
+                <WorkflowRuntime
+                  agents={agents}
+                  currentRun={workflows.currentRun}
+                  selectedStepIndex={selectedWorkflowStep}
+                  selectedExecution={selectedWorkflowExecution}
+                  onSelectStep={setSelectedWorkflowStep}
+                  onConfirm={workflows.confirmStep}
+                  onRerun={workflows.rerunStep}
+                  onAbort={workflows.abort}
+                  onClearRun={workflows.clearRun}
+                  composerValue={workflowInput}
+                  composerEnabled={workflowComposerEnabled}
+                  composerPlaceholder={workflowComposerPlaceholder}
+                  composerError={workflowInputError}
+                  onComposerChange={(value) => {
+                    setWorkflowInput(value)
+                    setWorkflowInputError(null)
+                  }}
+                  onComposerSend={handleWorkflowInputSend}
+                />
+              ) : (
+                <>
+                  <TranscriptViewer events={state.events} />
+
+                  {state.events.length > 0 && (
+                    <div className="interject">
+                      <input
+                        value={interjection}
+                        disabled={!composerEnabled}
+                        placeholder={
+                          canInterject
+                            ? 'Interject (only affects the current agent)...'
+                            : canResume
+                              ? 'Continue this session...'
+                              : vendor === 'claude'
+                                ? 'Start a run first to create a session...'
+                                : 'Only claude supports session resume'
+                        }
+                        onChange={(e) => setInterjection(e.target.value)}
+                        onKeyDown={(e) => {
+                          if (e.key === 'Enter') void handleComposerSend()
+                        }}
+                      />
+                      <button
+                        onClick={handleComposerSend}
+                        disabled={!composerEnabled}
+                        type="button"
+                      >
+                        <Send size={14} /> Send
+                      </button>
+                    </div>
+                  )}
+                </>
+              )}
+
+              {mode === 'workflow' && selectedWorkflowHandoff && (
+                <HandoffPanel handoff={selectedWorkflowHandoff} />
+              )}
+            </main>
+          </>
+        )}
       </div>
-
-      {showManager && (
-        <AgentManager
-          agents={agents}
-          clis={clis}
-          modelCatalog={modelCatalog}
-          onSave={(draft) => {
-            saveAgent(draft)
-          }}
-          onDelete={(id) => {
-            removeAgent(id)
-            if (selectedAgentId === id) {
-              setSelectedAgentId(null)
-              setVendor('claude')
-              setModel('')
-            }
-          }}
-          onClose={() => setShowManager(false)}
-        />
-      )}
-    </>
+    </div>
   )
 }
+
+// ── workflow runtime sub-components ─────────────────────────────────────
 
 interface WorkflowRuntimeProps {
   agents: AgentDefinition[]
@@ -424,8 +456,8 @@ function WorkflowRuntime({
   if (!currentRun) {
     return (
       <div className="runtime-empty">
-        <strong>暂无运行中的工作流</strong>
-        <span>先在左侧配置区选择或创建工作流，然后启动运行。</span>
+        <strong>No workflow run in progress</strong>
+        <span>Create or select a workflow on the left, then start a run.</span>
       </div>
     )
   }
@@ -439,7 +471,7 @@ function WorkflowRuntime({
     <div className="workflow-runtime">
       <aside className="workflow-run-sidebar">
         <div className="runtime-section-header">
-          <span className="section-title">当前运行</span>
+          <span className="section-title">Active Run</span>
           <h2>{currentRun.templateName}</h2>
           <p>{workflowRunStatusLabel(currentRun.status)}</p>
         </div>
@@ -456,7 +488,7 @@ function WorkflowRuntime({
                 onClick={() => onSelectStep(index)}
               >
                 <div className="workflow-step-main">
-                  <span>{index + 1}. {agent?.name ?? '缺失智能体'}</span>
+                  <span>{index + 1}. {agent?.name ?? 'Missing agent'}</span>
                   <strong>{stepStatusLabel(step.status)}</strong>
                 </div>
                 {latest?.handoff?.summary && <p>{latest.handoff.summary}</p>}
@@ -469,19 +501,19 @@ function WorkflowRuntime({
         <div className="workflow-run-actions">
           {awaitingConfirm && (
             <button type="button" className="primary" onClick={onConfirm}>
-              确认并继续
+              <CheckCircle size={14} /> Confirm &amp; Continue
             </button>
           )}
           <button type="button" onClick={() => onRerun(selectedStepIndex)}>
-            重跑所选步骤
+            <RotateCcw size={14} /> Rerun Step
           </button>
           {currentRun.status === 'running' && (
             <button type="button" onClick={onAbort}>
-              停止
+              Stop
             </button>
           )}
           <button type="button" onClick={onClearRun}>
-            清空
+            Clear
           </button>
         </div>
       </aside>
@@ -489,7 +521,7 @@ function WorkflowRuntime({
       <section className="workflow-detail">
         <div className="workflow-detail-header">
           <strong>
-            步骤 {selectedStepIndex + 1} · {selectedStep ? stepStatusLabel(selectedStep.status) : '未知'}
+            Step {selectedStepIndex + 1} · {selectedStep ? stepStatusLabel(selectedStep.status) : 'Unknown'}
           </strong>
           {selectedExecution?.error && (
             <span className="workflow-error">{selectedExecution.error}</span>
@@ -511,7 +543,7 @@ function WorkflowRuntime({
             }}
           />
           <button onClick={() => void onComposerSend()} disabled={!composerEnabled} type="button">
-            发送
+            <Send size={14} /> Send
           </button>
         </div>
         {composerError && <div className="workflow-input-error">{composerError}</div>}
@@ -527,7 +559,7 @@ function HandoffPanel({
 }): JSX.Element {
   return (
     <div className="handoff-panel">
-      <div className="section-title">交接信息</div>
+      <div className="section-title">Handoff</div>
       <p>{handoff.summary}</p>
       {handoff.artifacts.length > 0 && (
         <ul>
@@ -546,31 +578,31 @@ function HandoffPanel({
 function workflowRunStatusLabel(status: WorkflowRun['status']): string {
   switch (status) {
     case 'running':
-      return '运行中'
+      return 'Running'
     case 'awaiting-confirm':
-      return '等待确认'
+      return 'Awaiting Confirmation'
     case 'completed':
-      return '已完成'
+      return 'Completed'
     case 'error':
-      return '出错'
+      return 'Error'
     case 'aborted':
-      return '已停止'
+      return 'Aborted'
   }
 }
 
 function stepStatusLabel(status: WorkflowRun['steps'][number]['status']): string {
   switch (status) {
     case 'pending':
-      return '待执行'
+      return 'Pending'
     case 'running':
-      return '运行中'
+      return 'Running'
     case 'awaiting-confirm':
-      return '等待确认'
+      return 'Awaiting Confirm'
     case 'done':
-      return '已完成'
+      return 'Done'
     case 'stale':
-      return '需重跑'
+      return 'Stale'
     case 'error':
-      return '出错'
+      return 'Error'
   }
 }
