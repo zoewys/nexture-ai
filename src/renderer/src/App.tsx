@@ -114,21 +114,21 @@ export function App(): JSX.Element {
     selectedWorkflowStepState?.status !== 'pending' &&
     !!selectedWorkflowExecution?.sessionId
   const workflowComposerPlaceholder = !workflows.currentRun
-    ? 'Start a workflow first...'
+    ? '请先启动一个工作流...'
     : selectedWorkflowAgent?.vendor !== 'claude'
-        ? 'Only Claude steps support live chat'
+        ? '仅 Claude 步骤支持实时对话'
         : !selectedWorkflowExecution?.sessionId
-          ? 'No active session for this step'
+          ? '当前步骤暂无活跃会话'
           : selectedWorkflowStepState?.status === 'running'
-            ? 'Send a message to the running agent...'
+            ? '向运行中的 agent 发送消息...'
             : selectedWorkflowStepState?.status === 'error'
-              ? 'Enter a fix, e.g. "output valid handoff JSON..."'
+              ? '输入修复指令，例如「请输出合法的 handoff JSON...」'
               : selectedWorkflowStepState?.status === 'done' ||
                   selectedWorkflowStepState?.status === 'stale'
-                ? 'Continue this session — downstream steps will be marked stale...'
+                ? '继续此会话——下游步骤将被标记为过期...'
                 : selectedWorkflowStepState?.status === 'awaiting-confirm'
-                  ? 'Continue chatting — the handoff will be regenerated...'
-                  : 'Cannot chat with this step'
+                  ? '继续对话——handoff 将被重新生成...'
+                  : '当前步骤无法对话'
 
   const startWorkflow = async (
     templateId: string,
@@ -501,19 +501,19 @@ function WorkflowRuntime({
         <div className="workflow-run-actions">
           {awaitingConfirm && (
             <button type="button" className="primary" onClick={onConfirm}>
-              <CheckCircle size={14} /> Confirm &amp; Continue
+              <CheckCircle size={14} /> 确认并继续
             </button>
           )}
           <button type="button" onClick={() => onRerun(selectedStepIndex)}>
-            <RotateCcw size={14} /> Rerun Step
+            <RotateCcw size={14} /> 重新运行
           </button>
           {currentRun.status === 'running' && (
             <button type="button" onClick={onAbort}>
-              Stop
+              停止
             </button>
           )}
           <button type="button" onClick={onClearRun}>
-            Clear
+            清空
           </button>
         </div>
       </aside>
@@ -559,7 +559,7 @@ function HandoffPanel({
 }): JSX.Element {
   return (
     <div className="handoff-panel">
-      <div className="section-title">Handoff</div>
+      <div className="section-title"><CheckCircle size={14} /> 移交摘要</div>
       <p>{handoff.summary}</p>
       {handoff.artifacts.length > 0 && (
         <ul>

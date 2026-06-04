@@ -312,6 +312,13 @@ button:disabled {
   text-align: center;
 }
 
+.workflow-step-edit button.icon-only {
+  padding: 6px 8px;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+}
+
 .workflow-run {
   display: flex;
   flex-direction: column;
@@ -466,6 +473,7 @@ button:disabled {
 }
 
 .transcript-empty {
+  flex: 1;
   display: flex;
   align-items: center;
   justify-content: center;

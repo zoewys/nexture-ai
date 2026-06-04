@@ -123,9 +123,11 @@ export function WorkflowPanel({
             </select>
             <button
               type="button"
+              className="icon-only"
+              aria-label="Remove step"
               onClick={() => setStepAgentIds((prev) => prev.filter((_, i) => i !== index))}
             >
-              <X size={14} /> Remove
+              <X size={14} />
             </button>
           </div>
         ))}

@@ -29,6 +29,7 @@ export class CodexAdapter implements CliAdapter {
     args.push('--json')
     if (input.resumeFrom?.sessionId) args.push('--resume', input.resumeFrom.sessionId)
     args.push('--dangerously-bypass-approvals-and-sandbox')
+    args.push('--skip-git-repo-check')
 
     // Codex does not have --append-system-prompt; prepend to the prompt.
     const prompt = input.appendSystemPrompt
@@ -36,13 +37,20 @@ export class CodexAdapter implements CliAdapter {
       : input.prompt
     args.push(prompt)
 
-    spawnProcess(
+    const handle = spawnProcess(
       { cmd, args, cwd: input.cwd, abortSignal: input.abortSignal },
       {
         onStdoutLine: (line) => {
           for (const ev of parseCodexLine(line)) queue.push(ev)
         },
-        onStderr: (text) => queue.push({ kind: 'stderr', text }),
+        onStderr: (text) => {
+          // Codex's MCP client logs noisy transport errors to stderr when an
+          // upstream MCP server is unreachable or its OAuth token expired.
+          // These don't affect the main exec flow, so suppress them rather
+          // than scaring the user with red text in the UI.
+          if (isMcpNoise(text)) return
+          queue.push({ kind: 'stderr', text })
+        },
         onSpawnError: (err) => {
           queue.push({
             kind: 'error',
@@ -69,6 +77,23 @@ export class CodexAdapter implements CliAdapter {
       }
     )
 
+    // Close stdin immediately: codex sees a piped stdin and waits for EOF
+    // before processing the prompt arg ("Reading additional input from stdin...").
+    // Closing stdin signals EOF so codex proceeds with just the prompt argument.
+    handle.endStdin()
+
     return queue
   }
+}
+
+/** Recognize codex's MCP transport chatter so we don't surface it to the UI. */
+function isMcpNoise(text: string): boolean {
+  return (
+    /rmcp::transport::worker/.test(text) ||
+    /MCP grant token/.test(text) ||
+    /grant token not valid/.test(text) ||
+    /Missing or invalid access token/.test(text) ||
+    /AuthRequired\b/.test(text) ||
+    /UnexpectedContentType/.test(text)
+  )
 }
