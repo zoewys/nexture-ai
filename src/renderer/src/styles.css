@@ -427,19 +427,100 @@ button:disabled {
 .handoff-panel {
   border-top: 1px solid var(--border);
   background: var(--bg-panel);
-  padding: 12px 16px;
-  max-height: 220px;
+  padding: 12px 16px 14px;
+  max-height: 280px;
   overflow-y: auto;
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
 }
 
-.handoff-panel p {
-  margin: 6px 0;
+.handoff-panel-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  gap: 12px;
+}
+
+.handoff-panel-status {
+  color: var(--green);
+  font-size: 12px;
+  white-space: nowrap;
+}
+
+.handoff-section {
+  border: 1px solid var(--border);
+  border-radius: 6px;
+  padding: 10px;
+  background: rgba(0, 0, 0, 0.08);
+}
+
+.handoff-section h3 {
+  margin: 0 0 6px;
+  color: var(--text-dim);
+  font-size: 11px;
+  font-weight: 600;
+  letter-spacing: 0.05em;
+  line-height: 1.2;
+  text-transform: uppercase;
+}
+
+.handoff-section p {
+  margin: 0;
   line-height: 1.45;
 }
 
-.handoff-panel ul {
-  margin: 8px 0 0;
-  padding-left: 18px;
+.handoff-artifact-table {
+  border: 1px solid var(--border);
+  border-radius: 6px;
+  overflow: hidden;
+}
+
+.handoff-artifact-row {
+  display: grid;
+  grid-template-columns: minmax(72px, 0.45fr) minmax(140px, 1fr) minmax(180px, 1.4fr);
+}
+
+.handoff-artifact-row + .handoff-artifact-row {
+  border-top: 1px solid var(--border);
+}
+
+.handoff-artifact-row span,
+.handoff-artifact-row code {
+  min-width: 0;
+  padding: 8px 9px;
+  border-right: 1px solid var(--border);
+  overflow-wrap: anywhere;
+  line-height: 1.4;
+}
+
+.handoff-artifact-row span:last-child,
+.handoff-artifact-row code:last-child {
+  border-right: 0;
+}
+
+.handoff-artifact-head {
+  background: rgba(255, 255, 255, 0.025);
+  color: var(--text-dim);
+  font-size: 11px;
+  font-weight: 600;
+  letter-spacing: 0.05em;
+  text-transform: uppercase;
+}
+
+.handoff-artifact-row code {
+  color: var(--text);
+  font-family: 'SF Mono', Menlo, monospace;
+  font-size: 12px;
+}
+
+.handoff-artifact-type {
+  color: var(--green);
+  font-family: 'SF Mono', Menlo, monospace;
+  font-size: 12px;
+}
+
+.handoff-empty {
   color: var(--text-dim);
 }
 
