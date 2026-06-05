@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useRef, useState } from 'react'
+import { useEffect, useMemo, useState } from 'react'
 import type {
   AgentDefinition,
   AgentEvent,
@@ -20,11 +20,7 @@ import { WorkflowPanel } from './WorkflowPanel'
 import { WorkflowWorkspace } from './WorkflowWorkspace'
 import { formatHandoffDisplay } from './handoffDisplay'
 import { readLastProjectPath, rememberProjectPath } from './projectPathMemory'
-import {
-  playWorkflowNotificationSound,
-  prepareWorkflowNotificationSound,
-  type WorkflowNotificationSound
-} from './workflowNotificationSound'
+import { prepareWorkflowNotificationSound } from './workflowNotificationSound'
 import {
   GitBranch,
   Play,
@@ -40,11 +36,6 @@ import {
 } from './Icons'
 
 type WorkspaceMode = 'workflow' | 'single' | 'agents'
-
-interface WorkflowNotification {
-  key: string
-  sound: WorkflowNotificationSound
-}
 
 export function App(): JSX.Element {
   const { state, start, continueSession, push, abort, reset } = useRun()
@@ -65,7 +56,6 @@ export function App(): JSX.Element {
   const [selectedAgentId, setSelectedAgentId] = useState<string | null>(null)
   const [selectedWorkflowStep, setSelectedWorkflowStep] = useState(0)
   const [configOpen, setConfigOpen] = useState(true)
-  const workflowSoundKeyRef = useRef<string | null>(null)
 
   const selectedAgent = useMemo(
     () => agents.find((a) => a.id === selectedAgentId) ?? null,
@@ -107,20 +97,6 @@ export function App(): JSX.Element {
       window.removeEventListener('keydown', prepareSound)
     }
   }, [])
-
-  useEffect(() => {
-    const run = workflows.currentRun
-    if (!run) {
-      workflowSoundKeyRef.current = null
-      return
-    }
-
-    const notification = workflowNotificationForRun(run)
-    if (!notification || workflowSoundKeyRef.current === notification.key) return
-
-    workflowSoundKeyRef.current = notification.key
-    playWorkflowNotificationSound(notification.sound)
-  }, [workflows.currentRun])
 
   const canStart = !state.running && cwd.trim() !== '' && prompt.trim() !== ''
 
@@ -806,26 +782,6 @@ function HandoffPanel({
       )}
     </div>
   )
-}
-
-function workflowNotificationForRun(run: WorkflowRun): WorkflowNotification | null {
-  if (run.status === 'awaiting-confirm') {
-    const step = run.steps[run.currentStepIndex]
-    const execution = step?.executions.at(-1)
-    return {
-      key: `${run.id}:confirm:${run.currentStepIndex}:${execution?.id ?? 'none'}`,
-      sound: 'confirm'
-    }
-  }
-
-  if (run.status === 'completed' || run.status === 'error' || run.status === 'aborted') {
-    return {
-      key: `${run.id}:finished:${run.status}:${run.finishedAt ?? 'none'}`,
-      sound: 'finished'
-    }
-  }
-
-  return null
 }
 
 function workflowRunStatusLabel(status: WorkflowRun['status']): string {

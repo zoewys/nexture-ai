@@ -6,13 +6,17 @@ interface WorkflowRunsListProps {
   selectedRunId: string | null
   onSelectRun: (runId: string) => void
   onNewRun: () => void
+  soundEnabled: boolean
+  onToggleSound: () => void
 }
 
 export function WorkflowRunsList({
   runs,
   selectedRunId,
   onSelectRun,
-  onNewRun
+  onNewRun,
+  soundEnabled,
+  onToggleSound
 }: WorkflowRunsListProps): JSX.Element {
   return (
     <aside className="workflow-runs-list">
@@ -21,7 +25,17 @@ export function WorkflowRunsList({
           <div className="section-title">Workflow Runs</div>
           <p>按开始时间倒序；点击 run 卡片进入详情和确认。</p>
         </div>
-        <button type="button" className="primary" onClick={onNewRun}>New Run</button>
+        <div className="workflow-runs-actions">
+          <button
+            type="button"
+            aria-pressed={soundEnabled}
+            title={soundEnabled ? 'Workflow notification sound on' : 'Workflow notification sound off'}
+            onClick={onToggleSound}
+          >
+            {soundEnabled ? 'Sound On' : 'Sound Off'}
+          </button>
+          <button type="button" className="primary" onClick={onNewRun}>New Run</button>
+        </div>
       </div>
 
       <div className="workflow-run-filters" aria-label="Workflow run filters">

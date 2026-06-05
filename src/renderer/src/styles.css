@@ -413,6 +413,18 @@ button.icon-only {
   align-items: start;
 }
 
+.workflow-runs-actions {
+  display: flex;
+  align-items: center;
+  justify-content: flex-end;
+  gap: 6px;
+  flex-wrap: wrap;
+}
+
+.workflow-runs-actions button {
+  padding-inline: 10px;
+}
+
 .workflow-runs-header p,
 .workflow-run-card p,
 .workflow-run-detail-header p {
