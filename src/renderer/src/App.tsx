@@ -352,7 +352,7 @@ export function App(): JSX.Element {
             <WorkflowWorkspace
               agents={agents}
               workflows={workflows}
-              newRunDefaults={uiReview.newRunDefaults}
+              newRunDefaults={uiReview.enabled ? uiReview.newRunDefaults : undefined}
               uiReviewEnabled={uiReview.enabled}
               onUiReviewSurfaceChange={setUiReviewWorkflowSurface}
             />

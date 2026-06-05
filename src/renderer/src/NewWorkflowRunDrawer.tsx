@@ -86,7 +86,7 @@ export function NewWorkflowRunDrawer({
 
   const start = async (): Promise<void> => {
     if (!selectedTemplate || !canStart) return
-    rememberProjectPath(projectPath.trim())
+    if (!uiReviewEnabled) rememberProjectPath(projectPath.trim())
     await onStart({
       templateId: selectedTemplate.id,
       runName: runName.trim() || selectedTemplate.name,
@@ -98,7 +98,7 @@ export function NewWorkflowRunDrawer({
   }
 
   const saveDraft = (): void => {
-    rememberProjectPath(projectPath.trim())
+    if (!uiReviewEnabled) rememberProjectPath(projectPath.trim())
   }
 
   const pickDir = async (): Promise<void> => {

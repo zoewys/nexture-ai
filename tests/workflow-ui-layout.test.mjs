@@ -131,7 +131,7 @@ test('ui review fixture provides v4 design data without touching persisted state
   assert.match(app, /uiReview\.enabled \? uiReview\.agents : savedAgents/)
   assert.match(app, /uiReview\.enabled \? uiReview\.workflows : savedWorkflows/)
   assert.match(app, /uiReview\.topbarChips/)
-  assert.match(app, /newRunDefaults=\{uiReview\.newRunDefaults\}/)
+  assert.match(app, /newRunDefaults=\{uiReview\.enabled \? uiReview\.newRunDefaults : undefined\}/)
 })
 
 test('ui review workflow detail suppresses production-only controls for screenshot parity', () => {
@@ -184,6 +184,7 @@ test('ui review chrome matches v4 mockup navigation and composer', () => {
   assert.match(workspace, /onUiReviewSurfaceChange\?\.\(newRunDrawerOpen \? 'new-run' : 'workflow'\)/)
   assert.match(workspace, /UiReviewMockNav/)
   assert.match(workspace, /uiReviewEnabled=\{uiReviewEnabled\}/)
+  assert.match(app, /newRunDefaults=\{uiReview\.enabled \? uiReview\.newRunDefaults : undefined\}/)
   assert.match(app, /onUiReviewSurfaceChange=\{setUiReviewWorkflowSurface\}/)
   assert.match(workspace, /<NewWorkflowRunDrawer[\s\S]*uiReviewEnabled=\{uiReviewEnabled\}/)
   assert.match(workspace, /newRunDrawerOpen \? 'new-run' : 'workflow'/)
@@ -193,6 +194,7 @@ test('ui review chrome matches v4 mockup navigation and composer', () => {
   assert.match(detail, /uiReviewEnabled \?\s*\([\s\S]*<input/)
   assert.match(detail, /uiReviewEnabled \? '发送'/)
   assert.match(drawer, /uiReviewEnabled\?: boolean/)
+  assert.match(drawer, /if \(!uiReviewEnabled\) rememberProjectPath\(projectPath\.trim\(\)\)/)
   assert.match(drawer, /\{!uiReviewEnabled && \([\s\S]*<button type="button" onClick=\{pickDir\}/)
   assert.match(drawer, /uiReviewEnabled \? 'Start Run'/)
   assert.match(drawer, /uiReviewEnabled \? selectedTemplate\?\.name/)
