@@ -6,6 +6,7 @@ import type {
   RunConfig,
   WorkflowEventEnvelope,
   WorkflowRun,
+  WorkflowRunGitSafety,
   WorkflowStartInput,
   WorkflowStartResult,
   WorkflowStepExecution,
@@ -15,6 +16,7 @@ import type { AgentStore } from './AgentStore'
 import type { RunManager } from './RunManager'
 import type { TranscriptStore } from './TranscriptStore'
 import type { WorkflowStore } from './WorkflowStore'
+import { inspectWorkflowGitSafety } from './gitSafety'
 
 type EmitWorkflow = (envelope: WorkflowEventEnvelope) => void
 
@@ -60,6 +62,11 @@ export class WorkflowManager {
     if (!template) throw new Error(`Workflow template not found: ${input.templateId}`)
     if (template.steps.length === 0) throw new Error('Workflow template has no steps')
 
+    const safety = inspectWorkflowGitSafety(input.projectPath, this.listRuns())
+    if (safety.level === 'requires-confirmation' && !input.allowUnsafeSameGitRoot) {
+      throw new Error(safety.message ?? 'Workflow requires confirmation before starting')
+    }
+
     const now = Date.now()
     const run: WorkflowRun = {
       id: randomUUID(),
@@ -98,6 +105,10 @@ export class WorkflowManager {
     this.liveByRunId.delete(runId)
     this.runs.delete(runId)
     this.workflowStore.deleteRun(runId)
+  }
+
+  inspectGitSafety(projectPath: string): WorkflowRunGitSafety {
+    return inspectWorkflowGitSafety(projectPath, this.listRuns())
   }
 
   confirmStep(runId: string): WorkflowRun {
