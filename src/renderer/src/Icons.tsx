@@ -106,6 +106,18 @@ export const RotateCcw = (p: IconProps) => (
   </Icon>
 )
 
+export const ChevronLeft = (p: IconProps) => (
+  <Icon {...p}>
+    <path d="m15 18-6-6 6-6" />
+  </Icon>
+)
+
+export const ChevronRight = (p: IconProps) => (
+  <Icon {...p}>
+    <path d="m9 18 6-6-6-6" />
+  </Icon>
+)
+
 export const CheckCircle = (p: IconProps) => (
   <Icon {...p}>
     <path d="M22 11.08V12a10 10 0 1 1-5.93-14.14" />

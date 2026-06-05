@@ -30,3 +30,7 @@ pnpm-debug.log*
 
 # App runtime data (local agent-studio state)
 .agent-studio/
+
+# Local analysis artifacts
+.analysis-shots/
+.playwright-mcp/

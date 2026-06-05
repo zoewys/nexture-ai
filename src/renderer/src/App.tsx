@@ -18,7 +18,18 @@ import { ModelSelect } from './ModelSelect'
 import { TranscriptViewer } from './TranscriptViewer'
 import { WorkflowPanel } from './WorkflowPanel'
 import { formatHandoffDisplay } from './handoffDisplay'
-import { GitBranch, Play, Bot, FolderOpen, Send, Plus, RotateCcw, CheckCircle } from './Icons'
+import {
+  GitBranch,
+  Play,
+  Bot,
+  FolderOpen,
+  Send,
+  Plus,
+  RotateCcw,
+  CheckCircle,
+  ChevronLeft,
+  ChevronRight
+} from './Icons'
 
 type WorkspaceMode = 'workflow' | 'single' | 'agents'
 
@@ -405,6 +416,7 @@ export function App(): JSX.Element {
                     setWorkflowInputError(null)
                   }}
                   onComposerSend={handleWorkflowInputSend}
+                  handoff={selectedWorkflowHandoff}
                 />
               ) : (
                 <>
@@ -443,10 +455,6 @@ export function App(): JSX.Element {
                     </div>
                   )}
                 </>
-              )}
-
-              {mode === 'workflow' && selectedWorkflowHandoff && (
-                <HandoffPanel handoff={selectedWorkflowHandoff} />
               )}
             </main>
           </>
@@ -503,6 +511,7 @@ interface WorkflowRuntimeProps {
   composerError: string | null
   onComposerChange: (value: string) => void
   onComposerSend: () => Promise<void>
+  handoff: NonNullable<WorkflowRun['steps'][number]['executions'][number]['handoff']> | null
 }
 
 function WorkflowRuntime({
@@ -520,8 +529,11 @@ function WorkflowRuntime({
   composerPlaceholder,
   composerError,
   onComposerChange,
-  onComposerSend
+  onComposerSend,
+  handoff
 }: WorkflowRuntimeProps): JSX.Element {
+  const [handoffOpen, setHandoffOpen] = useState(true)
+
   if (!currentRun) {
     return (
       <div className="runtime-empty">
@@ -537,7 +549,13 @@ function WorkflowRuntime({
     currentRun.steps[currentRun.currentStepIndex]?.status === 'awaiting-confirm'
 
   return (
-    <div className="workflow-runtime">
+    <div
+      className={[
+        'workflow-runtime',
+        handoff ? 'workflow-runtime-with-handoff' : '',
+        handoff && !handoffOpen ? 'workflow-runtime-handoff-collapsed' : ''
+      ].filter(Boolean).join(' ')}
+    >
       <aside className="workflow-run-sidebar">
         <div className="runtime-section-header">
           <span className="section-title">Active Run</span>
@@ -617,14 +635,37 @@ function WorkflowRuntime({
         </div>
         {composerError && <div className="workflow-input-error">{composerError}</div>}
       </section>
+
+      {handoff && handoffOpen && (
+        <aside className="handoff-dock" aria-label="Parsed handoff JSON">
+          <HandoffPanel handoff={handoff} onCollapse={() => setHandoffOpen(false)} />
+        </aside>
+      )}
+
+      {handoff && !handoffOpen && (
+        <aside className="handoff-dock-collapsed" aria-label="Collapsed handoff panel">
+          <button
+            type="button"
+            className="handoff-toggle-collapsed"
+            title="展开 handoff"
+            aria-label="展开 Parsed Handoff JSON"
+            onClick={() => setHandoffOpen(true)}
+          >
+            <ChevronLeft size={16} />
+            <CheckCircle size={15} />
+          </button>
+        </aside>
+      )}
     </div>
   )
 }
 
 function HandoffPanel({
-  handoff
+  handoff,
+  onCollapse
 }: {
   handoff: NonNullable<WorkflowRun['steps'][number]['executions'][number]['handoff']>
+  onCollapse: () => void
 }): JSX.Element {
   const display = formatHandoffDisplay(handoff)
 
@@ -632,7 +673,18 @@ function HandoffPanel({
     <div className="handoff-panel">
       <div className="handoff-panel-header">
         <div className="section-title"><CheckCircle size={14} /> Parsed Handoff JSON</div>
-        <span className="handoff-panel-status">Ready to confirm</span>
+        <div className="handoff-panel-header-actions">
+          <span className="handoff-panel-status">Ready to confirm</span>
+          <button
+            type="button"
+            className="icon-only handoff-toggle"
+            title="收起 handoff"
+            aria-label="收起 Parsed Handoff JSON"
+            onClick={onCollapse}
+          >
+            <ChevronRight size={15} />
+          </button>
+        </div>
       </div>
 
       <section className="handoff-section">
