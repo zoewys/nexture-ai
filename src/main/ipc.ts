@@ -8,6 +8,8 @@ import {
   type AgentDefinition,
   type ModelCatalog,
   type WorkflowEventEnvelope,
+  type WorkflowRun,
+  type WorkflowRunGitSafety,
   type WorkflowStartInput,
   type WorkflowStartResult,
   type WorkflowTemplate
@@ -116,6 +118,16 @@ export function registerIpc(getWindow: () => BrowserWindow | null): AppManagers 
 
   ipcMain.handle(IPC.workflowStart, (_e, input: WorkflowStartInput): WorkflowStartResult =>
     workflowManager.start(input)
+  )
+
+  ipcMain.handle(IPC.workflowRunsList, (): WorkflowRun[] => workflowManager.listRuns())
+
+  ipcMain.handle(IPC.workflowDeleteRun, (_e, runId: string): void => {
+    workflowManager.deleteRun(runId)
+  })
+
+  ipcMain.handle(IPC.workflowGitSafety, (_e, projectPath: string): WorkflowRunGitSafety =>
+    workflowManager.inspectGitSafety(projectPath)
   )
 
   ipcMain.handle(IPC.workflowConfirmStep, (_e, runId: string) =>

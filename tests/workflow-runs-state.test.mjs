@@ -8,6 +8,8 @@ const root = dirname(dirname(fileURLToPath(import.meta.url)))
 const types = readFileSync(join(root, 'src/shared/types.ts'), 'utf8')
 const store = readFileSync(join(root, 'src/main/WorkflowStore.ts'), 'utf8')
 const manager = readFileSync(join(root, 'src/main/WorkflowManager.ts'), 'utf8')
+const ipc = readFileSync(join(root, 'src/main/ipc.ts'), 'utf8')
+const preload = readFileSync(join(root, 'src/preload/index.ts'), 'utf8')
 
 test('shared workflow contract supports multiple persisted runs', () => {
   assert.match(types, /interrupted/)
@@ -27,4 +29,15 @@ test('workflow manager marks restored running runs as interrupted', () => {
   assert.match(manager, /markInterruptedRunsOnStartup/)
   assert.match(manager, /status === 'running'/)
   assert.match(manager, /status = 'interrupted'/)
+})
+
+test('ipc and preload expose workflow run list, delete, and git safety', () => {
+  assert.match(ipc, /IPC\.workflowRunsList/)
+  assert.match(ipc, /workflowManager\.listRuns/)
+  assert.match(ipc, /IPC\.workflowDeleteRun/)
+  assert.match(ipc, /workflowManager\.deleteRun/)
+  assert.match(ipc, /IPC\.workflowGitSafety/)
+  assert.match(preload, /listWorkflowRuns/)
+  assert.match(preload, /deleteWorkflowRun/)
+  assert.match(preload, /inspectWorkflowGitSafety/)
 })
