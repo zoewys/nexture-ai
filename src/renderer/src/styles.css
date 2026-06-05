@@ -375,8 +375,15 @@ button:disabled {
 .app-ui-review .workflow-new-run-actions button,
 .app-ui-review .templates-view-header button,
 .app-ui-review .templates-main-actions button {
+  font-size: 16px;
   font-weight: 750;
   padding: 0 11px;
+}
+
+.app-ui-review .workflow-new-run-drawer input,
+.app-ui-review .workflow-new-run-drawer select,
+.app-ui-review .workflow-new-run-drawer textarea {
+  font-size: 16px;
 }
 
 button svg {
@@ -890,6 +897,8 @@ button.icon-only {
   text-align: left;
   white-space: normal;
   padding: 9px 10px;
+  justify-content: stretch;
+  justify-items: stretch;
 }
 
 .workflow-step-nav-card-active {
@@ -1174,6 +1183,20 @@ button.icon-only {
 
 .workflow-template-preview strong {
   color: var(--text);
+  font-size: 15px;
+  line-height: 1.2;
+}
+
+.app-ui-review .workflow-steps-title strong,
+.app-ui-review .workflow-template-preview .field-row-between > span {
+  border: 1px solid var(--border);
+  border-radius: 999px;
+  background: #1d2028;
+  color: var(--text-soft);
+  padding: 4px 9px;
+  font-size: 12px;
+  font-weight: 400;
+  line-height: 1.2;
 }
 
 .workflow-template-preview-pills {

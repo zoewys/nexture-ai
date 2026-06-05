@@ -38,6 +38,23 @@ const devFlowStepAgents: AgentDefinition[] = [
   agent('agent-doc', '文档更新', 'Doc Agent', 'claude')
 ]
 
+const devFlowStepDisplayNames = [
+  '需求澄清',
+  '信息架构',
+  'UI Mockup',
+  '技术方案',
+  '开发实现',
+  '浏览器验证',
+  '移动端适配',
+  '回归测试',
+  '修复反馈',
+  '最终验收',
+  '提交整理',
+  '文档更新',
+  '总结沉淀',
+  '收尾检查'
+]
+
 const agents: AgentDefinition[] = devFlowStepAgents
 
 const templates: WorkflowTemplate[] = [
@@ -331,6 +348,7 @@ function createRun({
   handoff?: WorkflowRun['steps'][number]['executions'][number]['handoff']
 }): WorkflowRun {
   const initialPrompt = newRunDefaults.initialPrompt ?? ''
+  const stepDisplayNames = template.id === 'template-dev-flow' ? devFlowStepDisplayNames : []
   const run: WorkflowRun & {
     displayPath?: string
     gitSafetyMessage?: string
@@ -351,6 +369,7 @@ function createRun({
       const stepStatus = stepStatuses[index] ?? 'pending'
       return {
         agentId: step.agentId,
+        displayName: stepDisplayNames[index],
         status: stepStatus,
         executions:
           stepStatus === 'pending'

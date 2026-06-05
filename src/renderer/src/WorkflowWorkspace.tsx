@@ -19,13 +19,15 @@ interface WorkflowWorkspaceProps {
   workflows: UseWorkflowsResult
   newRunDefaults?: NewWorkflowRunDefaults
   uiReviewEnabled?: boolean
+  onUiReviewSurfaceChange?: (surface: 'workflow' | 'new-run') => void
 }
 
 export function WorkflowWorkspace({
   agents,
   workflows,
   newRunDefaults,
-  uiReviewEnabled = false
+  uiReviewEnabled = false,
+  onUiReviewSurfaceChange
 }: WorkflowWorkspaceProps): JSX.Element {
   const [newRunDrawerOpen, setNewRunDrawerOpen] = useState(false)
   const [soundEnabled] = useState(readWorkflowNotificationSoundEnabled)
@@ -94,6 +96,11 @@ export function WorkflowWorkspace({
       playWorkflowNotificationSound(notification.sound)
     }
   }, [soundEnabled, workflows.runs])
+
+  useEffect(() => {
+    if (!uiReviewEnabled) return
+    onUiReviewSurfaceChange?.(newRunDrawerOpen ? 'new-run' : 'workflow')
+  }, [newRunDrawerOpen, onUiReviewSurfaceChange, uiReviewEnabled])
 
   return (
     <section className="workflow-workspace">

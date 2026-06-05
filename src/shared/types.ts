@@ -191,6 +191,7 @@ export interface WorkflowStepExecution {
 
 export interface WorkflowRunStep {
   agentId: string
+  displayName?: string
   status: StepStatus
   executions: WorkflowStepExecution[]
 }

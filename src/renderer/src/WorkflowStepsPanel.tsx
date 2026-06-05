@@ -19,14 +19,19 @@ export function WorkflowStepsPanel({
     if (!run) return []
     const clean = query.trim().toLowerCase()
     return run.steps
-      .map((step, index) => ({
-        step,
-        index,
-        agent: agents.find((item) => item.id === step.agentId)
-      }))
-      .filter(({ agent, index }) =>
+      .map((step, index) => {
+        const agent = agents.find((item) => item.id === step.agentId)
+        return {
+          step,
+          index,
+          agent,
+          stepName: step.displayName ?? agent?.name ?? 'Missing agent'
+        }
+      })
+      .filter(({ agent, index, stepName }) =>
         !clean ||
         String(index + 1).includes(clean) ||
+        stepName.toLowerCase().includes(clean) ||
         (agent?.name ?? '').toLowerCase().includes(clean) ||
         (agent?.role ?? '').toLowerCase().includes(clean)
       )
@@ -46,7 +51,7 @@ export function WorkflowStepsPanel({
         />
       </div>
       <div className="workflow-steps-list" data-scroll-axis="overflow-y">
-        {filtered.map(({ step, index, agent }) => (
+        {filtered.map(({ step, index, agent, stepName }) => (
           <button
             type="button"
             key={`${run?.id}-${index}`}
@@ -58,7 +63,7 @@ export function WorkflowStepsPanel({
             onClick={() => onSelectStep(index)}
           >
             <div className="workflow-step-card-row">
-              <span>{index + 1}. {agent?.name ?? 'Missing agent'}</span>
+              <span>{index + 1}. {stepName}</span>
               <span className={`workflow-step-status-dot workflow-step-status-dot-${step.status}`} />
             </div>
             <div className="workflow-step-card-row">

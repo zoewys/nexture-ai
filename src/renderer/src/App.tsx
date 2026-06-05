@@ -38,6 +38,7 @@ import {
 } from './Icons'
 
 type WorkspaceMode = 'workflow' | 'templates' | 'agents' | 'single'
+type UiReviewWorkflowSurface = 'workflow' | 'new-run'
 
 export function App(): JSX.Element {
   const { state, start, continueSession, push, abort, reset } = useRun()
@@ -60,6 +61,8 @@ export function App(): JSX.Element {
   const [workflowInputError, setWorkflowInputError] = useState<string | null>(null)
   const [selectedAgentId, setSelectedAgentId] = useState<string | null>(null)
   const [selectedWorkflowStep, setSelectedWorkflowStep] = useState(0)
+  const [uiReviewWorkflowSurface, setUiReviewWorkflowSurface] =
+    useState<UiReviewWorkflowSurface>('workflow')
   const [configOpen, setConfigOpen] = useState(true)
 
   const selectedAgent = useMemo(
@@ -238,7 +241,9 @@ export function App(): JSX.Element {
       case 'templates':
         return 'Templates'
       case 'workflow':
-        return 'Workflow'
+        return uiReview.enabled && uiReviewWorkflowSurface === 'new-run'
+          ? 'Workflow · New Run Drawer'
+          : 'Workflow'
       case 'single':
         return 'Single Agent'
     }
@@ -349,6 +354,7 @@ export function App(): JSX.Element {
               workflows={workflows}
               newRunDefaults={uiReview.newRunDefaults}
               uiReviewEnabled={uiReview.enabled}
+              onUiReviewSurfaceChange={setUiReviewWorkflowSurface}
             />
           </main>
         ) : (
