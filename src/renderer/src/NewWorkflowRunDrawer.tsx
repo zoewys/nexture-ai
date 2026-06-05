@@ -37,6 +37,9 @@ export function NewWorkflowRunDrawer({
     () => templates.find((template) => template.id === templateId) ?? null,
     [templateId, templates]
   )
+  const previewSteps = selectedTemplate?.steps.slice(0, 5) ?? []
+  const gitRoot = gitRootDisplay(projectPath, safety)
+  const worktree = worktreeDisplay(projectPath, safety)
 
   useEffect(() => {
     if (!templateId && templates[0]) setTemplateId(templates[0].id)
@@ -69,7 +72,7 @@ export function NewWorkflowRunDrawer({
 
   const start = async (): Promise<void> => {
     if (!selectedTemplate || !canStart) return
-    rememberProjectPath(projectPath)
+    rememberProjectPath(projectPath.trim())
     await onStart({
       templateId: selectedTemplate.id,
       runName: runName.trim() || selectedTemplate.name,
@@ -78,6 +81,10 @@ export function NewWorkflowRunDrawer({
       allowUnsafeSameGitRoot
     })
     onClose()
+  }
+
+  const saveDraft = (): void => {
+    rememberProjectPath(projectPath.trim())
   }
 
   const pickDir = async (): Promise<void> => {
@@ -124,6 +131,17 @@ export function NewWorkflowRunDrawer({
           </div>
         </label>
 
+        <div className="workflow-new-run-split">
+          <label className="field">
+            <span>Git Root</span>
+            <input value={gitRoot} readOnly />
+          </label>
+          <label className="field">
+            <span>Worktree</span>
+            <input value={worktree} readOnly />
+          </label>
+        </div>
+
         {safety?.message && (
           <div className={`workflow-git-safety workflow-git-safety-${safety.level}`}>
             {safety.message}
@@ -164,17 +182,50 @@ export function NewWorkflowRunDrawer({
         </label>
 
         <div className="workflow-template-preview">
-          <strong>Template Preview</strong>
-          <span>{selectedTemplate?.steps.length ?? 0} steps · {agents.length} agents available</span>
+          <div className="field-row field-row-between">
+            <strong>Template Preview</strong>
+            <span>{selectedTemplate?.steps.length ?? 0} steps</span>
+          </div>
+          <div className="workflow-template-preview-pills">
+            {previewSteps.map((step, index) => (
+              <span className="pill-small" key={`${step.agentId}-${index}`}>
+                {index + 1} {agentPreviewName(step.agentId, agents)}
+              </span>
+            ))}
+            {(selectedTemplate?.steps.length ?? 0) > previewSteps.length && (
+              <span className="pill-small">
+                ... {selectedTemplate?.steps.length ?? 0} total
+              </span>
+            )}
+          </div>
         </div>
       </div>
 
       <div className="workflow-new-run-actions">
-        <button type="button" onClick={onClose}>Cancel</button>
+        <button type="button" onClick={saveDraft}>Save Draft</button>
         <button type="button" className="primary" disabled={!canStart} onClick={start}>
           <Play size={14} /> Start Run
         </button>
       </div>
     </aside>
   )
+}
+
+function gitRootDisplay(projectPath: string, safety: WorkflowRunGitSafety | null): string {
+  if (!projectPath.trim()) return ''
+  if (!safety) return 'Inspecting...'
+  return safety.gitRoot ?? 'No git root detected'
+}
+
+function worktreeDisplay(projectPath: string, safety: WorkflowRunGitSafety | null): string {
+  if (!projectPath.trim()) return ''
+  if (!safety) return 'Inspecting...'
+  if (!safety.isGitRepo) return 'Not a git repository'
+  if (safety.branch) return safety.branch
+  return safety.isLinkedWorktree ? 'linked worktree' : 'main working tree'
+}
+
+function agentPreviewName(agentId: string, agents: AgentDefinition[]): string {
+  const agent = agents.find((item) => item.id === agentId)
+  return agent?.role || agent?.name || 'Step'
 }

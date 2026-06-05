@@ -1,9 +1,10 @@
-import type { WorkflowRun } from '@shared/types'
+import type { AgentDefinition, WorkflowRun } from '@shared/types'
 import { CheckCircle, RotateCcw, Send } from './Icons'
 import { HandoffPanel } from './HandoffPanel'
 import { TranscriptViewer } from './TranscriptViewer'
 
 export interface WorkflowRunDetailProps {
+  agents: AgentDefinition[]
   run: WorkflowRun | null
   selectedStepIndex: number
   selectedExecution: WorkflowRun['steps'][number]['executions'][number] | null
@@ -21,6 +22,7 @@ export interface WorkflowRunDetailProps {
 }
 
 export function WorkflowRunDetail({
+  agents,
   run,
   selectedStepIndex,
   selectedExecution,
@@ -46,6 +48,9 @@ export function WorkflowRunDetail({
   }
 
   const selectedStep = run.steps[selectedStepIndex]
+  const selectedAgent = selectedStep
+    ? agents.find((agent) => agent.id === selectedStep.agentId) ?? null
+    : null
   const awaitingConfirm =
     run.status === 'awaiting-confirm' &&
     run.steps[run.currentStepIndex]?.status === 'awaiting-confirm'
@@ -64,16 +69,26 @@ export function WorkflowRunDetail({
             </button>
           )}
           <button type="button" onClick={() => onRerun(selectedStepIndex)}>
-            <RotateCcw size={14} /> 重新运行
+            <RotateCcw size={14} /> Rerun Step
           </button>
-          {run.status === 'running' && <button type="button" onClick={onAbort}>停止</button>}
+          {run.status === 'running' && <button type="button" onClick={onAbort}>Stop</button>}
         </div>
       </div>
 
       <div className="workflow-detail-header">
-        <strong>
-          步骤 {selectedStepIndex + 1} · {selectedStep ? stepStatusLabel(selectedStep.status) : '未知'}
-        </strong>
+        <div className="workflow-run-step-summary">
+          <span
+            className={[
+              'workflow-run-step-dot',
+              selectedStep ? `workflow-run-step-dot-${selectedStep.status}` : ''
+            ].filter(Boolean).join(' ')}
+          />
+          <strong>
+            Step {selectedStepIndex + 1} / {run.steps.length} ·{' '}
+            {selectedAgent?.name ?? selectedAgent?.role ?? 'Missing agent'} ·{' '}
+            {selectedStep ? stepStatusLabel(selectedStep.status) : '未知'}
+          </strong>
+        </div>
         {selectedExecution?.error && (
           <span className="workflow-error">{selectedExecution.error}</span>
         )}

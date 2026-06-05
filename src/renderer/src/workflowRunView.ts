@@ -6,6 +6,8 @@ export interface WorkflowNotification {
   sound: WorkflowNotificationSound
 }
 
+export type WorkflowRunProgressSegment = 'done' | 'running' | 'waiting' | 'error' | 'idle'
+
 export function sortWorkflowRunsByStartedAt(runs: WorkflowRun[]): WorkflowRun[] {
   return [...runs].sort((a, b) => b.startedAt - a.startedAt)
 }
@@ -17,6 +19,30 @@ export function workflowRunDisplayName(run: WorkflowRun): string {
 export function workflowRunTailLines(run: WorkflowRun, count = 3): string[] {
   const events = run.steps.flatMap((step) => step.executions.at(-1)?.events ?? [])
   return events.flatMap(eventToTailLine).slice(-count)
+}
+
+export function workflowRunProgressSegments(
+  run: WorkflowRun,
+  count = 6
+): WorkflowRunProgressSegment[] {
+  const segments = run.steps.slice(0, count).map((step): WorkflowRunProgressSegment => {
+    switch (step.status) {
+      case 'done':
+      case 'stale':
+        return 'done'
+      case 'running':
+        return 'running'
+      case 'awaiting-confirm':
+        return 'waiting'
+      case 'error':
+        return 'error'
+      case 'pending':
+        return 'idle'
+    }
+  })
+
+  while (segments.length < count) segments.push('idle')
+  return segments
 }
 
 export function workflowNotificationForRun(run: WorkflowRun): WorkflowNotification | null {

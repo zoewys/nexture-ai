@@ -1,39 +1,31 @@
 import type { WorkflowRun } from '@shared/types'
-import { workflowRunDisplayName, workflowRunTailLines } from './workflowRunView'
+import {
+  workflowRunDisplayName,
+  workflowRunProgressSegments,
+  workflowRunTailLines
+} from './workflowRunView'
 
 interface WorkflowRunsListProps {
   runs: WorkflowRun[]
   selectedRunId: string | null
   onSelectRun: (runId: string) => void
   onNewRun: () => void
-  soundEnabled: boolean
-  onToggleSound: () => void
 }
 
 export function WorkflowRunsList({
   runs,
   selectedRunId,
   onSelectRun,
-  onNewRun,
-  soundEnabled,
-  onToggleSound
+  onNewRun
 }: WorkflowRunsListProps): JSX.Element {
   return (
     <aside className="workflow-runs-list">
       <div className="workflow-runs-header">
         <div>
-          <div className="section-title">Workflow Runs</div>
+          <div className="workflow-runs-title">Workflow Runs</div>
           <p>按开始时间倒序；点击 run 卡片进入详情和确认。</p>
         </div>
         <div className="workflow-runs-actions">
-          <button
-            type="button"
-            aria-pressed={soundEnabled}
-            title={soundEnabled ? 'Workflow notification sound on' : 'Workflow notification sound off'}
-            onClick={onToggleSound}
-          >
-            {soundEnabled ? 'Sound On' : 'Sound Off'}
-          </button>
           <button type="button" className="primary" onClick={onNewRun}>New Run</button>
         </div>
       </div>
@@ -64,6 +56,14 @@ export function WorkflowRunsList({
               <span>{runStatusShortLabel(run.status)}</span>
             </div>
             <p>{new Date(run.startedAt).toLocaleTimeString()} · {run.projectPath}</p>
+            <div className="workflow-run-card-progress" aria-hidden="true">
+              {workflowRunProgressSegments(run).map((segment, index) => (
+                <span
+                  key={`${run.id}-segment-${index}`}
+                  className={`workflow-run-card-segment workflow-run-card-segment-${segment}`}
+                />
+              ))}
+            </div>
             <div className="workflow-run-card-tail">
               {workflowRunTailLines(run).map((line, index) => (
                 <span key={`${run.id}-tail-${index}`}>{line}</span>

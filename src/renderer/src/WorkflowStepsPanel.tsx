@@ -57,8 +57,16 @@ export function WorkflowStepsPanel({
             ].filter(Boolean).join(' ')}
             onClick={() => onSelectStep(index)}
           >
-            <span>{index + 1}. {agent?.name ?? 'Missing agent'}</span>
-            <small>{agent?.role ?? 'unknown'} · {stepStatusLabel(step.status)}</small>
+            <div className="workflow-step-card-row">
+              <span>{index + 1}. {agent?.name ?? 'Missing agent'}</span>
+              <span className={`workflow-step-status-dot workflow-step-status-dot-${step.status}`} />
+            </div>
+            <div className="workflow-step-card-row">
+              <small>{agent?.role ?? 'unknown'}</small>
+              <strong className={`workflow-step-status workflow-step-status-${step.status}`}>
+                {stepStatusLabel(step.status)}
+              </strong>
+            </div>
           </button>
         ))}
       </div>

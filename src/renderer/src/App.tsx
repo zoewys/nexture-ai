@@ -35,7 +35,7 @@ import {
   ClipboardCheck
 } from './Icons'
 
-type WorkspaceMode = 'workflow' | 'templates' | 'single' | 'agents'
+type WorkspaceMode = 'workflow' | 'templates' | 'agents' | 'single'
 
 export function App(): JSX.Element {
   const { state, start, continueSession, push, abort, reset } = useRun()
@@ -229,27 +229,39 @@ export function App(): JSX.Element {
   const subtitle = () => {
     switch (mode) {
       case 'agents':
-        return `Agent Library · ${agents.length}`
+        return 'Agents'
       case 'templates':
-        return `Workflow Templates · ${workflows.templates.length}`
+        return 'Templates'
       case 'workflow':
-        return workflows.currentRun
-          ? `Workflow · ${workflowRunStatusLabel(workflows.currentRun.status)}`
-          : 'Workflow'
+        return 'Workflow'
       case 'single':
-        return `Single Run · ${vendor}`
+        return 'Single Agent'
     }
   }
 
   const isAgents = mode === 'agents'
   const isWorkflow = mode === 'workflow'
   const isTemplates = mode === 'templates'
+  const topbarChips = buildTopbarChips(
+    mode,
+    workflows.runs.filter((run) => run.status === 'running').length,
+    workflows.runs.filter((run) => run.status === 'awaiting-confirm').length,
+    workflows.templates.length,
+    agents.length
+  )
 
   return (
     <div className="app">
       <header className="app-header">
-        <h1>Agent Studio</h1>
-        <span className="app-subtitle">{subtitle()}</span>
+        <div className="app-brand">
+          <h1>Agent Studio</h1>
+          <span className="app-subtitle">{subtitle()}</span>
+        </div>
+        <div className="topbar-chips" aria-label="Workspace summary">
+          {topbarChips.map((chip) => (
+            <span className="topbar-chip" key={chip}>{chip}</span>
+          ))}
+        </div>
       </header>
 
       <div
@@ -279,19 +291,19 @@ export function App(): JSX.Element {
           </button>
           <button
             type="button"
-            className={`mode-item ${mode === 'single' ? 'mode-item-active' : ''}`}
-            onClick={() => setMode('single')}
-          >
-            <span className="mode-icon"><Play /></span>
-            <span>Single Run</span>
-          </button>
-          <button
-            type="button"
             className={`mode-item ${isAgents ? 'mode-item-active' : ''}`}
             onClick={() => setMode(isAgents ? 'workflow' : 'agents')}
           >
             <span className="mode-icon"><Bot /></span>
             <span>Agents</span>
+          </button>
+          <button
+            type="button"
+            className={`mode-item ${mode === 'single' ? 'mode-item-active' : ''}`}
+            onClick={() => setMode('single')}
+          >
+            <span className="mode-icon"><Play /></span>
+            <span>Single</span>
           </button>
         </nav>
 
@@ -508,6 +520,25 @@ export function App(): JSX.Element {
       </div>
     </div>
   )
+}
+
+function buildTopbarChips(
+  mode: WorkspaceMode,
+  runningCount: number,
+  waitingCount: number,
+  templateCount: number,
+  agentCount: number
+): string[] {
+  switch (mode) {
+    case 'workflow':
+      return [`${runningCount} running`, `${waitingCount} waiting`, 'sound per run']
+    case 'templates':
+      return [`${templateCount} templates`, 'node canvas later', 'linear V1']
+    case 'agents':
+      return [`${agentCount} agents`, '2 CLIs', 'templates linked']
+    case 'single':
+      return ['single run', 'follow-up', 'transcript']
+  }
 }
 
 function buildSingleRunFollowUpPrompt(

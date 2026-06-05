@@ -15,7 +15,8 @@ function createWindow(): void {
     minWidth: 800,
     minHeight: 600,
     icon: appIconPath,
-    show: false,
+    frame: false,
+    show: true,
     title: 'Agent Studio',
     titleBarStyle: process.platform === 'darwin' ? 'hiddenInset' : 'default',
     webPreferences: {

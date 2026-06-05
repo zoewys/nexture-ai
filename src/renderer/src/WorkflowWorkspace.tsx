@@ -8,8 +8,7 @@ import { workflowNotificationForRun } from './workflowRunView'
 import {
   playWorkflowNotificationSound,
   prepareWorkflowNotificationSound,
-  readWorkflowNotificationSoundEnabled,
-  writeWorkflowNotificationSoundEnabled
+  readWorkflowNotificationSoundEnabled
 } from './workflowNotificationSound'
 import type { UseWorkflowsResult } from './useWorkflows'
 
@@ -20,7 +19,7 @@ interface WorkflowWorkspaceProps {
 
 export function WorkflowWorkspace({ agents, workflows }: WorkflowWorkspaceProps): JSX.Element {
   const [newRunDrawerOpen, setNewRunDrawerOpen] = useState(false)
-  const [soundEnabled, setSoundEnabled] = useState(readWorkflowNotificationSoundEnabled)
+  const [soundEnabled] = useState(readWorkflowNotificationSoundEnabled)
   const [selectedStepByRunId, setSelectedStepByRunId] = useState<Record<string, number>>({})
   const [workflowInput, setWorkflowInput] = useState('')
   const [workflowInputError, setWorkflowInputError] = useState<string | null>(null)
@@ -71,25 +70,19 @@ export function WorkflowWorkspace({ agents, workflows }: WorkflowWorkspaceProps)
     }
   }
 
-  const toggleSoundEnabled = (): void => {
-    const nextSoundEnabled = !soundEnabled
-    setSoundEnabled(nextSoundEnabled)
-    writeWorkflowNotificationSoundEnabled(nextSoundEnabled)
-    if (nextSoundEnabled) prepareWorkflowNotificationSound()
-  }
+  useEffect(() => {
+    if (soundEnabled) prepareWorkflowNotificationSound()
+  }, [soundEnabled])
 
   useEffect(() => {
-    prepareWorkflowNotificationSound()
-  }, [])
-
-  useEffect(() => {
+    if (!soundEnabled) return
     for (const run of workflows.runs) {
       const notification = workflowNotificationForRun(run)
       if (!notification || playedNotificationKeys.current.has(notification.key)) continue
       playedNotificationKeys.current.add(notification.key)
       playWorkflowNotificationSound(notification.sound)
     }
-  }, [workflows.runs])
+  }, [soundEnabled, workflows.runs])
 
   return (
     <section className="workflow-workspace">
@@ -98,10 +91,9 @@ export function WorkflowWorkspace({ agents, workflows }: WorkflowWorkspaceProps)
         selectedRunId={workflows.selectedRunId}
         onSelectRun={workflows.selectRun}
         onNewRun={() => setNewRunDrawerOpen(true)}
-        soundEnabled={soundEnabled}
-        onToggleSound={toggleSoundEnabled}
       />
       <WorkflowRunDetail
+        agents={agents}
         run={selectedRun}
         selectedStepIndex={selectedStepIndex}
         selectedExecution={selectedExecution}
