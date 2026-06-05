@@ -17,6 +17,7 @@ import { CodexOptions } from './CodexOptions'
 import { ModelSelect } from './ModelSelect'
 import { TranscriptViewer } from './TranscriptViewer'
 import { WorkflowPanel } from './WorkflowPanel'
+import { WorkflowWorkspace } from './WorkflowWorkspace'
 import { formatHandoffDisplay } from './handoffDisplay'
 import { readLastProjectPath, rememberProjectPath } from './projectPathMemory'
 import {
@@ -263,6 +264,7 @@ export function App(): JSX.Element {
   }
 
   const isAgents = mode === 'agents'
+  const isWorkflow = mode === 'workflow'
 
   return (
     <div className="app">
@@ -275,7 +277,8 @@ export function App(): JSX.Element {
         className={[
           'app-body',
           isAgents ? 'app-body-agents' : '',
-          !isAgents && !configOpen ? 'app-body-config-collapsed' : ''
+          isWorkflow ? 'app-body-workflow' : '',
+          !isAgents && !isWorkflow && !configOpen ? 'app-body-config-collapsed' : ''
         ].filter(Boolean).join(' ')}
       >
         <nav className="mode-rail" aria-label="Workspace modes">
@@ -316,6 +319,10 @@ export function App(): JSX.Element {
               onClose={() => setMode('workflow')}
             />
           </div>
+        ) : isWorkflow ? (
+          <main className="panel panel-runtime panel-runtime-workflow">
+            <WorkflowWorkspace agents={agents} workflows={workflows} />
+          </main>
         ) : (
           <>
             <aside className={`panel panel-config ${configOpen ? '' : 'panel-config-collapsed'}`}>
@@ -324,7 +331,7 @@ export function App(): JSX.Element {
                   <div className="workspace-panel-header">
                     <div className="panel-heading-line">
                       <span className="section-title">
-                        {mode === 'workflow' ? 'Workflow Config' : 'Single Run Config'}
+                        Single Run Config
                       </span>
                       <button
                         type="button"
@@ -336,26 +343,11 @@ export function App(): JSX.Element {
                         <ChevronLeft size={15} />
                       </button>
                     </div>
-                    <h2>
-                      {mode === 'workflow' ? 'Orchestrate multiple agents' : 'Run a single agent'}
-                    </h2>
-                    <p>
-                      {mode === 'workflow'
-                        ? 'Create a linear pipeline and review handoffs in the run panel.'
-                        : 'Pick a preset agent or configure a one-shot CLI run.'}
-                    </p>
+                    <h2>Run a single agent</h2>
+                    <p>Pick a preset agent or configure a one-shot CLI run.</p>
                   </div>
 
-                  {mode === 'workflow' ? (
-                    <WorkflowPanel
-                      agents={agents}
-                      templates={workflows.templates}
-                      onSave={workflows.save}
-                      onDelete={workflows.remove}
-                      onStart={startWorkflow}
-                    />
-                  ) : (
-                    <>
+                  <>
                       <label className="field">
                         <span>Agent</span>
                         <div className="field-row">
@@ -461,8 +453,7 @@ export function App(): JSX.Element {
                           </button>
                         )}
                       </div>
-                    </>
-                  )}
+                  </>
                 </>
               ) : (
                 <button
@@ -479,31 +470,7 @@ export function App(): JSX.Element {
             </aside>
 
             <main className="panel panel-runtime">
-              {mode === 'workflow' ? (
-                <WorkflowRuntime
-                  agents={agents}
-                  currentRun={workflows.currentRun}
-                  selectedStepIndex={selectedWorkflowStep}
-                  selectedExecution={selectedWorkflowExecution}
-                  onSelectStep={setSelectedWorkflowStep}
-                  onConfirm={handleWorkflowConfirm}
-                  onRerun={workflows.rerunStep}
-                  onAbort={workflows.abort}
-                  onClearRun={workflows.clearRun}
-                  composerValue={workflowInput}
-                  composerEditable={workflowComposerEditable}
-                  composerEnabled={workflowComposerEnabled}
-                  composerPlaceholder={workflowComposerPlaceholder}
-                  composerError={workflowInputError}
-                  onComposerChange={(value) => {
-                    setWorkflowInput(value)
-                    setWorkflowInputError(null)
-                  }}
-                  onComposerSend={handleWorkflowInputSend}
-                  handoff={selectedWorkflowHandoff}
-                />
-              ) : (
-                <>
+              <>
                   <TranscriptViewer events={state.events} />
 
                   {state.events.length > 0 && (
@@ -538,8 +505,7 @@ export function App(): JSX.Element {
                       </button>
                     </div>
                   )}
-                </>
-              )}
+              </>
             </main>
           </>
         )}

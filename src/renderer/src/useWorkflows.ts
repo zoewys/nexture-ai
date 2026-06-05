@@ -145,6 +145,8 @@ export function useWorkflows() {
   }
 }
 
+export type UseWorkflowsResult = ReturnType<typeof useWorkflows>
+
 function applyRunUpdate(runs: WorkflowRun[], updated: WorkflowRun): WorkflowRun[] {
   const next = runs.map((run) => (run.id === updated.id ? updated : run))
   if (!next.some((run) => run.id === updated.id)) next.push(updated)
