@@ -5,16 +5,24 @@ import { dirname, join } from 'node:path'
 import { fileURLToPath } from 'node:url'
 
 const root = dirname(dirname(fileURLToPath(import.meta.url)))
-const app = readFileSync(join(root, 'src/renderer/src/App.tsx'), 'utf8')
 const sound = readFileSync(join(root, 'src/renderer/src/workflowNotificationSound.ts'), 'utf8')
+const workspace = readFileSync(join(root, 'src/renderer/src/WorkflowWorkspace.tsx'), 'utf8')
+const runView = readFileSync(join(root, 'src/renderer/src/workflowRunView.ts'), 'utf8')
 
-test('workflow transitions trigger deduped notification sounds', () => {
-  assert.match(app, /workflowNotificationForRun\(run\)/)
-  assert.match(app, /run\.status === 'awaiting-confirm'/)
-  assert.match(app, /run\.status === 'completed' \|\| run\.status === 'error' \|\| run\.status === 'aborted'/)
-  assert.match(app, /workflowSoundKeyRef\.current === notification\.key/)
-  assert.match(app, /playWorkflowNotificationSound\(notification\.sound\)/)
-  assert.match(app, /prepareWorkflowNotificationSound\(\)/)
+test('workflow transitions trigger deduped notification sounds from every run', () => {
+  assert.match(runView, /workflowNotificationForRun\(run/)
+  assert.match(runView, /run\.status === 'awaiting-confirm'/)
+  assert.match(runView, /interrupted/)
+  assert.match(workspace, /for \(const run of workflows\.runs\)/)
+  assert.match(workspace, /playedNotificationKeys\.current\.has\(notification\.key\)/)
+  assert.match(workspace, /playWorkflowNotificationSound\(notification\.sound\)/)
+  assert.match(workspace, /prepareWorkflowNotificationSound\(\)/)
+})
+
+test('workflow notification sound supports global on off preference', () => {
+  assert.match(sound, /readWorkflowNotificationSoundEnabled/)
+  assert.match(sound, /writeWorkflowNotificationSoundEnabled/)
+  assert.match(sound, /localStorage/)
 })
 
 test('workflow notification sound is generated with Web Audio', () => {
