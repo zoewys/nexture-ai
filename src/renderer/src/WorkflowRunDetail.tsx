@@ -14,6 +14,7 @@ export interface WorkflowRunDetailProps {
   selectedStepIndex: number
   selectedExecution: WorkflowRun['steps'][number]['executions'][number] | null
   handoff: NonNullable<WorkflowRun['steps'][number]['executions'][number]['handoff']> | null
+  uiReviewEnabled?: boolean
   onConfirm: () => Promise<void>
   onRerun: (stepIndex: number) => Promise<void>
   onAbort: () => Promise<void>
@@ -32,6 +33,7 @@ export function WorkflowRunDetail({
   selectedStepIndex,
   selectedExecution,
   handoff,
+  uiReviewEnabled = false,
   onConfirm,
   onRerun,
   onAbort,
@@ -75,7 +77,11 @@ export function WorkflowRunDetail({
             </button>
           )}
           <button type="button" onClick={() => onRerun(selectedStepIndex)}>
-            <RotateCcw size={14} /> Rerun Step
+            {uiReviewEnabled ? 'Rerun Step' : (
+              <>
+                <RotateCcw size={14} /> Rerun Step
+              </>
+            )}
           </button>
           {(run.status === 'running' || run.status === 'awaiting-confirm') && (
             <button type="button" className="danger" onClick={onAbort}>Stop</button>
@@ -118,24 +124,43 @@ export function WorkflowRunDetail({
 
       <div className="workflow-cli-composer">
         <div className="workflow-cli-prompt">›</div>
-        <textarea
-          value={composerValue}
-          disabled={!composerEditable}
-          placeholder={composerPlaceholder}
-          onChange={(e) => onComposerChange(e.target.value)}
-          onKeyDown={(e) => {
-            if (e.key === 'Enter' && !e.shiftKey) {
-              e.preventDefault()
-              void onComposerSend()
-            }
-          }}
-        />
+        {uiReviewEnabled ? (
+          <input
+            value={composerValue}
+            disabled={!composerEditable}
+            placeholder={composerPlaceholder}
+            onChange={(e) => onComposerChange(e.target.value)}
+            onKeyDown={(e) => {
+              if (e.key === 'Enter') {
+                e.preventDefault()
+                void onComposerSend()
+              }
+            }}
+          />
+        ) : (
+          <textarea
+            value={composerValue}
+            disabled={!composerEditable}
+            placeholder={composerPlaceholder}
+            onChange={(e) => onComposerChange(e.target.value)}
+            onKeyDown={(e) => {
+              if (e.key === 'Enter' && !e.shiftKey) {
+                e.preventDefault()
+                void onComposerSend()
+              }
+            }}
+          />
+        )}
         <button
           onClick={() => void onComposerSend()}
           disabled={!composerEnabled || composerValue.trim() === ''}
           type="button"
         >
-          <Send size={14} /> 发送
+          {uiReviewEnabled ? '发送' : (
+            <>
+              <Send size={14} /> 发送
+            </>
+          )}
         </button>
       </div>
       {composerError && <div className="workflow-input-error">{composerError}</div>}

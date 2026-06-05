@@ -23,6 +23,7 @@ interface NewWorkflowRunDrawerProps {
   onInspectGitSafety: (projectPath: string) => Promise<WorkflowRunGitSafety>
   runningRunCount: number
   newRunDefaults?: NewWorkflowRunDefaults
+  uiReviewEnabled?: boolean
   onClose: () => void
 }
 
@@ -33,6 +34,7 @@ export function NewWorkflowRunDrawer({
   onInspectGitSafety,
   runningRunCount,
   newRunDefaults,
+  uiReviewEnabled = false,
   onClose
 }: NewWorkflowRunDrawerProps): JSX.Element {
   const [templateId, setTemplateId] = useState(templates[0]?.id ?? '')
@@ -139,7 +141,9 @@ export function NewWorkflowRunDrawer({
           <span>Project Directory</span>
           <div className="field-row">
             <input value={projectPath} onChange={(event) => setProjectPath(event.target.value)} />
-            <button type="button" onClick={pickDir}><FolderOpen size={14} /> Browse</button>
+            {!uiReviewEnabled && (
+              <button type="button" onClick={pickDir}><FolderOpen size={14} /> Browse</button>
+            )}
           </div>
         </label>
 
@@ -196,7 +200,9 @@ export function NewWorkflowRunDrawer({
         <div className="workflow-template-preview">
           <div className="field-row field-row-between">
             <strong>Template Preview</strong>
-            <span>{selectedTemplate?.steps.length ?? 0} steps</span>
+            <span>
+              {uiReviewEnabled ? selectedTemplate?.name : `${selectedTemplate?.steps.length ?? 0} steps`}
+            </span>
           </div>
           <div className="workflow-template-preview-pills">
             {previewSteps.map((step, index) => (
@@ -216,7 +222,11 @@ export function NewWorkflowRunDrawer({
       <div className="workflow-new-run-actions">
         <button type="button" onClick={saveDraft}>Save Draft</button>
         <button type="button" className="primary" disabled={!canStart} onClick={start}>
-          <Play size={14} /> Start Run
+          {uiReviewEnabled ? 'Start Run' : (
+            <>
+              <Play size={14} /> Start Run
+            </>
+          )}
         </button>
       </div>
     </aside>

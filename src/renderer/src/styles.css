@@ -368,6 +368,17 @@ button:disabled {
   cursor: not-allowed;
 }
 
+.app-ui-review .workflow-runs-actions button,
+.app-ui-review .workflow-run-detail-actions button,
+.app-ui-review .workflow-cli-composer button,
+.app-ui-review .workflow-new-run-header button,
+.app-ui-review .workflow-new-run-actions button,
+.app-ui-review .templates-view-header button,
+.app-ui-review .templates-main-actions button {
+  font-weight: 750;
+  padding: 0 11px;
+}
+
 button svg {
   display: block;
   flex: 0 0 auto;
@@ -744,6 +755,8 @@ button.icon-only {
   text-align: left;
   white-space: normal;
   padding: 10px;
+  justify-content: stretch;
+  justify-items: stretch;
 }
 
 .workflow-run-card-active {
@@ -840,6 +853,34 @@ button.icon-only {
   overflow: hidden;
   display: flex;
   flex-direction: column;
+}
+
+.ui-review-mock-nav {
+  position: fixed;
+  left: 50%;
+  bottom: 12px;
+  transform: translateX(-50%);
+  z-index: 10;
+  border: 1px solid var(--border);
+  border-radius: 999px;
+  background: rgba(25, 28, 35, 0.92);
+  padding: 5px;
+  display: flex;
+  gap: 4px;
+  box-shadow: 0 12px 36px rgba(0, 0, 0, 0.28);
+}
+
+.ui-review-mock-nav-item {
+  color: var(--text-dim);
+  font-size: 12px;
+  line-height: 1.2;
+  padding: 6px 10px;
+  border-radius: 999px;
+}
+
+.ui-review-mock-nav-item-active {
+  background: rgba(108, 140, 255, 0.18);
+  color: #fff;
 }
 
 .workflow-step-nav-card {
@@ -1661,6 +1702,25 @@ button.icon-only {
   resize: vertical;
   font-family: 'SF Mono', Menlo, monospace;
   line-height: 1.45;
+}
+
+.app-ui-review .workflow-cli-composer {
+  grid-template-columns: 24px minmax(0, 1fr) 76px;
+  align-items: center;
+  padding: 10px 12px;
+}
+
+.app-ui-review .workflow-cli-composer input {
+  min-height: 34px;
+  font-family: inherit;
+}
+
+.app-ui-review .workflow-cli-composer button:disabled {
+  opacity: 1;
+  cursor: default;
+  background: var(--accent);
+  border-color: var(--accent);
+  color: #fff;
 }
 
 .workflow-input-error {

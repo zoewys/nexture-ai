@@ -17,6 +17,7 @@ import { CodexOptions } from './CodexOptions'
 import { ModelSelect } from './ModelSelect'
 import { TranscriptViewer } from './TranscriptViewer'
 import { TemplatesView } from './TemplatesView'
+import { UiReviewMockNav } from './UiReviewMockNav'
 import { WorkflowWorkspace } from './WorkflowWorkspace'
 import { formatHandoffDisplay } from './handoffDisplay'
 import { readLastProjectPath, rememberProjectPath } from './projectPathMemory'
@@ -284,7 +285,9 @@ export function App(): JSX.Element {
             className={`mode-item ${mode === 'workflow' ? 'mode-item-active' : ''}`}
             onClick={() => setMode('workflow')}
           >
-            <span className="mode-icon"><GitBranch /></span>
+            <span className="mode-icon">
+              {uiReview.enabled ? reviewModeIcon('workflow') : <GitBranch />}
+            </span>
             <span>Workflow</span>
           </button>
           <button
@@ -292,7 +295,9 @@ export function App(): JSX.Element {
             className={`mode-item ${isTemplates ? 'mode-item-active' : ''}`}
             onClick={() => setMode('templates')}
           >
-            <span className="mode-icon"><ClipboardCheck /></span>
+            <span className="mode-icon">
+              {uiReview.enabled ? reviewModeIcon('templates') : <ClipboardCheck />}
+            </span>
             <span>Templates</span>
           </button>
           <button
@@ -300,7 +305,9 @@ export function App(): JSX.Element {
             className={`mode-item ${isAgents ? 'mode-item-active' : ''}`}
             onClick={() => setMode(isAgents ? 'workflow' : 'agents')}
           >
-            <span className="mode-icon"><Bot /></span>
+            <span className="mode-icon">
+              {uiReview.enabled ? reviewModeIcon('agents') : <Bot />}
+            </span>
             <span>Agents</span>
           </button>
           <button
@@ -308,7 +315,9 @@ export function App(): JSX.Element {
             className={`mode-item ${mode === 'single' ? 'mode-item-active' : ''}`}
             onClick={() => setMode('single')}
           >
-            <span className="mode-icon"><Play /></span>
+            <span className="mode-icon">
+              {uiReview.enabled ? reviewModeIcon('single') : <Play />}
+            </span>
             <span>Single</span>
           </button>
         </nav>
@@ -339,6 +348,7 @@ export function App(): JSX.Element {
               agents={agents}
               workflows={workflows}
               newRunDefaults={uiReview.newRunDefaults}
+              uiReviewEnabled={uiReview.enabled}
             />
           </main>
         ) : (
@@ -528,8 +538,23 @@ export function App(): JSX.Element {
           </>
         )}
       </div>
+
+      {uiReview.enabled && mode !== 'workflow' && <UiReviewMockNav active={mode} />}
     </div>
   )
+}
+
+function reviewModeIcon(mode: WorkspaceMode): string {
+  switch (mode) {
+    case 'workflow':
+      return '⌘'
+    case 'templates':
+      return '▦'
+    case 'agents':
+      return '◎'
+    case 'single':
+      return '▶'
+  }
 }
 
 function buildTopbarChips(

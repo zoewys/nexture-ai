@@ -5,6 +5,7 @@ import { WorkflowRunDetail } from './WorkflowRunDetail'
 import { WorkflowStepsPanel } from './WorkflowStepsPanel'
 import { NewWorkflowRunDrawer } from './NewWorkflowRunDrawer'
 import type { NewWorkflowRunDefaults } from './NewWorkflowRunDrawer'
+import { UiReviewMockNav } from './UiReviewMockNav'
 import { workflowNotificationForRun } from './workflowRunView'
 import {
   playWorkflowNotificationSound,
@@ -17,12 +18,14 @@ interface WorkflowWorkspaceProps {
   agents: AgentDefinition[]
   workflows: UseWorkflowsResult
   newRunDefaults?: NewWorkflowRunDefaults
+  uiReviewEnabled?: boolean
 }
 
 export function WorkflowWorkspace({
   agents,
   workflows,
-  newRunDefaults
+  newRunDefaults,
+  uiReviewEnabled = false
 }: WorkflowWorkspaceProps): JSX.Element {
   const [newRunDrawerOpen, setNewRunDrawerOpen] = useState(false)
   const [soundEnabled] = useState(readWorkflowNotificationSoundEnabled)
@@ -52,12 +55,14 @@ export function WorkflowWorkspace({
     selectedStepState.status !== 'running'
   const composerEnabled = !!selectedRun && (workflowCanInterject || workflowCanContinue)
   const composerEditable = !!selectedRun && !!selectedStepState
-  const composerPlaceholder = buildWorkflowComposerPlaceholder(
-    selectedRun,
-    selectedAgent,
-    selectedStepState,
-    selectedExecution
-  )
+  const composerPlaceholder = uiReviewEnabled
+    ? '向当前 workflow / step 发送消息...'
+    : buildWorkflowComposerPlaceholder(
+        selectedRun,
+        selectedAgent,
+        selectedStepState,
+        selectedExecution
+      )
 
   const setSelectedStepIndex = (index: number): void => {
     if (!selectedRun) return
@@ -104,6 +109,7 @@ export function WorkflowWorkspace({
         selectedStepIndex={selectedStepIndex}
         selectedExecution={selectedExecution}
         handoff={handoff}
+        uiReviewEnabled={uiReviewEnabled}
         onConfirm={workflows.confirmStep}
         onRerun={workflows.rerunStep}
         onAbort={workflows.abort}
@@ -132,8 +138,12 @@ export function WorkflowWorkspace({
           onInspectGitSafety={workflows.inspectGitSafety}
           runningRunCount={workflows.runs.filter((run) => run.status === 'running').length}
           newRunDefaults={newRunDefaults}
+          uiReviewEnabled={uiReviewEnabled}
           onClose={() => setNewRunDrawerOpen(false)}
         />
+      )}
+      {uiReviewEnabled && (
+        <UiReviewMockNav active={newRunDrawerOpen ? 'new-run' : 'workflow'} />
       )}
     </section>
   )
