@@ -163,7 +163,7 @@ export function App(): JSX.Element {
           'app-body',
           isAgents ? 'app-body-agents' : '',
           !isAgents && !configOpen ? 'app-body-config-collapsed' : '',
-          isWorkflow ? 'app-body-workflow' : ''
+          isWorkflow ? 'app-body-workflow' : isTemplates ? 'app-body-templates' : ''
         ].filter(Boolean).join(' ')}
       >
         <nav className="mode-rail" aria-label="Workspace modes">

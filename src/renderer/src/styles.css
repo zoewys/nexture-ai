@@ -8,6 +8,7 @@
   --text-dim: #9097a3;
   --accent: #6c8cff;
   --accent-dim: #3d4a7a;
+  --primary: #6c8cff;
   --green: #4caf7d;
   --yellow: #d4a548;
   --red: #e06c75;
@@ -1428,15 +1429,19 @@ button.icon-only {
 /* ── V4: workflow workspace layout ──────────────────────────────────── */
 
 .app-body-workflow {
-  display: grid;
-  grid-template-rows: auto minmax(0, 1fr);
+  grid-template-columns: 84px minmax(0, 1fr);
+}
+
+.app-body-templates {
+  grid-template-columns: 84px minmax(0, 1fr);
 }
 
 .workflow-workspace {
   min-height: 0;
+  height: 100%;
   display: grid;
   grid-template-columns: 400px minmax(0, 1fr) 250px;
-  flex: 1;
+  overflow: hidden;
 }
 
 .workflow-runs-list,
@@ -1451,7 +1456,16 @@ button.icon-only {
 .workflow-runs-list { border-right: 1px solid var(--border); }
 .workflow-steps-panel { border-left: 1px solid var(--border); }
 
-.workflow-runs-header,
+.workflow-runs-header {
+  border-bottom: 1px solid var(--border);
+  padding: 12px 14px;
+  display: flex;
+  flex-direction: row;
+  justify-content: space-between;
+  align-items: flex-start;
+  gap: 10px;
+}
+
 .workflow-steps-header {
   border-bottom: 1px solid var(--border);
   padding: 12px 14px;
@@ -1550,6 +1564,7 @@ button.icon-only {
   min-height: 0;
   display: flex;
   flex-direction: column;
+  overflow: hidden;
 }
 
 .workflow-run-detail-empty {
