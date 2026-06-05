@@ -8,6 +8,10 @@ export interface WorkflowNotification {
 
 export type WorkflowRunProgressSegment = 'done' | 'running' | 'waiting' | 'error' | 'idle'
 
+type WorkflowRunUiMeta = WorkflowRun & {
+  tailLines?: string[]
+}
+
 export function sortWorkflowRunsByStartedAt(runs: WorkflowRun[]): WorkflowRun[] {
   return [...runs].sort((a, b) => b.startedAt - a.startedAt)
 }
@@ -17,6 +21,8 @@ export function workflowRunDisplayName(run: WorkflowRun): string {
 }
 
 export function workflowRunTailLines(run: WorkflowRun, count = 3): string[] {
+  const tailLines = (run as WorkflowRunUiMeta).tailLines
+  if (tailLines?.length) return tailLines.slice(-count)
   const events = run.steps.flatMap((step) => step.executions.at(-1)?.events ?? [])
   return events.flatMap(eventToTailLine).slice(-count)
 }

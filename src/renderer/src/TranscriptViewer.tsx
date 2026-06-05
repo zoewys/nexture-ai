@@ -432,7 +432,9 @@ function BlockView({ block }: { block: Block }): JSX.Element | null {
         case 'system':
           return ev.text.includes('↳') ? (
             <div className="cli-user-input">{ev.text}</div>
-          ) : null
+          ) : (
+            <div className="cli-meta-line">{ev.text}</div>
+          )
         default:
           return null
       }

@@ -1,5 +1,6 @@
 import { useEffect, useMemo, useState } from 'react'
 import type { AgentDefinition, WorkflowTemplate } from '@shared/types'
+import { canvasPreviewLabels } from './uiReviewFixture'
 import type { WorkflowDraft } from './useWorkflows'
 
 interface TemplatesViewProps {
@@ -19,7 +20,10 @@ export function TemplatesView({
     () => templates.find((template) => template.id === selectedTemplateId) ?? templates[0] ?? null,
     [selectedTemplateId, templates]
   )
-  const previewAgents = selectedTemplate?.steps.slice(0, 4).map((step) => agentName(step.agentId, agents)) ?? []
+  const previewAgents =
+    selectedTemplate?.steps.slice(0, 4).map((step, index) =>
+      canvasPreviewLabels[index] ?? agentName(step.agentId, agents)
+    ) ?? []
 
   useEffect(() => {
     if (!templates.length) {

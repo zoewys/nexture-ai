@@ -5,6 +5,10 @@ import {
   workflowRunTailLines
 } from './workflowRunView'
 
+type WorkflowRunUiMeta = WorkflowRun & {
+  listMeta?: string
+}
+
 interface WorkflowRunsListProps {
   runs: WorkflowRun[]
   selectedRunId: string | null
@@ -53,9 +57,14 @@ export function WorkflowRunsList({
           >
             <div className="workflow-run-card-main">
               <strong>{workflowRunDisplayName(run)}</strong>
-              <span>{runStatusShortLabel(run.status)}</span>
+              <span className={`workflow-run-card-status workflow-run-card-status-${run.status}`}>
+                {runStatusShortLabel(run.status)}
+              </span>
             </div>
-            <p>{new Date(run.startedAt).toLocaleTimeString()} · {run.projectPath}</p>
+            <p>
+              {(run as WorkflowRunUiMeta).listMeta ??
+                `${new Date(run.startedAt).toLocaleTimeString()} · ${run.projectPath}`}
+            </p>
             <div className="workflow-run-card-progress" aria-hidden="true">
               {workflowRunProgressSegments(run).map((segment, index) => (
                 <span

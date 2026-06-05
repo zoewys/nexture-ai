@@ -356,6 +356,13 @@ button.primary {
   font-weight: 600;
 }
 
+button.danger {
+  border-color: rgba(219, 107, 107, 0.72);
+  background: rgba(219, 107, 107, 0.1);
+  color: #ffd0d0;
+  font-weight: 600;
+}
+
 button:disabled {
   opacity: 0.4;
   cursor: not-allowed;
@@ -775,6 +782,24 @@ button.icon-only {
   font-size: 11px;
 }
 
+.workflow-run-card-main .workflow-run-card-status-running {
+  color: var(--accent);
+}
+
+.workflow-run-card-main .workflow-run-card-status-awaiting-confirm {
+  color: var(--yellow);
+}
+
+.workflow-run-card-main .workflow-run-card-status-completed {
+  color: var(--green);
+}
+
+.workflow-run-card-main .workflow-run-card-status-error,
+.workflow-run-card-main .workflow-run-card-status-interrupted,
+.workflow-run-card-main .workflow-run-card-status-aborted {
+  color: var(--red);
+}
+
 .workflow-run-card-progress {
   display: grid;
   grid-template-columns: repeat(6, 1fr);
@@ -913,6 +938,71 @@ button.icon-only {
   overflow-y: auto;
 }
 
+.workflow-run-warning {
+  margin: 0 16px;
+  border: 1px solid var(--yellow);
+  border-radius: 6px;
+  background: rgba(212, 165, 72, 0.1);
+  color: var(--yellow);
+  padding: 9px 12px;
+  font-size: 12px;
+  line-height: 1.4;
+}
+
+.app-ui-review .workflow-detail-handoff {
+  display: none;
+}
+
+.app-ui-review .workflow-confirm-step {
+  display: none;
+}
+
+.app-ui-review .workflow-run-detail .transcript {
+  flex: 1;
+  padding: 14px 16px 0;
+  gap: 0;
+  font-family: 'SF Mono', Menlo, monospace;
+}
+
+.app-ui-review .workflow-run-detail .status-bar {
+  display: none;
+}
+
+.app-ui-review .workflow-run-detail .cli-msg,
+.app-ui-review .workflow-run-detail .cli-tool,
+.app-ui-review .workflow-run-detail .cli-meta-line {
+  margin: 0;
+  padding: 0;
+  background: transparent;
+  border: 0;
+  color: var(--text-soft);
+  font-family: 'SF Mono', Menlo, monospace;
+  font-size: 13px;
+  line-height: 2.2;
+}
+
+.app-ui-review .workflow-run-detail .cli-msg::before,
+.app-ui-review .workflow-run-detail .cli-tool::before,
+.app-ui-review .workflow-run-detail .cli-tool-icon,
+.app-ui-review .workflow-run-detail .cli-tool-detail {
+  display: none;
+}
+
+.app-ui-review .workflow-run-detail .cli-msg p::before {
+  content: 'assistant: ';
+  color: var(--text-strong);
+  font-weight: 750;
+}
+
+.app-ui-review .workflow-run-detail .cli-tool-name::before {
+  content: 'tool: ';
+  color: #9fb0ff;
+}
+
+.app-ui-review .workflow-run-detail .cli-tool-name {
+  color: #9fb0ff;
+}
+
 .workflow-new-run-drawer {
   position: absolute;
   top: 0;
@@ -982,7 +1072,7 @@ button.icon-only {
 }
 
 .workflow-new-run-body textarea {
-  min-height: 154px;
+  min-height: 225px;
   resize: none;
 }
 
@@ -2007,6 +2097,14 @@ button.icon-only {
   border-radius: 4px;
   padding: 6px 10px;
   margin: 4px 0;
+}
+
+.cli-meta-line {
+  color: var(--text-dim);
+  font-family: 'SF Mono', Menlo, monospace;
+  font-size: 12px;
+  line-height: 1.7;
+  padding: 2px 0;
 }
 
 .cli-err {

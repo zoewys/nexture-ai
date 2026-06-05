@@ -4,6 +4,7 @@ import { WorkflowRunsList } from './WorkflowRunsList'
 import { WorkflowRunDetail } from './WorkflowRunDetail'
 import { WorkflowStepsPanel } from './WorkflowStepsPanel'
 import { NewWorkflowRunDrawer } from './NewWorkflowRunDrawer'
+import type { NewWorkflowRunDefaults } from './NewWorkflowRunDrawer'
 import { workflowNotificationForRun } from './workflowRunView'
 import {
   playWorkflowNotificationSound,
@@ -15,9 +16,14 @@ import type { UseWorkflowsResult } from './useWorkflows'
 interface WorkflowWorkspaceProps {
   agents: AgentDefinition[]
   workflows: UseWorkflowsResult
+  newRunDefaults?: NewWorkflowRunDefaults
 }
 
-export function WorkflowWorkspace({ agents, workflows }: WorkflowWorkspaceProps): JSX.Element {
+export function WorkflowWorkspace({
+  agents,
+  workflows,
+  newRunDefaults
+}: WorkflowWorkspaceProps): JSX.Element {
   const [newRunDrawerOpen, setNewRunDrawerOpen] = useState(false)
   const [soundEnabled] = useState(readWorkflowNotificationSoundEnabled)
   const [selectedStepByRunId, setSelectedStepByRunId] = useState<Record<string, number>>({})
@@ -125,6 +131,7 @@ export function WorkflowWorkspace({ agents, workflows }: WorkflowWorkspaceProps)
           onStart={workflows.start}
           onInspectGitSafety={workflows.inspectGitSafety}
           runningRunCount={workflows.runs.filter((run) => run.status === 'running').length}
+          newRunDefaults={newRunDefaults}
           onClose={() => setNewRunDrawerOpen(false)}
         />
       )}

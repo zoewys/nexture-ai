@@ -20,6 +20,7 @@ import { TemplatesView } from './TemplatesView'
 import { WorkflowWorkspace } from './WorkflowWorkspace'
 import { formatHandoffDisplay } from './handoffDisplay'
 import { readLastProjectPath, rememberProjectPath } from './projectPathMemory'
+import { useUiReviewFixture } from './uiReviewFixture'
 import { prepareWorkflowNotificationSound } from './workflowNotificationSound'
 import {
   GitBranch,
@@ -39,9 +40,12 @@ type WorkspaceMode = 'workflow' | 'templates' | 'agents' | 'single'
 
 export function App(): JSX.Element {
   const { state, start, continueSession, push, abort, reset } = useRun()
-  const { agents, save: saveAgent, remove: removeAgent } = useAgents()
+  const { agents: savedAgents, save: saveAgent, remove: removeAgent } = useAgents()
   const { models: modelCatalog, loading: modelsLoading } = useCliModels()
-  const workflows = useWorkflows()
+  const savedWorkflows = useWorkflows()
+  const uiReview = useUiReviewFixture()
+  const agents = uiReview.enabled ? uiReview.agents : savedAgents
+  const workflows = uiReview.enabled ? uiReview.workflows : savedWorkflows
   const [clis, setClis] = useState<CliCheckResult | null>(null)
   const [mode, setMode] = useState<WorkspaceMode>('workflow')
   const [vendor, setVendor] = useState<AgentVendor>('claude')
@@ -242,16 +246,18 @@ export function App(): JSX.Element {
   const isAgents = mode === 'agents'
   const isWorkflow = mode === 'workflow'
   const isTemplates = mode === 'templates'
-  const topbarChips = buildTopbarChips(
-    mode,
-    workflows.runs.filter((run) => run.status === 'running').length,
-    workflows.runs.filter((run) => run.status === 'awaiting-confirm').length,
-    workflows.templates.length,
-    agents.length
-  )
+  const topbarChips = uiReview.enabled
+    ? uiReview.topbarChips[mode]
+    : buildTopbarChips(
+        mode,
+        workflows.runs.filter((run) => run.status === 'running').length,
+        workflows.runs.filter((run) => run.status === 'awaiting-confirm').length,
+        workflows.templates.length,
+        agents.length
+      )
 
   return (
-    <div className="app">
+    <div className={['app', uiReview.enabled ? 'app-ui-review' : ''].filter(Boolean).join(' ')}>
       <header className="app-header">
         <div className="app-brand">
           <h1>Agent Studio</h1>
@@ -329,7 +335,11 @@ export function App(): JSX.Element {
           </div>
         ) : isWorkflow ? (
           <main className="panel panel-runtime panel-runtime-workflow">
-            <WorkflowWorkspace agents={agents} workflows={workflows} />
+            <WorkflowWorkspace
+              agents={agents}
+              workflows={workflows}
+              newRunDefaults={uiReview.newRunDefaults}
+            />
           </main>
         ) : (
           <>

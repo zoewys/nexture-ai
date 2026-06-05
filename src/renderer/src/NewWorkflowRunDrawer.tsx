@@ -5,8 +5,16 @@ import type {
   WorkflowStartInput,
   WorkflowTemplate
 } from '@shared/types'
-import { FolderOpen, Play, X } from './Icons'
+import { FolderOpen, Play } from './Icons'
 import { readLastProjectPath, rememberProjectPath } from './projectPathMemory'
+
+const stepPreviewLabels = ['需求', 'IA', 'UI', '技术方案', '开发']
+
+export interface NewWorkflowRunDefaults {
+  initialRunName?: string
+  initialProjectPath?: string
+  initialPrompt?: string
+}
 
 interface NewWorkflowRunDrawerProps {
   agents: AgentDefinition[]
@@ -14,6 +22,7 @@ interface NewWorkflowRunDrawerProps {
   onStart: (input: WorkflowStartInput) => Promise<unknown>
   onInspectGitSafety: (projectPath: string) => Promise<WorkflowRunGitSafety>
   runningRunCount: number
+  newRunDefaults?: NewWorkflowRunDefaults
   onClose: () => void
 }
 
@@ -23,12 +32,15 @@ export function NewWorkflowRunDrawer({
   onStart,
   onInspectGitSafety,
   runningRunCount,
+  newRunDefaults,
   onClose
 }: NewWorkflowRunDrawerProps): JSX.Element {
   const [templateId, setTemplateId] = useState(templates[0]?.id ?? '')
-  const [runName, setRunName] = useState('')
-  const [projectPath, setProjectPath] = useState(readLastProjectPath)
-  const [initialPrompt, setInitialPrompt] = useState('')
+  const [runName, setRunName] = useState(newRunDefaults?.initialRunName ?? '')
+  const [projectPath, setProjectPath] = useState(
+    () => newRunDefaults?.initialProjectPath ?? readLastProjectPath()
+  )
+  const [initialPrompt, setInitialPrompt] = useState(newRunDefaults?.initialPrompt ?? '')
   const [safety, setSafety] = useState<WorkflowRunGitSafety | null>(null)
   const [allowUnsafeSameGitRoot, setAllowUnsafeSameGitRoot] = useState(false)
   const [allowHighConcurrency, setAllowHighConcurrency] = useState(false)
@@ -99,8 +111,8 @@ export function NewWorkflowRunDrawer({
           <strong>New Workflow Run</strong>
           <span>从模板启动一个新的任务实例</span>
         </div>
-        <button type="button" className="icon-only" onClick={onClose} aria-label="Close">
-          <X size={14} />
+        <button type="button" onClick={onClose} aria-label="Close">
+          Close
         </button>
       </div>
 
@@ -109,7 +121,7 @@ export function NewWorkflowRunDrawer({
           <span>Template</span>
           <select value={templateId} onChange={(event) => setTemplateId(event.target.value)}>
             {templates.map((template) => (
-              <option key={template.id} value={template.id}>{template.name}</option>
+              <option key={template.id} value={template.id}>{formatTemplateOption(template)}</option>
             ))}
           </select>
         </label>
@@ -189,12 +201,12 @@ export function NewWorkflowRunDrawer({
           <div className="workflow-template-preview-pills">
             {previewSteps.map((step, index) => (
               <span className="pill-small" key={`${step.agentId}-${index}`}>
-                {index + 1} {agentPreviewName(step.agentId, agents)}
+                {index + 1} {stepPreviewLabels[index] ?? agentPreviewName(step.agentId, agents)}
               </span>
             ))}
             {(selectedTemplate?.steps.length ?? 0) > previewSteps.length && (
               <span className="pill-small">
-                ... {selectedTemplate?.steps.length ?? 0} total
+                ... {selectedTemplate?.steps.length ?? 0} 收尾
               </span>
             )}
           </div>
@@ -209,6 +221,10 @@ export function NewWorkflowRunDrawer({
       </div>
     </aside>
   )
+}
+
+function formatTemplateOption(template: WorkflowTemplate): string {
+  return `${template.name} · ${template.steps.length} steps`
 }
 
 function gitRootDisplay(projectPath: string, safety: WorkflowRunGitSafety | null): string {

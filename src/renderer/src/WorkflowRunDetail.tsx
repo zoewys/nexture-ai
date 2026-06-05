@@ -3,6 +3,11 @@ import { CheckCircle, RotateCcw, Send } from './Icons'
 import { HandoffPanel } from './HandoffPanel'
 import { TranscriptViewer } from './TranscriptViewer'
 
+type WorkflowRunUiMeta = WorkflowRun & {
+  displayPath?: string
+  gitSafetyMessage?: string
+}
+
 export interface WorkflowRunDetailProps {
   agents: AgentDefinition[]
   run: WorkflowRun | null
@@ -54,24 +59,27 @@ export function WorkflowRunDetail({
   const awaitingConfirm =
     run.status === 'awaiting-confirm' &&
     run.steps[run.currentStepIndex]?.status === 'awaiting-confirm'
+  const { displayPath, gitSafetyMessage } = run as WorkflowRunUiMeta
 
   return (
     <main className="workflow-run-detail">
       <div className="workflow-run-detail-header">
         <div>
           <h2>{run.runName || run.templateName}</h2>
-          <p>{run.projectPath}</p>
+          <p>{displayPath ?? run.projectPath}</p>
         </div>
         <div className="workflow-run-detail-actions">
           {awaitingConfirm && (
-            <button type="button" className="primary" onClick={onConfirm}>
+            <button type="button" className="primary workflow-confirm-step" onClick={onConfirm}>
               <CheckCircle size={14} /> 确认并继续
             </button>
           )}
           <button type="button" onClick={() => onRerun(selectedStepIndex)}>
             <RotateCcw size={14} /> Rerun Step
           </button>
-          {run.status === 'running' && <button type="button" onClick={onAbort}>Stop</button>}
+          {(run.status === 'running' || run.status === 'awaiting-confirm') && (
+            <button type="button" className="danger" onClick={onAbort}>Stop</button>
+          )}
         </div>
       </div>
 
@@ -93,6 +101,12 @@ export function WorkflowRunDetail({
           <span className="workflow-error">{selectedExecution.error}</span>
         )}
       </div>
+
+      {gitSafetyMessage && (
+        <div className="workflow-run-warning">
+          {gitSafetyMessage}
+        </div>
+      )}
 
       <TranscriptViewer events={selectedExecution?.events ?? []} />
 
