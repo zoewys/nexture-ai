@@ -43,3 +43,21 @@ test('ipc and preload expose workflow run list, delete, and git safety', () => {
   assert.match(preload, /deleteWorkflowRun/)
   assert.match(preload, /inspectWorkflowGitSafety/)
 })
+
+const useWorkflows = readFileSync(join(root, 'src/renderer/src/useWorkflows.ts'), 'utf8')
+
+test('renderer stores many workflow runs and selected run id', () => {
+  assert.match(useWorkflows, /const \[runs, setRuns\]/)
+  assert.match(useWorkflows, /const \[selectedRunId, setSelectedRunId\]/)
+  assert.match(useWorkflows, /selectedRun/)
+  assert.match(useWorkflows, /applyWorkflowEventToRuns/)
+  assert.doesNotMatch(useWorkflows, /const \[currentRun, setCurrentRun\]/)
+})
+
+test('workflow run view derives sorted runs and latest tail', () => {
+  const runView = readFileSync(join(root, 'src/renderer/src/workflowRunView.ts'), 'utf8')
+  assert.match(runView, /sortWorkflowRunsByStartedAt/)
+  assert.match(runView, /workflowRunDisplayName/)
+  assert.match(runView, /workflowRunTailLines/)
+  assert.match(runView, /workflowNotificationForRun/)
+})
