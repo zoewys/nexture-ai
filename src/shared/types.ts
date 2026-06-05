@@ -195,13 +195,23 @@ export interface WorkflowRunStep {
   executions: WorkflowStepExecution[]
 }
 
+export type WorkflowRunStatus =
+  | 'running'
+  | 'awaiting-confirm'
+  | 'completed'
+  | 'error'
+  | 'aborted'
+  | 'interrupted'
+
 export interface WorkflowRun {
   id: string
   templateId: string
   templateName: string
+  /** User-facing instance name. Defaults to templateName when omitted. */
+  runName?: string
   projectPath: string
   initialPrompt: string
-  status: 'running' | 'awaiting-confirm' | 'completed' | 'error' | 'aborted'
+  status: WorkflowRunStatus
   currentStepIndex: number
   steps: WorkflowRunStep[]
   startedAt: number
@@ -210,8 +220,11 @@ export interface WorkflowRun {
 
 export interface WorkflowStartInput {
   templateId: string
+  runName?: string
   projectPath: string
   initialPrompt: string
+  /** True only after the user accepts a same-working-tree warning. */
+  allowUnsafeSameGitRoot?: boolean
 }
 
 export interface WorkflowStartResult {
@@ -225,6 +238,21 @@ export type WorkflowEvent =
 export interface WorkflowEventEnvelope {
   runId: string
   event: WorkflowEvent
+}
+
+export interface WorkflowRunGitSafety {
+  projectPath: string
+  gitRoot?: string
+  commonGitDir?: string
+  branch?: string
+  isGitRepo: boolean
+  isLinkedWorktree: boolean
+  sameWorkingTreeRunIds: string[]
+  relatedWorktreeRunIds: string[]
+  /** Combined list for simple UI badges. */
+  conflictingRunIds: string[]
+  level: 'safe' | 'warning' | 'requires-confirmation'
+  message?: string
 }
 
 // ── IPC channel names + payloads ─────────────────────────────────────────────
@@ -268,7 +296,13 @@ export const IPC = {
   /** renderer → main: send input to the active workflow step. */
   workflowPush: 'workflow:push',
   /** main → renderer: workflow run updates and nested agent events. */
-  workflowEvent: 'workflow:event'
+  workflowEvent: 'workflow:event',
+  /** renderer → main: list persisted workflow runs. */
+  workflowRunsList: 'workflow:runs:list',
+  /** renderer → main: delete one persisted workflow run. */
+  workflowDeleteRun: 'workflow:runs:delete',
+  /** renderer → main: inspect project directory concurrency and git safety. */
+  workflowGitSafety: 'workflow:git-safety'
 } as const
 
 export interface RunStartResult {
