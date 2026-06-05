@@ -418,20 +418,21 @@ button.icon-only {
   overflow: hidden;
 }
 
-.workflow-runs-list,
+.workflow-runs-list {
+  min-width: 0;
+  min-height: 0;
+  background: var(--bg-panel);
+  display: flex;
+  flex-direction: column;
+  border-right: 1px solid var(--border);
+}
+
 .workflow-steps-panel {
   min-width: 0;
   min-height: 0;
   background: var(--bg-panel);
   display: flex;
   flex-direction: column;
-}
-
-.workflow-runs-list {
-  border-right: 1px solid var(--border);
-}
-
-.workflow-steps-panel {
   border-left: 1px solid var(--border);
 }
 
