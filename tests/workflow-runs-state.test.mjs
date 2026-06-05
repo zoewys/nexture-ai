@@ -15,3 +15,17 @@ test('shared workflow contract supports multiple persisted runs', () => {
   assert.match(types, /workflowDeleteRun: 'workflow:runs:delete'/)
   assert.match(types, /workflowGitSafety: 'workflow:git-safety'/)
 })
+
+const store = readFileSync(join(root, 'src/main/WorkflowStore.ts'), 'utf8')
+const manager = readFileSync(join(root, 'src/main/WorkflowManager.ts'), 'utf8')
+
+test('workflow store keeps permanent history and can delete one run', () => {
+  assert.doesNotMatch(store, /slice\(0,\s*20\)/)
+  assert.match(store, /deleteRun\(id: string\)/)
+})
+
+test('workflow manager marks restored running runs as interrupted', () => {
+  assert.match(manager, /markInterruptedRunsOnStartup/)
+  assert.match(manager, /status === 'running'/)
+  assert.match(manager, /status: 'interrupted'/)
+})
