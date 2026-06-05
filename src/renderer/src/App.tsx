@@ -16,7 +16,7 @@ import { AgentManager } from './AgentManager'
 import { CodexOptions } from './CodexOptions'
 import { ModelSelect } from './ModelSelect'
 import { TranscriptViewer } from './TranscriptViewer'
-import { WorkflowPanel } from './WorkflowPanel'
+import { TemplatesView } from './TemplatesView'
 import { WorkflowWorkspace } from './WorkflowWorkspace'
 import { formatHandoffDisplay } from './handoffDisplay'
 import { readLastProjectPath, rememberProjectPath } from './projectPathMemory'
@@ -35,7 +35,7 @@ import {
   ClipboardCheck
 } from './Icons'
 
-type WorkspaceMode = 'workflow' | 'single' | 'agents'
+type WorkspaceMode = 'workflow' | 'templates' | 'single' | 'agents'
 
 export function App(): JSX.Element {
   const { state, start, continueSession, push, abort, reset } = useRun()
@@ -230,6 +230,8 @@ export function App(): JSX.Element {
     switch (mode) {
       case 'agents':
         return `Agent Library · ${agents.length}`
+      case 'templates':
+        return `Workflow Templates · ${workflows.templates.length}`
       case 'workflow':
         return workflows.currentRun
           ? `Workflow · ${workflowRunStatusLabel(workflows.currentRun.status)}`
@@ -241,6 +243,7 @@ export function App(): JSX.Element {
 
   const isAgents = mode === 'agents'
   const isWorkflow = mode === 'workflow'
+  const isTemplates = mode === 'templates'
 
   return (
     <div className="app">
@@ -252,9 +255,9 @@ export function App(): JSX.Element {
       <div
         className={[
           'app-body',
-          isAgents ? 'app-body-agents' : '',
+          isAgents || isTemplates ? 'app-body-agents' : '',
           isWorkflow ? 'app-body-workflow' : '',
-          !isAgents && !isWorkflow && !configOpen ? 'app-body-config-collapsed' : ''
+          !isAgents && !isTemplates && !isWorkflow && !configOpen ? 'app-body-config-collapsed' : ''
         ].filter(Boolean).join(' ')}
       >
         <nav className="mode-rail" aria-label="Workspace modes">
@@ -265,6 +268,14 @@ export function App(): JSX.Element {
           >
             <span className="mode-icon"><GitBranch /></span>
             <span>Workflow</span>
+          </button>
+          <button
+            type="button"
+            className={`mode-item ${isTemplates ? 'mode-item-active' : ''}`}
+            onClick={() => setMode('templates')}
+          >
+            <span className="mode-icon"><ClipboardCheck /></span>
+            <span>Templates</span>
           </button>
           <button
             type="button"
@@ -293,6 +304,15 @@ export function App(): JSX.Element {
               onSave={saveAgent}
               onDelete={handleDeleteAgent}
               onClose={() => setMode('workflow')}
+            />
+          </div>
+        ) : isTemplates ? (
+          <div className="panel templates-page">
+            <TemplatesView
+              agents={agents}
+              templates={workflows.templates}
+              onSave={workflows.save}
+              onDelete={workflows.remove}
             />
           </div>
         ) : isWorkflow ? (

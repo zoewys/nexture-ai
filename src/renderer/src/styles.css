@@ -374,6 +374,41 @@ button.icon-only {
   gap: 12px;
 }
 
+.templates-page {
+  min-height: 0;
+  overflow-y: auto;
+  background: var(--bg);
+}
+
+.templates-view {
+  width: min(880px, 100%);
+  padding: 18px;
+  display: grid;
+  align-content: start;
+  gap: 16px;
+}
+
+.templates-view-header {
+  display: grid;
+  gap: 5px;
+  padding-bottom: 14px;
+  border-bottom: 1px solid var(--border);
+}
+
+.templates-view-header h2 {
+  margin: 0;
+  color: var(--text-strong);
+  font-size: 18px;
+  line-height: 1.25;
+}
+
+.templates-view-header p {
+  margin: 0;
+  color: var(--text-dim);
+  font-size: 12px;
+  line-height: 1.4;
+}
+
 .workflow-workspace {
   position: relative;
   min-height: 0;

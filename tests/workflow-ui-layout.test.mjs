@@ -12,6 +12,8 @@ const detail = readFileSync(join(root, 'src/renderer/src/WorkflowRunDetail.tsx')
 const steps = readFileSync(join(root, 'src/renderer/src/WorkflowStepsPanel.tsx'), 'utf8')
 const handoff = readFileSync(join(root, 'src/renderer/src/HandoffPanel.tsx'), 'utf8')
 const drawer = readFileSync(join(root, 'src/renderer/src/NewWorkflowRunDrawer.tsx'), 'utf8')
+const templatesView = readFileSync(join(root, 'src/renderer/src/TemplatesView.tsx'), 'utf8')
+const app = readFileSync(join(root, 'src/renderer/src/App.tsx'), 'utf8')
 
 test('workflow workspace uses runs-detail-steps layout', () => {
   assert.match(css, /\.workflow-workspace\s*\{/)
@@ -51,4 +53,11 @@ test('new workflow run starts from a drawer with git safety confirmation', () =>
   assert.match(drawer, /allowHighConcurrency/)
   assert.match(drawer, /5/)
   assert.match(drawer, /仍然启动/)
+})
+
+test('main navigation is consolidated to workflow templates agents single', () => {
+  assert.match(app, /type WorkspaceMode = 'workflow' \| 'templates' \| 'single' \| 'agents'/)
+  assert.match(app, /TemplatesView/)
+  assert.match(templatesView, /Workflow Templates/)
+  assert.doesNotMatch(app, /New Workflow Run['"]\s*\)/)
 })
