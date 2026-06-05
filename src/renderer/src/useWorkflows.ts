@@ -1,10 +1,12 @@
-import { useCallback, useEffect, useState } from 'react'
+import { useCallback, useEffect, useMemo, useState } from 'react'
 import type {
   WorkflowEventEnvelope,
   WorkflowRun,
+  WorkflowRunGitSafety,
   WorkflowStartInput,
   WorkflowTemplate
 } from '@shared/types'
+import { sortWorkflowRunsByStartedAt } from './workflowRunView'
 
 export interface WorkflowDraft extends Omit<WorkflowTemplate, 'id'> {
   id?: string
@@ -12,10 +14,22 @@ export interface WorkflowDraft extends Omit<WorkflowTemplate, 'id'> {
 
 export function useWorkflows() {
   const [templates, setTemplates] = useState<WorkflowTemplate[]>([])
-  const [currentRun, setCurrentRun] = useState<WorkflowRun | null>(null)
+  const [runs, setRuns] = useState<WorkflowRun[]>([])
+  const [selectedRunId, setSelectedRunId] = useState<string | null>(null)
+
+  const selectedRun = useMemo(
+    () => runs.find((run) => run.id === selectedRunId) ?? runs[0] ?? null,
+    [runs, selectedRunId]
+  )
 
   const reload = useCallback(async () => {
     setTemplates(await window.api.listWorkflows())
+  }, [])
+
+  const reloadRuns = useCallback(async () => {
+    const loaded = sortWorkflowRunsByStartedAt(await window.api.listWorkflowRuns())
+    setRuns(loaded)
+    setSelectedRunId((prev) => prev ?? loaded[0]?.id ?? null)
   }, [])
 
   const save = useCallback(async (draft: WorkflowDraft) => {
@@ -39,53 +53,85 @@ export function useWorkflows() {
 
   const start = useCallback(async (input: WorkflowStartInput) => {
     const { run } = await window.api.startWorkflow(input)
-    setCurrentRun(run)
+    setRuns((prev) =>
+      sortWorkflowRunsByStartedAt([run, ...prev.filter((item) => item.id !== run.id)])
+    )
+    setSelectedRunId(run.id)
     return run
   }, [])
 
   const confirmStep = useCallback(async () => {
-    if (!currentRun) return
-    setCurrentRun(await window.api.confirmWorkflowStep(currentRun.id))
-  }, [currentRun])
+    if (!selectedRun) return
+    const run = await window.api.confirmWorkflowStep(selectedRun.id)
+    setRuns((prev) => applyRunUpdate(prev, run))
+    setSelectedRunId(run.id)
+  }, [selectedRun])
 
   const rerunStep = useCallback(
     async (stepIndex: number) => {
-      if (!currentRun) return
-      setCurrentRun(await window.api.rerunWorkflowStep(currentRun.id, stepIndex))
+      if (!selectedRun) return
+      const run = await window.api.rerunWorkflowStep(selectedRun.id, stepIndex)
+      setRuns((prev) => applyRunUpdate(prev, run))
+      setSelectedRunId(run.id)
     },
-    [currentRun]
+    [selectedRun]
   )
 
   const abort = useCallback(async () => {
-    if (!currentRun) return
-    setCurrentRun(await window.api.abortWorkflow(currentRun.id))
-  }, [currentRun])
+    if (!selectedRun) return
+    const run = await window.api.abortWorkflow(selectedRun.id)
+    setRuns((prev) => applyRunUpdate(prev, run))
+    setSelectedRunId(run.id)
+  }, [selectedRun])
 
   const pushInput = useCallback(
     async (stepIndex: number, text: string) => {
-      if (!currentRun) return
-      setCurrentRun(await window.api.pushWorkflowInput(currentRun.id, stepIndex, text))
+      if (!selectedRun) return
+      const run = await window.api.pushWorkflowInput(selectedRun.id, stepIndex, text)
+      setRuns((prev) => applyRunUpdate(prev, run))
+      setSelectedRunId(run.id)
     },
-    [currentRun]
+    [selectedRun]
   )
 
-  const clearRun = useCallback(() => setCurrentRun(null), [])
+  const deleteRun = useCallback(async (runId: string) => {
+    await window.api.deleteWorkflowRun(runId)
+    setRuns((prev) => {
+      const next = prev.filter((run) => run.id !== runId)
+      setSelectedRunId((selected) => (selected === runId ? next[0]?.id ?? null : selected))
+      return next
+    })
+  }, [])
+
+  const inspectGitSafety = useCallback(
+    (projectPath: string): Promise<WorkflowRunGitSafety> =>
+      window.api.inspectWorkflowGitSafety(projectPath),
+    []
+  )
+
+  const clearRun = useCallback(() => setSelectedRunId(null), [])
 
   useEffect(() => {
     void reload()
-  }, [reload])
+    void reloadRuns()
+  }, [reload, reloadRuns])
 
   useEffect(() => {
     const unsub = window.api.onWorkflowEvent((envelope: WorkflowEventEnvelope) => {
-      setCurrentRun((prev) => applyWorkflowEvent(prev, envelope))
+      setRuns((prev) => applyWorkflowEventToRuns(prev, envelope))
     })
     return unsub
   }, [])
 
   return {
     templates,
-    currentRun,
+    runs,
+    selectedRun,
+    selectedRunId,
+    currentRun: selectedRun,
+    selectRun: setSelectedRunId,
     reload,
+    reloadRuns,
     save,
     remove,
     start,
@@ -93,33 +139,43 @@ export function useWorkflows() {
     rerunStep,
     abort,
     pushInput,
+    deleteRun,
+    inspectGitSafety,
     clearRun
   }
 }
 
-function applyWorkflowEvent(
-  current: WorkflowRun | null,
-  { runId, event }: WorkflowEventEnvelope
-): WorkflowRun | null {
-  if (event.kind === 'run-updated') return event.run
-  if (!current || current.id !== runId || event.kind !== 'agent-event') return current
+function applyRunUpdate(runs: WorkflowRun[], updated: WorkflowRun): WorkflowRun[] {
+  const next = runs.map((run) => (run.id === updated.id ? updated : run))
+  if (!next.some((run) => run.id === updated.id)) next.push(updated)
+  return sortWorkflowRunsByStartedAt(next)
+}
 
-  return {
-    ...current,
-    steps: current.steps.map((step, stepIndex) => {
-      if (stepIndex !== event.stepIndex) return step
-      return {
-        ...step,
-        executions: step.executions.map((execution) => {
-          if (execution.id !== event.executionId) return execution
-          return {
-            ...execution,
-            events: [...execution.events, event.event],
-            sessionId:
-              event.event.kind === 'session-started' ? event.event.sessionId : execution.sessionId
-          }
-        })
-      }
-    })
-  }
+function applyWorkflowEventToRuns(
+  current: WorkflowRun[],
+  { runId, event }: WorkflowEventEnvelope
+): WorkflowRun[] {
+  if (event.kind === 'run-updated') return applyRunUpdate(current, event.run)
+
+  return current.map((run) => {
+    if (run.id !== runId || event.kind !== 'agent-event') return run
+    return {
+      ...run,
+      steps: run.steps.map((step, stepIndex) => {
+        if (stepIndex !== event.stepIndex) return step
+        return {
+          ...step,
+          executions: step.executions.map((execution) => {
+            if (execution.id !== event.executionId) return execution
+            return {
+              ...execution,
+              events: [...execution.events, event.event],
+              sessionId:
+                event.event.kind === 'session-started' ? event.event.sessionId : execution.sessionId
+            }
+          })
+        }
+      })
+    }
+  })
 }

@@ -10,6 +10,8 @@ const store = readFileSync(join(root, 'src/main/WorkflowStore.ts'), 'utf8')
 const manager = readFileSync(join(root, 'src/main/WorkflowManager.ts'), 'utf8')
 const ipc = readFileSync(join(root, 'src/main/ipc.ts'), 'utf8')
 const preload = readFileSync(join(root, 'src/preload/index.ts'), 'utf8')
+const useWorkflows = readFileSync(join(root, 'src/renderer/src/useWorkflows.ts'), 'utf8')
+const runView = readFileSync(join(root, 'src/renderer/src/workflowRunView.ts'), 'utf8')
 
 test('shared workflow contract supports multiple persisted runs', () => {
   assert.match(types, /interrupted/)
@@ -40,4 +42,19 @@ test('ipc and preload expose workflow run list, delete, and git safety', () => {
   assert.match(preload, /listWorkflowRuns/)
   assert.match(preload, /deleteWorkflowRun/)
   assert.match(preload, /inspectWorkflowGitSafety/)
+})
+
+test('renderer stores many workflow runs and selected run id', () => {
+  assert.match(useWorkflows, /const \[runs, setRuns\]/)
+  assert.match(useWorkflows, /const \[selectedRunId, setSelectedRunId\]/)
+  assert.match(useWorkflows, /selectedRun/)
+  assert.match(useWorkflows, /applyWorkflowEventToRuns/)
+  assert.doesNotMatch(useWorkflows, /const \[currentRun, setCurrentRun\]/)
+})
+
+test('workflow run view derives sorted runs and latest tail', () => {
+  assert.match(runView, /sortWorkflowRunsByStartedAt/)
+  assert.match(runView, /workflowRunDisplayName/)
+  assert.match(runView, /workflowRunTailLines/)
+  assert.match(runView, /workflowNotificationForRun/)
 })
