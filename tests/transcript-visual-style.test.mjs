@@ -6,6 +6,7 @@ import { fileURLToPath } from 'node:url'
 
 const root = dirname(dirname(fileURLToPath(import.meta.url)))
 const css = readFileSync(join(root, 'src/renderer/src/styles.css'), 'utf8')
+const runsList = readFileSync(join(root, 'src/renderer/src/WorkflowRunsList.tsx'), 'utf8')
 
 function block(selector) {
   const match = css.match(new RegExp(`${selector.replace(/[.*+?^${}()|[\]\\]/g, '\\$&')}\\s*\\{([^}]*)\\}`))
@@ -43,9 +44,13 @@ test('assistant messages are the primary transcript reading surface', () => {
 test('multi workflow layout keeps runs, detail, and steps readable', () => {
   const workspace = block('.workflow-workspace')
   const runTail = block('.workflow-run-card-tail')
+  const runTailLine = block('.workflow-run-card-tail span')
   const steps = block('.workflow-steps-panel')
 
   assert.match(workspace, /grid-template-columns:\s*400px minmax\(0,\s*1fr\) 250px;/)
-  assert.match(runTail, /max-height:\s*62px;/)
+  assert.match(runsList, /workflowRunTailLines\(run,\s*2\)/)
+  assert.doesNotMatch(runTail, /max-height:/)
+  assert.match(runTailLine, /white-space:\s*nowrap;/)
+  assert.match(runTailLine, /text-overflow:\s*ellipsis;/)
   assert.match(steps, /border-left:\s*1px solid var\(--border\);/)
 })

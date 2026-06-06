@@ -849,6 +849,7 @@ button.icon-only {
 }
 
 .workflow-run-card-tail {
+  min-width: 0;
   border-radius: 6px;
   background: var(--bg-input);
   padding: 7px 8px;
@@ -856,10 +857,18 @@ button.icon-only {
   font-family: 'SF Mono', Menlo, monospace;
   font-size: 11px;
   line-height: 1.45;
-  max-height: 62px;
   overflow: hidden;
   display: flex;
   flex-direction: column;
+  gap: 2px;
+}
+
+.workflow-run-card-tail span {
+  min-width: 0;
+  display: block;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
 }
 
 .ui-review-mock-nav {

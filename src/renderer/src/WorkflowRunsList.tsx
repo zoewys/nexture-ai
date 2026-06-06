@@ -74,7 +74,7 @@ export function WorkflowRunsList({
               ))}
             </div>
             <div className="workflow-run-card-tail">
-              {workflowRunTailLines(run).map((line, index) => (
+              {workflowRunTailLines(run, 2).map((line, index) => (
                 <span key={`${run.id}-tail-${index}`}>{line}</span>
               ))}
             </div>
