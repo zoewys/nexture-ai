@@ -1,3 +1,4 @@
+import { useState } from 'react'
 import type { WorkflowRun } from '@shared/types'
 import {
   workflowRunDisplayName,
@@ -8,6 +9,16 @@ import {
 type WorkflowRunUiMeta = WorkflowRun & {
   listMeta?: string
 }
+
+type FilterKey = 'all' | 'running' | 'awaiting-confirm' | 'completed' | 'error'
+
+const FILTERS: { key: FilterKey; label: string }[] = [
+  { key: 'all', label: 'All' },
+  { key: 'running', label: 'Run' },
+  { key: 'awaiting-confirm', label: 'Wait' },
+  { key: 'completed', label: 'Done' },
+  { key: 'error', label: 'Error' }
+]
 
 interface WorkflowRunsListProps {
   runs: WorkflowRun[]
@@ -22,6 +33,15 @@ export function WorkflowRunsList({
   onSelectRun,
   onNewRun
 }: WorkflowRunsListProps): JSX.Element {
+  const [filter, setFilter] = useState<FilterKey>('all')
+
+  const filtered = filter === 'all'
+    ? runs
+    : runs.filter((r) => {
+        if (filter === 'error') return r.status === 'error' || r.status === 'interrupted'
+        return r.status === filter
+      })
+
   return (
     <aside className="workflow-runs-list">
       <div className="workflow-runs-header">
@@ -35,15 +55,20 @@ export function WorkflowRunsList({
       </div>
 
       <div className="workflow-run-filters" aria-label="Workflow run filters">
-        <button type="button" className="active">All</button>
-        <button type="button">Run</button>
-        <button type="button">Wait</button>
-        <button type="button">Done</button>
-        <button type="button">Error</button>
+        {FILTERS.map(({ key, label }) => (
+          <button
+            type="button"
+            key={key}
+            className={filter === key ? 'active' : ''}
+            onClick={() => setFilter(key)}
+          >
+            {label}
+          </button>
+        ))}
       </div>
 
       <div className="workflow-run-cards">
-        {runs.map((run) => (
+        {filtered.map((run) => (
           <button
             type="button"
             key={run.id}

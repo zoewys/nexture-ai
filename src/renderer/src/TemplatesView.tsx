@@ -1,6 +1,5 @@
-import { useEffect, useMemo, useState } from 'react'
+import { useCallback, useEffect, useMemo, useRef, useState } from 'react'
 import type { AgentDefinition, WorkflowTemplate } from '@shared/types'
-import { canvasPreviewLabels } from './uiReviewFixture'
 import type { WorkflowDraft } from './useWorkflows'
 
 interface TemplatesViewProps {
@@ -10,132 +9,525 @@ interface TemplatesViewProps {
   onDelete: (id: string) => Promise<void>
 }
 
+interface StepDraft {
+  agentId: string
+  role: string
+}
+
+const PROMPT_VARS = ['{{projectPath}}', '{{branch}}', '{{userInput}}']
+
 export function TemplatesView({
   agents,
   templates,
-  onSave
+  onSave,
+  onDelete
 }: TemplatesViewProps): JSX.Element {
-  const [selectedTemplateId, setSelectedTemplateId] = useState(templates[0]?.id ?? '')
+  const [selectedId, setSelectedId] = useState<string | null>(null)
+  const [name, setName] = useState('')
+  const [description, setDescription] = useState('')
+  const [steps, setSteps] = useState<StepDraft[]>([])
+  const [promptTemplate, setPromptTemplate] = useState('')
+  const [isDirty, setIsDirty] = useState(false)
+  const [saving, setSaving] = useState(false)
+  const [highlightedStep, setHighlightedStep] = useState<number | null>(null)
+
+  const stepRefs = useRef<Map<number, HTMLDivElement>>(new Map())
+  const promptRef = useRef<HTMLTextAreaElement>(null)
+
+  // ── derived ──────────────────────────────────────────────────────────────
+
   const selectedTemplate = useMemo(
-    () => templates.find((template) => template.id === selectedTemplateId) ?? templates[0] ?? null,
-    [selectedTemplateId, templates]
+    () => templates.find((t) => t.id === selectedId) ?? null,
+    [templates, selectedId]
   )
-  const previewAgents =
-    selectedTemplate?.steps.slice(0, 4).map((step, index) =>
-      canvasPreviewLabels[index] ?? agentName(step.agentId, agents)
-    ) ?? []
+
+  const sortedTemplates = useMemo(
+    () => [...templates].sort((a, b) => a.name.localeCompare(b.name)),
+    [templates]
+  )
+
+  // ── load template into draft ─────────────────────────────────────────────
+
+  const loadTemplate = useCallback(
+    (template: WorkflowTemplate | null) => {
+      if (!template) {
+        setName('')
+        setDescription('')
+        setSteps([])
+        setPromptTemplate('')
+        setIsDirty(false)
+        return
+      }
+      setName(template.name)
+      setDescription(template.description ?? '')
+      setSteps(
+        template.steps.map((s) => ({
+          agentId: s.agentId,
+          role: (s as StepDraft).role ?? ''
+        }))
+      )
+      setPromptTemplate((template as WorkflowTemplate & { promptTemplate?: string }).promptTemplate ?? '')
+      setIsDirty(false)
+    },
+    []
+  )
+
+  // ── auto-select first template ───────────────────────────────────────────
 
   useEffect(() => {
-    if (!templates.length) {
-      setSelectedTemplateId('')
-      return
+    if (!selectedId && templates.length > 0) {
+      const first = sortedTemplates[0]
+      setSelectedId(first.id)
+      loadTemplate(first)
     }
-    if (!selectedTemplateId || !templates.some((template) => template.id === selectedTemplateId)) {
-      setSelectedTemplateId(templates[0].id)
+    if (selectedId && !templates.some((t) => t.id === selectedId)) {
+      const next = sortedTemplates[0] ?? null
+      setSelectedId(next?.id ?? null)
+      loadTemplate(next)
     }
-  }, [selectedTemplateId, templates])
+  }, [selectedId, templates, sortedTemplates, loadTemplate])
 
-  const saveTemplate = async (): Promise<void> => {
-    if (!selectedTemplate) return
-    await onSave({
-      id: selectedTemplate.id,
-      name: selectedTemplate.name,
-      description: selectedTemplate.description,
-      steps: selectedTemplate.steps
-    })
-  }
+  // ── select ───────────────────────────────────────────────────────────────
 
-  const duplicateTemplate = async (): Promise<void> => {
+  const handleSelect = useCallback(
+    (id: string) => {
+      if (isDirty && !window.confirm('You have unsaved changes. Discard?')) return
+      setSelectedId(id)
+      const template = templates.find((t) => t.id === id) ?? null
+      loadTemplate(template)
+    },
+    [isDirty, templates, loadTemplate]
+  )
+
+  // ── dirty tracking ───────────────────────────────────────────────────────
+
+  const markDirty = useCallback(() => setIsDirty(true), [])
+
+  // ── save ─────────────────────────────────────────────────────────────────
+
+  const handleSave = useCallback(async () => {
+    if (!name.trim() || saving) return
+    setSaving(true)
+    try {
+      const draft: WorkflowDraft & { promptTemplate?: string } = {
+        id: selectedTemplate?.id,
+        name: name.trim(),
+        description: description.trim() || undefined,
+        steps: steps.map((s) => ({ agentId: s.agentId, role: s.role } as StepDraft & { agentId: string })),
+        promptTemplate: promptTemplate.trim() || undefined
+      }
+      const saved = await onSave(draft)
+      setSelectedId(saved.id)
+      setIsDirty(false)
+    } finally {
+      setSaving(false)
+    }
+  }, [name, description, steps, promptTemplate, selectedTemplate, onSave, saving])
+
+  // ── new ──────────────────────────────────────────────────────────────────
+
+  const handleNew = useCallback(async () => {
+    if (isDirty && !window.confirm('You have unsaved changes. Discard?')) return
+    setSaving(true)
+    try {
+      const saved = await onSave({ name: 'New Workflow', steps: [] })
+      setSelectedId(saved.id)
+      loadTemplate(saved)
+    } finally {
+      setSaving(false)
+    }
+  }, [isDirty, onSave, loadTemplate])
+
+  // ── duplicate ────────────────────────────────────────────────────────────
+
+  const handleDuplicate = useCallback(async () => {
     if (!selectedTemplate) return
-    const saved = await onSave({
-      name: `${selectedTemplate.name} Copy`,
-      description: selectedTemplate.description,
-      steps: selectedTemplate.steps
+    setSaving(true)
+    try {
+      const saved = await onSave({
+        name: `${selectedTemplate.name} Copy`,
+        description: selectedTemplate.description,
+        steps: selectedTemplate.steps
+      })
+      setSelectedId(saved.id)
+    } finally {
+      setSaving(false)
+    }
+  }, [selectedTemplate, onSave])
+
+  // ── delete ───────────────────────────────────────────────────────────────
+
+  const handleDelete = useCallback(async () => {
+    if (!selectedTemplate) return
+    if (!window.confirm(`Delete template "${selectedTemplate.name}"? This cannot be undone.`)) return
+    await onDelete(selectedTemplate.id)
+    // useEffect will auto-select next
+  }, [selectedTemplate, onDelete])
+
+  // ── step ops ─────────────────────────────────────────────────────────────
+
+  const handleAddStep = useCallback(() => {
+    const firstAgent = agents[0]
+    if (!firstAgent) return
+    setSteps((prev) => [...prev, { agentId: firstAgent.id, role: '' }])
+    markDirty()
+  }, [agents, markDirty])
+
+  const handleRemoveStep = useCallback(
+    (index: number) => {
+      setSteps((prev) => prev.filter((_, i) => i !== index))
+      markDirty()
+    },
+    [markDirty]
+  )
+
+  const handleStepAgentChange = useCallback(
+    (index: number, agentId: string) => {
+      setSteps((prev) => prev.map((s, i) => (i === index ? { ...s, agentId } : s)))
+      markDirty()
+    },
+    [markDirty]
+  )
+
+  const handleStepRoleChange = useCallback(
+    (index: number, role: string) => {
+      setSteps((prev) => prev.map((s, i) => (i === index ? { ...s, role } : s)))
+      markDirty()
+    },
+    [markDirty]
+  )
+
+  // ── drag-and-drop ────────────────────────────────────────────────────────
+
+  const dragIndex = useRef<number | null>(null)
+
+  const handleDragStart = useCallback((index: number) => {
+    dragIndex.current = index
+  }, [])
+
+  const handleDragOver = useCallback((e: React.DragEvent, index: number) => {
+    e.preventDefault()
+    e.dataTransfer.dropEffect = 'move'
+  }, [])
+
+  const handleDrop = useCallback(
+    (e: React.DragEvent, toIndex: number) => {
+      e.preventDefault()
+      const fromIndex = dragIndex.current
+      if (fromIndex === null || fromIndex === toIndex) return
+      setSteps((prev) => {
+        const next = [...prev]
+        const [moved] = next.splice(fromIndex, 1)
+        next.splice(toIndex, 0, moved)
+        return next
+      })
+      dragIndex.current = null
+      markDirty()
+    },
+    [markDirty]
+  )
+
+  const handleDragEnd = useCallback(() => {
+    dragIndex.current = null
+  }, [])
+
+  // ── pipeline click → scroll to step ──────────────────────────────────────
+
+  const handlePipelineClick = useCallback((index: number) => {
+    setHighlightedStep(index)
+    const el = stepRefs.current.get(index)
+    if (el) {
+      el.scrollIntoView({ behavior: 'smooth', block: 'center' })
+    }
+    setTimeout(() => setHighlightedStep(null), 900)
+  }, [])
+
+  // ── variable chip click ──────────────────────────────────────────────────
+
+  const handleVarChipClick = useCallback((varName: string) => {
+    const textarea = promptRef.current
+    if (!textarea) return
+    const start = textarea.selectionStart
+    const end = textarea.selectionEnd
+    const before = promptTemplate.slice(0, start)
+    const after = promptTemplate.slice(end)
+    const newValue = before + varName + after
+    setPromptTemplate(newValue)
+    markDirty()
+    // restore cursor after the inserted text
+    requestAnimationFrame(() => {
+      textarea.focus()
+      const pos = start + varName.length
+      textarea.setSelectionRange(pos, pos)
     })
-    setSelectedTemplateId(saved.id)
-  }
+  }, [promptTemplate, markDirty])
+
+  // ── agent label helper ───────────────────────────────────────────────────
+
+  const agentLabel = useCallback(
+    (agentId: string) => {
+      const agent = agents.find((a) => a.id === agentId)
+      return agent ? `${agent.name || agent.role || 'Agent'} · ${agent.vendor}` : agentId
+    },
+    [agents]
+  )
+
+  const agentShortName = useCallback(
+    (agentId: string) => {
+      const agent = agents.find((a) => a.id === agentId)
+      return agent?.name || agent?.role || 'Agent'
+    },
+    [agents]
+  )
+
+  // ── keyboard shortcut ────────────────────────────────────────────────────
+
+  useEffect(() => {
+    const handler = (e: KeyboardEvent) => {
+      if ((e.metaKey || e.ctrlKey) && e.key === 's') {
+        e.preventDefault()
+        if (isDirty) void handleSave()
+      }
+    }
+    window.addEventListener('keydown', handler)
+    return () => window.removeEventListener('keydown', handler)
+  }, [isDirty, handleSave])
+
+  // ── render ───────────────────────────────────────────────────────────────
 
   return (
     <section className="templates-view">
-      <aside className="templates-view-list">
-        <div className="templates-view-header">
-          <div className="field-row field-row-between">
-            <div className="templates-title">Templates</div>
-            <button type="button" className="primary">New</button>
-          </div>
-          <p>模板定义流程；Runs 是模板启动后的实例。</p>
+      {/* ── Sidebar ──────────────────────────────────────────────────── */}
+      <aside className="templates-sidebar">
+        <div className="templates-sidebar-head">
+          <h2>Templates</h2>
+          <button
+            type="button"
+            className="btn btn-primary"
+            style={{ padding: '5px 10px', fontSize: 11 }}
+            onClick={() => void handleNew()}
+          >
+            + New
+          </button>
         </div>
 
-        <div className="templates-list">
-          {templates.map((template) => (
-            <button
-              type="button"
-              key={template.id}
-              className={[
-                'templates-template-card',
-                selectedTemplate?.id === template.id ? 'templates-template-card-active' : ''
-              ].filter(Boolean).join(' ')}
-              onClick={() => setSelectedTemplateId(template.id)}
-            >
-              <div className="templates-card-row">
-                <div className="name">{template.name}</div>
-                <div className="status running">{template.steps.length} steps</div>
-              </div>
-              <div className="meta">{template.description ?? '线性流程 · 可未来升级节点画布'}</div>
-            </button>
-          ))}
+        <div className="templates-sidebar-list">
+          {sortedTemplates.map((template) => {
+            const stepCount = template.steps.length
+            return (
+              <button
+                key={template.id}
+                type="button"
+                className={[
+                  'templates-sidebar-item',
+                  selectedId === template.id ? 'selected' : ''
+                ].filter(Boolean).join(' ')}
+                onClick={() => handleSelect(template.id)}
+              >
+                <div className="templates-sidebar-item-name">{template.name}</div>
+                <div className="templates-sidebar-item-desc">
+                  {template.description || 'No description'}
+                </div>
+                <div className="templates-sidebar-item-dots">
+                  {Array.from({ length: Math.max(stepCount, 1) }).map((_, i) => (
+                    <span
+                      key={i}
+                      className={[
+                        'templates-sidebar-dot',
+                        i < stepCount ? 'on' : ''
+                      ].filter(Boolean).join(' ')}
+                    />
+                  ))}
+                </div>
+              </button>
+            )
+          })}
         </div>
       </aside>
 
-      <main className="templates-view-main readonly">
-        <section className="templates-run-head">
-          <div className="templates-main-row">
-            <div>
-              <h1>{selectedTemplate ? `${selectedTemplate.name} Template` : 'Dev Flow Template'}</h1>
-              <div className="templates-path">当前用有序步骤编辑；后续可切换为节点拖拽画布</div>
-            </div>
-            <div className="templates-main-actions">
-              <button type="button" disabled={!selectedTemplate} onClick={() => void duplicateTemplate()}>
-                Duplicate
+      {/* ── Editor ────────────────────────────────────────────────────── */}
+      <main className="templates-editor">
+        {!selectedTemplate ? (
+          <div className="workflow-run-detail workflow-run-detail-empty">
+            <strong>No template selected</strong>
+            <span>Create a new template or select one from the list.</span>
+          </div>
+        ) : (
+          <>
+            {/* Editor header */}
+            <div className="templates-editor-head">
+              <span className={`dirty-dot ${isDirty ? 'visible' : ''}`} title={isDirty ? 'Unsaved changes' : ''} />
+              <input
+                className="templates-name-input"
+                value={name}
+                placeholder="Template Name"
+                onChange={(e) => {
+                  setName(e.target.value)
+                  markDirty()
+                }}
+              />
+              <button
+                type="button"
+                className="btn btn-primary"
+                disabled={!name.trim() || saving}
+                onClick={() => void handleSave()}
+              >
+                {saving ? 'Saving…' : 'Save'}
               </button>
               <button
                 type="button"
-                className="primary"
-                disabled={!selectedTemplate}
-                onClick={() => void saveTemplate()}
+                className="btn"
+                onClick={() => void handleDuplicate()}
+                disabled={saving}
               >
-                Save
+                Duplicate
               </button>
             </div>
-          </div>
-        </section>
 
-        <section className="templates-workspace">
-          <div className="artifact">
-            <div className="templates-main-row">
-              <h2>Future Node Canvas Preview</h2>
-              <span className="topbar-chip">layout-safe</span>
+            {/* Editor body */}
+            <div className="templates-editor-body">
+              {/* Description */}
+              <div className="templates-field">
+                <span className="templates-section-label">Description</span>
+                <textarea
+                  value={description}
+                  placeholder="Brief description of this workflow…"
+                  onChange={(e) => {
+                    setDescription(e.target.value)
+                    markDirty()
+                  }}
+                  rows={2}
+                />
+              </div>
+
+              {/* Pipeline Preview */}
+              {steps.length > 0 && (
+                <div className="templates-field">
+                  <span className="templates-section-label">Pipeline</span>
+                  <div style={{ height: 4 }} />
+                  <div className="templates-pipeline">
+                    {steps.map((step, index) => (
+                      <button
+                        key={index}
+                        type="button"
+                        className={[
+                          'templates-pnode',
+                          highlightedStep === index ? 'active' : ''
+                        ].filter(Boolean).join(' ')}
+                        onClick={() => handlePipelineClick(index)}
+                      >
+                        <div className="templates-pnode-index">{index + 1}</div>
+                        <div className="templates-pnode-agent">{agentShortName(step.agentId)}</div>
+                        <div className="templates-pnode-role">{step.role || `Step ${index + 1}`}</div>
+                      </button>
+                    ))}
+                  </div>
+                </div>
+              )}
+
+              {/* Step Editor */}
+              <div className="templates-field">
+                <span className="templates-section-label">Steps</span>
+                <div style={{ height: 4 }} />
+                <div className="templates-step-list">
+                  {steps.map((step, index) => (
+                    <div
+                      key={`${index}-${step.agentId}`}
+                      ref={(el) => {
+                        if (el) stepRefs.current.set(index, el)
+                        else stepRefs.current.delete(index)
+                      }}
+                      className={[
+                        'templates-step-row',
+                        highlightedStep === index ? 'highlight' : ''
+                      ].filter(Boolean).join(' ')}
+                      draggable
+                      onDragStart={() => handleDragStart(index)}
+                      onDragOver={(e) => handleDragOver(e, index)}
+                      onDrop={(e) => handleDrop(e, index)}
+                      onDragEnd={handleDragEnd}
+                    >
+                      <span className="templates-step-grip" aria-label="Drag to reorder">
+                        ⋮⋮
+                      </span>
+                      <span className="templates-step-num">{index + 1}</span>
+                      <select
+                        value={step.agentId}
+                        onChange={(e) => handleStepAgentChange(index, e.target.value)}
+                      >
+                        {agents.map((agent) => (
+                          <option key={agent.id} value={agent.id}>
+                            {agent.name || agent.role || 'Agent'} · {agent.vendor}
+                          </option>
+                        ))}
+                      </select>
+                      <input
+                        className="templates-step-role"
+                        value={step.role}
+                        placeholder="Role"
+                        onChange={(e) => handleStepRoleChange(index, e.target.value)}
+                      />
+                      <button
+                        type="button"
+                        className="btn-icon"
+                        aria-label="Remove step"
+                        onClick={() => handleRemoveStep(index)}
+                      >
+                        ✕
+                      </button>
+                    </div>
+                  ))}
+                  <button
+                    type="button"
+                    className="templates-add-step-btn"
+                    onClick={handleAddStep}
+                  >
+                    + Add Step
+                  </button>
+                </div>
+              </div>
+
+              {/* Prompt Template */}
+              <div className="templates-field templates-prompt-section">
+                <span className="templates-section-label">Initial Prompt Template</span>
+                <textarea
+                  ref={promptRef}
+                  value={promptTemplate}
+                  placeholder="Write the initial prompt that starts this workflow…"
+                  onChange={(e) => {
+                    setPromptTemplate(e.target.value)
+                    markDirty()
+                  }}
+                />
+                <div className="templates-var-chips">
+                  {PROMPT_VARS.map((varName) => (
+                    <button
+                      key={varName}
+                      type="button"
+                      className="templates-var-chip"
+                      onClick={() => handleVarChipClick(varName)}
+                    >
+                      {varName}
+                    </button>
+                  ))}
+                </div>
+              </div>
             </div>
-            <div className="canvas-preview">
-              <div className="edge ab"></div>
-              <div className="edge bc"></div>
-              <div className="edge cd"></div>
-              <div className="node a">{previewAgents[0] ?? '需求'}</div>
-              <div className="node b">{previewAgents[1] ?? '设计'}</div>
-              <div className="node c">{previewAgents[2] ?? '开发'}</div>
-              <div className="node d">{previewAgents[3] ?? '测试'}</div>
+
+            {/* Editor footer */}
+            <div className="templates-editor-foot">
+              <div className="spacer" />
+              <button
+                type="button"
+                className="btn btn-danger"
+                onClick={() => void handleDelete()}
+              >
+                Delete Template
+              </button>
             </div>
-            <div className="templates-sub">
-              节点拖拽主要影响 Template 编辑器和 run 的 Graph View；Runs 列表、详情、历史不需要整体重做。
-            </div>
-          </div>
-        </section>
+          </>
+        )}
       </main>
     </section>
   )
-}
-
-function agentName(agentId: string, agents: AgentDefinition[]): string {
-  const agent = agents.find((item) => item.id === agentId)
-  return agent?.role || agent?.name || 'Step'
 }

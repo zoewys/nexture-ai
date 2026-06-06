@@ -28,10 +28,9 @@ export function workflowRunTailLines(run: WorkflowRun, count = 3): string[] {
 }
 
 export function workflowRunProgressSegments(
-  run: WorkflowRun,
-  count = 6
+  run: WorkflowRun
 ): WorkflowRunProgressSegment[] {
-  const segments = run.steps.slice(0, count).map((step): WorkflowRunProgressSegment => {
+  return run.steps.map((step): WorkflowRunProgressSegment => {
     switch (step.status) {
       case 'done':
       case 'stale':
@@ -46,9 +45,6 @@ export function workflowRunProgressSegments(
         return 'idle'
     }
   })
-
-  while (segments.length < count) segments.push('idle')
-  return segments
 }
 
 export function workflowNotificationForRun(run: WorkflowRun): WorkflowNotification | null {
