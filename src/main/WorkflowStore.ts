@@ -52,7 +52,14 @@ export class WorkflowStore {
     const idx = list.findIndex((item) => item.id === run.id)
     if (idx >= 0) list[idx] = run
     else list.unshift(run)
-    writeArray(this.runsPath, list.slice(0, 20))
+    writeArray(this.runsPath, list)
+  }
+
+  deleteRun(id: string): void {
+    writeArray(
+      this.runsPath,
+      this.listRuns().filter((run) => run.id !== id)
+    )
   }
 }
 

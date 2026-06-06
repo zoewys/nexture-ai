@@ -10,7 +10,6 @@ import { ALL_VENDORS, PERMISSION_MODES } from '@shared/types'
 import type { AgentDraft } from './useAgents'
 import { CodexOptions } from './CodexOptions'
 import { ModelSelect } from './ModelSelect'
-import { Bot, Plus, Save, Trash2 } from './Icons'
 
 export interface AgentManagerProps {
   agents: AgentDefinition[]
@@ -62,9 +61,9 @@ export function AgentManager({ agents, clis, modelCatalog, onSave, onDelete, onC
     <div className="agent-manager-body">
       <aside className="agent-list">
         <div className="agent-list-header">
-          <span><Bot size={14} /> Agents</span>
+          <span>Agents</span>
           <button className="primary" onClick={startNew} type="button">
-            <Plus size={14} /> New
+            New
           </button>
         </div>
         {agents.length === 0 && (
@@ -173,11 +172,11 @@ export function AgentManager({ agents, clis, modelCatalog, onSave, onDelete, onC
 
             <div className="actions">
               <button className="primary" onClick={handleSave} disabled={!draft.name.trim()} type="button">
-                <Save size={14} /> {isNew ? 'Create' : 'Save'}
+                {isNew ? 'Create' : 'Save'}
               </button>
               {!isNew && (
-                <button onClick={handleDelete} type="button" className="btn-danger">
-                  <Trash2 size={14} /> Delete
+                <button onClick={handleDelete} type="button" className="danger">
+                  Delete
                 </button>
               )}
             </div>

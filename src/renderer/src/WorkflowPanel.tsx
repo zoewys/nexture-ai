@@ -9,7 +9,8 @@ export interface WorkflowPanelProps {
   templates: WorkflowTemplate[]
   onSave: (draft: WorkflowDraft) => Promise<WorkflowTemplate>
   onDelete: (id: string) => Promise<void>
-  onStart: (templateId: string, projectPath: string, initialPrompt: string) => Promise<unknown>
+  onStart?: (templateId: string, projectPath: string, initialPrompt: string) => Promise<unknown>
+  hideRunControls?: boolean
 }
 
 export function WorkflowPanel({
@@ -17,7 +18,8 @@ export function WorkflowPanel({
   templates,
   onSave,
   onDelete,
-  onStart
+  onStart,
+  hideRunControls = false
 }: WorkflowPanelProps): JSX.Element {
   const [templateId, setTemplateId] = useState('')
   const [name, setName] = useState('')
@@ -43,11 +45,16 @@ export function WorkflowPanel({
   }, [selectedTemplate])
 
   const canSave = name.trim() !== '' && stepAgentIds.length > 0
-  const canStart = !!selectedTemplate && projectPath.trim() !== '' && initialPrompt.trim() !== ''
+  const canStart =
+    !hideRunControls &&
+    !!selectedTemplate &&
+    projectPath.trim() !== '' &&
+    initialPrompt.trim() !== ''
 
   useEffect(() => {
+    if (hideRunControls) return
     rememberProjectPath(projectPath)
-  }, [projectPath])
+  }, [hideRunControls, projectPath])
 
   const addStep = (): void => {
     const firstAgent = agents[0]
@@ -66,7 +73,7 @@ export function WorkflowPanel({
   }
 
   const startRun = async (): Promise<void> => {
-    if (!selectedTemplate || !canStart) return
+    if (!selectedTemplate || !onStart || !canStart) return
     rememberProjectPath(projectPath)
     await onStart(selectedTemplate.id, projectPath.trim(), initialPrompt.trim())
   }
@@ -150,31 +157,35 @@ export function WorkflowPanel({
         )}
       </div>
 
-      <label className="field">
-        <span>Project Directory</span>
-        <div className="field-row">
-          <input value={projectPath} placeholder="/path/to/project" onChange={(e) => setProjectPath(e.target.value)} />
-          <button type="button" onClick={pickDir}>
-            <FolderOpen size={14} /> Browse
-          </button>
-        </div>
-      </label>
+      {!hideRunControls && (
+        <>
+          <label className="field">
+            <span>Project Directory</span>
+            <div className="field-row">
+              <input value={projectPath} placeholder="/path/to/project" onChange={(e) => setProjectPath(e.target.value)} />
+              <button type="button" onClick={pickDir}>
+                <FolderOpen size={14} /> Browse
+              </button>
+            </div>
+          </label>
 
-      <label className="field">
-        <span>Initial Prompt</span>
-        <textarea
-          className="workflow-prompt"
-          value={initialPrompt}
-          placeholder="Describe the task for this workflow..."
-          onChange={(e) => setInitialPrompt(e.target.value)}
-        />
-      </label>
+          <label className="field">
+            <span>Initial Prompt</span>
+            <textarea
+              className="workflow-prompt"
+              value={initialPrompt}
+              placeholder="Describe the task for this workflow..."
+              onChange={(e) => setInitialPrompt(e.target.value)}
+            />
+          </label>
 
-      <div className="actions">
-        <button type="button" className="primary" disabled={!canStart} onClick={startRun}>
-          <Play size={14} /> Start Workflow
-        </button>
-      </div>
+          <div className="actions">
+            <button type="button" className="primary" disabled={!canStart} onClick={startRun}>
+              <Play size={14} /> Start Workflow
+            </button>
+          </div>
+        </>
+      )}
     </section>
   )
 }

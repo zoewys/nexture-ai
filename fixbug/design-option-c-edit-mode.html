@@ -1,0 +1,330 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Option C: Edit Mode — Agent Studio Templates</title>
+<style>
+  :root {
+    --bg: #0d1117; --bg-card: #161b22; --bg-hover: #1c2333; --bg-input: #0d1117;
+    --border: #30363d; --accent: #6c8cff; --accent-dim: rgba(108,140,255,0.08);
+    --text: #e6edf3; --text-dim: #8b949e; --text-strong: #f0f6fc;
+    --green: #3fb950; --yellow: #d2991d; --red: #f85149;
+    --radius: 12px;
+  }
+  * { margin: 0; padding: 0; box-sizing: border-box; }
+  body {
+    font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', system-ui, sans-serif;
+    background: var(--bg); color: var(--text);
+    height: 100vh; display: flex; flex-direction: column;
+    overflow: hidden;
+  }
+
+  /* ── Top Bar ──────────────────────────── */
+  .topbar {
+    display: flex; align-items: center; gap: 12px;
+    padding: 14px 24px;
+    border-bottom: 1px solid var(--border);
+  }
+  .btn-back {
+    padding: 6px 10px; border-radius: 6px; border: 1px solid var(--border);
+    background: transparent; color: var(--text-dim); cursor: pointer;
+    font-size: 14px; transition: all .15s;
+  }
+  .btn-back:hover { background: var(--bg-hover); color: var(--text); }
+  .topbar h1 { font-size: 18px; font-weight: 600; color: var(--text-strong); flex: 1; }
+  .btn {
+    padding: 7px 14px; border-radius: 6px; border: 1px solid var(--border);
+    background: var(--bg-card); color: var(--text); font-size: 12px;
+    cursor: pointer; font-family: inherit; transition: all .15s; white-space: nowrap;
+  }
+  .btn:hover { background: var(--bg-hover); border-color: #484f5a; }
+  .btn-primary { background: var(--accent); border-color: var(--accent); color: #fff; font-weight: 500; }
+  .btn-primary:hover { background: #5a7cf0; }
+  .btn-ghost { background: transparent; border-color: transparent; }
+  .btn-danger { color: var(--red); border-color: rgba(248,81,73,0.2); }
+  .btn-danger:hover { background: rgba(248,81,73,0.08); border-color: var(--red); }
+
+  /* ── Main Layout ──────────────────────── */
+  .main {
+    flex: 1; display: flex; overflow: hidden;
+  }
+
+  /* ── Left: Pipeline Canvas ────────────── */
+  .pipeline-view {
+    flex: 1; display: flex; flex-direction: column;
+    padding: 24px; gap: 20px; overflow-y: auto;
+    background: var(--bg);
+    border-right: 1px solid var(--border);
+  }
+  .section-label {
+    font-size: 11px; text-transform: uppercase; letter-spacing: 0.06em;
+    color: var(--text-dim); font-weight: 500;
+  }
+
+  /* Pipeline nodes */
+  .pipeline {
+    display: flex; align-items: stretch; gap: 0;
+  }
+  .pnode {
+    flex: 1; background: var(--bg-card);
+    border: 1px solid var(--border); border-radius: var(--radius);
+    padding: 20px 16px; text-align: center; position: relative;
+    min-width: 140px;
+  }
+  .pnode.active { border-color: var(--accent); background: var(--accent-dim); }
+  .pnode-index {
+    width: 28px; height: 28px; border-radius: 50%;
+    background: var(--bg); border: 1px solid var(--border);
+    display: flex; align-items: center; justify-content: center;
+    font-size: 12px; font-weight: 600; margin: 0 auto 10px;
+  }
+  .pnode.active .pnode-index { background: var(--accent); border-color: var(--accent); color: #fff; }
+  .pnode-select {
+    padding: 6px 8px; border-radius: 5px; border: 1px solid var(--border);
+    background: var(--bg-input); color: var(--text);
+    font-size: 12px; font-family: inherit; width: 100%; text-align: center;
+  }
+  .pnode-select:focus { outline: none; border-color: var(--accent); }
+  .pnode-role {
+    margin-top: 4px; font-size: 11px; color: var(--text-dim);
+  }
+  .pconnector {
+    width: 36px; flex-shrink: 0; display: flex; align-items: center; justify-content: center;
+    color: var(--text-dim); font-size: 14px;
+  }
+
+  /* Add step button */
+  .add-step-area {
+    display: flex; align-items: center; justify-content: center;
+    padding: 12px; border: 1px dashed var(--border); border-radius: 8px;
+    cursor: pointer; color: var(--text-dim); font-size: 13px; gap: 6px;
+    transition: all .15s;
+  }
+  .add-step-area:hover { border-color: var(--accent); color: var(--accent); background: var(--accent-dim); }
+
+  /* Prompt template section */
+  .prompt-section {
+    display: flex; flex-direction: column; gap: 10px;
+  }
+  .prompt-textarea {
+    min-height: 90px; padding: 12px; border-radius: 8px;
+    border: 1px solid var(--border); background: var(--bg-card);
+    color: var(--text); font-size: 13px; font-family: 'SF Mono', Menlo, monospace;
+    resize: vertical; line-height: 1.6;
+  }
+  .prompt-textarea:focus { outline: none; border-color: var(--accent); }
+  .prompt-hint { font-size: 11px; color: var(--text-dim); }
+  .prompt-hint code {
+    padding: 1px 5px; border-radius: 3px; background: var(--bg-card);
+    border: 1px solid var(--border); font-size: 10px;
+  }
+
+  /* ── Right: Config Panel ──────────────── */
+  .config-panel {
+    width: 360px; flex-shrink: 0; overflow-y: auto;
+    background: var(--bg-card); padding: 20px;
+    display: flex; flex-direction: column; gap: 20px;
+  }
+  .field { display: flex; flex-direction: column; gap: 6px; }
+  .field label { font-size: 11px; font-weight: 500; color: var(--text-dim); text-transform: uppercase; letter-spacing: 0.05em; }
+  .field input, .field textarea {
+    padding: 8px 12px; border-radius: 6px;
+    border: 1px solid var(--border); background: var(--bg-input);
+    color: var(--text); font-size: 13px; font-family: inherit;
+  }
+  .field input:focus, .field textarea:focus { outline: none; border-color: var(--accent); }
+  .field textarea { resize: vertical; min-height: 60px; }
+
+  /* Step list in sidebar */
+  .step-list { display: flex; flex-direction: column; gap: 6px; }
+  .step-item {
+    display: flex; align-items: center; gap: 10px;
+    padding: 8px 10px; border: 1px solid var(--border);
+    border-radius: 6px; background: var(--bg);
+  }
+  .step-item .si-num {
+    width: 22px; height: 22px; border-radius: 50%;
+    background: var(--accent-dim); color: var(--accent);
+    font-size: 10px; font-weight: 600; flex-shrink: 0;
+    display: flex; align-items: center; justify-content: center;
+  }
+  .step-item select { flex: 1; min-width: 0; }
+  .step-item select {
+    padding: 5px 24px 5px 8px; border-radius: 5px; border: 1px solid var(--border);
+    background: var(--bg-input); color: var(--text); font-size: 12px; font-family: inherit;
+    appearance: none;
+    background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='10' height='10' viewBox='0 0 10 10'%3E%3Cpath fill='%23888' d='M2.5 3.5l2.5 2.5 2.5-2.5'/%3E%3C/svg%3E");
+    background-repeat: no-repeat; background-position: right 6px center;
+  }
+  .step-item select:focus { outline: none; border-color: var(--accent); }
+  .btn-icon {
+    width: 26px; height: 26px; border-radius: 5px; border: 1px solid transparent;
+    background: transparent; color: var(--text-dim); cursor: pointer;
+    font-size: 14px; display: flex; align-items: center; justify-content: center;
+    transition: all .12s; flex-shrink: 0;
+  }
+  .btn-icon:hover { background: var(--bg-hover); color: var(--red); border-color: var(--border); }
+
+  /* Divider */
+  .divider { border-top: 1px solid var(--border); }
+
+  /* Danger zone */
+  .danger-zone {
+    border: 1px solid rgba(248,81,73,0.2); border-radius: 8px; padding: 14px;
+  }
+  .danger-zone h4 { font-size: 12px; color: var(--red); margin-bottom: 6px; }
+  .danger-zone p { font-size: 11px; color: var(--text-dim); margin-bottom: 10px; }
+
+  /* Meta info */
+  .meta-info {
+    font-size: 11px; color: var(--text-dim); display: flex; flex-direction: column; gap: 4px;
+  }
+  .meta-info span { display: flex; justify-content: space-between; }
+  .meta-info .val { color: var(--text); font-family: 'SF Mono', monospace; font-size: 10px; }
+
+  /* Toast */
+  .toast {
+    position: fixed; bottom: 20px; left: 50%; transform: translateX(-50%);
+    padding: 8px 20px; border-radius: 8px;
+    background: var(--green); color: #fff; font-size: 13px; font-weight: 500;
+    opacity: 0; animation: toast-in 2s ease forwards;
+  }
+  @keyframes toast-in {
+    0% { opacity: 0; transform: translateX(-50%) translateY(8px); }
+    15% { opacity: 1; transform: translateX(-50%) translateY(0); }
+    85% { opacity: 1; }
+    100% { opacity: 0; }
+  }
+</style>
+</head>
+<body>
+  <!-- Top Bar -->
+  <div class="topbar">
+    <button class="btn-back" title="Back to list">←</button>
+    <h1>Design → Develop → Test</h1>
+    <span class="btn btn-ghost" style="color:var(--text-dim);font-size:11px;cursor:default;">Edited · 2 min ago</span>
+    <button class="btn">Duplicate</button>
+    <button class="btn btn-primary">Save Changes</button>
+  </div>
+
+  <!-- Main -->
+  <div class="main">
+    <!-- Left: Pipeline View -->
+    <div class="pipeline-view">
+      <div class="section-label">Pipeline Preview</div>
+
+      <div class="pipeline">
+        <div class="pnode active">
+          <div class="pnode-index">1</div>
+          <select class="pnode-select">
+            <option>Claude Opus</option>
+          </select>
+          <div class="pnode-role">需求分析</div>
+        </div>
+        <div class="pconnector">→</div>
+        <div class="pnode">
+          <div class="pnode-index">2</div>
+          <select class="pnode-select">
+            <option>Claude Opus</option>
+          </select>
+          <div class="pnode-role">UI 设计</div>
+        </div>
+        <div class="pconnector">→</div>
+        <div class="pnode">
+          <div class="pnode-index">3</div>
+          <select class="pnode-select">
+            <option>Codex CLI</option>
+          </select>
+          <div class="pnode-role">前端开发</div>
+        </div>
+        <div class="pconnector">→</div>
+        <div class="pnode">
+          <div class="pnode-index">4</div>
+          <select class="pnode-select">
+            <option>Codex CLI</option>
+          </select>
+          <div class="pnode-role">自动化测试</div>
+        </div>
+      </div>
+
+      <div class="add-step-area">
+        + Add Step
+      </div>
+
+      <!-- Prompt Template -->
+      <div class="prompt-section">
+        <div class="section-label">Initial Prompt Template</div>
+        <textarea class="prompt-textarea" placeholder="Describe the task for this workflow…">请按照以下流程完成项目交付：
+
+Step 1 — 需求分析：分析项目需求，产出 spec 文档
+Step 2 — UI 设计：基于 spec 设计 UI 界面
+Step 3 — 前端开发：实现 UI 代码
+Step 4 — 自动化测试：编写并运行测试
+
+项目路径：{{projectPath}}</textarea>
+        <div class="prompt-hint">
+          Variables: <code>{`{{projectPath}}`}</code> <code>{`{{branch}}`}</code> <code>{`{{userInput}}`}</code>
+        </div>
+      </div>
+    </div>
+
+    <!-- Right: Config Panel -->
+    <div class="config-panel">
+      <div class="field">
+        <label>Template Name</label>
+        <input value="Design → Develop → Test" />
+      </div>
+
+      <div class="field">
+        <label>Description</label>
+        <textarea placeholder="Brief description…">标准四步交付流水线：需求分析 agent 产出 spec → UI 设计 agent 产出设计稿 → 开发 agent 实现代码 → 测试 agent 验证。</textarea>
+      </div>
+
+      <div class="divider"></div>
+
+      <div class="section-label">Agent Steps</div>
+      <div class="step-list">
+        <div class="step-item">
+          <span class="si-num">1</span>
+          <select><option>Claude Opus — 需求分析 · claude</option></select>
+          <button class="btn-icon">✕</button>
+        </div>
+        <div class="step-item">
+          <span class="si-num">2</span>
+          <select><option>Claude Opus — UI 设计 · claude</option></select>
+          <button class="btn-icon">✕</button>
+        </div>
+        <div class="step-item">
+          <span class="si-num">3</span>
+          <select><option>Codex CLI — 前端开发 · codex</option></select>
+          <button class="btn-icon">✕</button>
+        </div>
+        <div class="step-item">
+          <span class="si-num">4</span>
+          <select><option>Codex CLI — 自动化测试 · codex</option></select>
+          <button class="btn-icon">✕</button>
+        </div>
+        <button class="btn" style="width:100%;">+ Add Step</button>
+      </div>
+
+      <div class="divider"></div>
+
+      <div class="meta-info">
+        <span>Created <span class="val">2026-06-01 14:22</span></span>
+        <span>Updated <span class="val">2026-06-06 11:44</span></span>
+        <span>ID <span class="val">tpl_3f8a2c91</span></span>
+      </div>
+
+      <div class="danger-zone">
+        <h4>Delete Template</h4>
+        <p>This will permanently delete this template. Existing runs will not be affected.</p>
+        <button class="btn btn-danger" style="width:100%;">Delete Template</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- Toast -->
+  <div class="toast" style="animation-delay:0.3s;">✓ Template saved</div>
+</body>
+</html>

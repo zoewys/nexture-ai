@@ -1,0 +1,274 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Option C: Command Center — Agent Studio Templates</title>
+<style>
+  :root {
+    --bg: #0d1117; --bg-card: #161b22; --bg-hover: #1c2333;
+    --border: #30363d; --accent: #6c8cff; --accent-dim: rgba(108,140,255,0.08);
+    --text: #e6edf3; --text-dim: #8b949e; --text-strong: #f0f6fc;
+    --green: #3fb950; --yellow: #d2991d; --red: #f85149;
+    --radius: 12px;
+  }
+  * { margin: 0; padding: 0; box-sizing: border-box; }
+  body {
+    font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', system-ui, sans-serif;
+    background: var(--bg); color: var(--text);
+    height: 100vh; display: flex; flex-direction: column;
+    overflow: hidden;
+  }
+
+  /* ── Command Bar ──────────────────────── */
+  .cmd-bar {
+    padding: 20px 28px 0;
+    display: flex; flex-direction: column; gap: 14px;
+  }
+  .cmd-bar-top {
+    display: flex; align-items: center; gap: 14px;
+  }
+  .cmd-bar-top h1 { font-size: 20px; font-weight: 600; color: var(--text-strong); white-space: nowrap; }
+  .cmd-input {
+    flex: 1; padding: 9px 16px; border-radius: 8px;
+    border: 1px solid var(--border); background: var(--bg-card);
+    color: var(--text); font-size: 13px; font-family: inherit;
+  }
+  .cmd-input::placeholder { color: var(--text-dim); }
+  .cmd-input:focus { outline: none; border-color: var(--accent); }
+  .btn {
+    padding: 8px 16px; border-radius: 6px; border: 1px solid var(--border);
+    background: var(--bg-card); color: var(--text); font-size: 13px;
+    cursor: pointer; font-family: inherit; transition: all .15s; white-space: nowrap;
+  }
+  .btn:hover { background: var(--bg-hover); border-color: #484f5a; }
+  .btn-primary { background: var(--accent); border-color: var(--accent); color: #fff; font-weight: 500; }
+  .btn-primary:hover { background: #5a7cf0; }
+
+  /* ── Filter Chips ────────────────────── */
+  .chips {
+    display: flex; gap: 6px;
+  }
+  .chip {
+    padding: 5px 12px; border-radius: 20px;
+    border: 1px solid var(--border); background: var(--bg-card);
+    font-size: 12px; color: var(--text-dim); cursor: pointer;
+    transition: all .15s;
+  }
+  .chip:hover { border-color: #484f5a; color: var(--text); }
+  .chip.active { background: var(--accent-dim); border-color: var(--accent); color: var(--accent); font-weight: 500; }
+
+  /* ── Split Layout ────────────────────── */
+  .split {
+    flex: 1; display: flex; overflow: hidden; padding: 16px 28px 20px; gap: 16px;
+  }
+
+  /* ── Left: Table List ────────────────── */
+  .table-panel {
+    flex: 1; min-width: 0;
+    display: flex; flex-direction: column;
+    background: var(--bg-card); border: 1px solid var(--border);
+    border-radius: var(--radius); overflow: hidden;
+  }
+  .table-header {
+    display: grid; grid-template-columns: 1fr 100px 120px;
+    padding: 10px 16px; border-bottom: 1px solid var(--border);
+    font-size: 11px; text-transform: uppercase; letter-spacing: 0.05em;
+    color: var(--text-dim); font-weight: 500;
+  }
+  .table-body {
+    flex: 1; overflow-y: auto;
+  }
+  .table-row {
+    display: grid; grid-template-columns: 1fr 100px 120px;
+    padding: 11px 16px; cursor: pointer; transition: background .1s;
+    align-items: center; border-bottom: 1px solid rgba(48,54,61,0.4);
+  }
+  .table-row:hover { background: var(--bg-hover); }
+  .table-row.selected {
+    background: var(--accent-dim);
+    border-left: 2px solid var(--accent);
+    padding-left: 14px;
+  }
+  .table-row-name { font-size: 13px; font-weight: 500; color: var(--text-strong); }
+  .table-row-desc { font-size: 11px; color: var(--text-dim); margin-top: 2px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+  .table-row-steps {
+    display: flex; align-items: center; gap: 3px;
+  }
+  .t-dot {
+    width: 14px; height: 4px; border-radius: 2px; background: #2a3040;
+  }
+  .t-dot.fill { background: var(--accent); }
+  .table-row-time { font-size: 11px; color: var(--text-dim); }
+
+  /* ── Right: Detail Card ──────────────── */
+  .detail-panel {
+    width: 380px; flex-shrink: 0;
+    background: var(--bg-card); border: 1px solid var(--border);
+    border-radius: var(--radius); overflow-y: auto;
+    display: flex; flex-direction: column;
+  }
+  .detail-empty {
+    flex: 1; display: flex; flex-direction: column; align-items: center; justify-content: center;
+    color: var(--text-dim); gap: 8px; font-size: 13px; padding: 20px;
+  }
+  .detail-inner { padding: 20px; display: flex; flex-direction: column; gap: 18px; }
+  .detail-header h3 { font-size: 16px; font-weight: 600; color: var(--text-strong); }
+  .detail-header p { font-size: 12px; color: var(--text-dim); margin-top: 4px; }
+
+  .detail-pipe {
+    display: flex; flex-direction: column; gap: 0;
+    border: 1px solid var(--border); border-radius: 8px; overflow: hidden;
+  }
+  .dp-step {
+    display: flex; align-items: center; gap: 12px;
+    padding: 10px 14px;
+    border-bottom: 1px solid rgba(48,54,61,0.3);
+  }
+  .dp-step:last-child { border-bottom: none; }
+  .dp-num {
+    width: 26px; height: 26px; border-radius: 50%;
+    background: var(--bg); border: 1px solid var(--border);
+    display: flex; align-items: center; justify-content: center;
+    font-size: 11px; font-weight: 600; flex-shrink: 0;
+  }
+  .dp-num.first { background: var(--accent); border-color: var(--accent); color: #fff; }
+  .dp-agent { font-size: 13px; font-weight: 500; flex: 1; }
+  .dp-role { font-size: 11px; color: var(--text-dim); }
+
+  .detail-actions { display: flex; gap: 8px; }
+  .detail-actions .btn { flex: 1; text-align: center; }
+
+  /* ── Quick hint ──────────────────────── */
+  .kbd-hint {
+    font-size: 11px; color: var(--text-dim);
+    display: flex; gap: 6px; align-items: center;
+  }
+  .kbd {
+    padding: 2px 6px; border-radius: 3px;
+    background: var(--bg); border: 1px solid var(--border);
+    font-family: 'SF Mono', monospace; font-size: 10px;
+  }
+</style>
+</head>
+<body>
+  <!-- Command Bar -->
+  <div class="cmd-bar">
+    <div class="cmd-bar-top">
+      <h1>Templates</h1>
+      <input class="cmd-input" placeholder="Search or type a command…" autofocus />
+      <button class="btn btn-primary">⌘N New</button>
+    </div>
+    <div class="chips">
+      <span class="chip active">All</span>
+      <span class="chip">2 steps</span>
+      <span class="chip">3 steps</span>
+      <span class="chip">4+ steps</span>
+    </div>
+    <div class="kbd-hint">
+      <span class="kbd">⌘K</span> Command palette · <span class="kbd">⌘N</span> New · <span class="kbd">⌘D</span> Duplicate · <span class="kbd">⌫</span> Delete · <span class="kbd">↵</span> Edit
+    </div>
+  </div>
+
+  <!-- Split -->
+  <div class="split">
+    <!-- Left: Table -->
+    <div class="table-panel">
+      <div class="table-header">
+        <span>Template</span> <span>Steps</span> <span>Updated</span>
+      </div>
+      <div class="table-body">
+        <div class="table-row selected">
+          <div>
+            <div class="table-row-name">Design → Develop → Test</div>
+            <div class="table-row-desc">需求分析 → UI 设计 → 前端开发 → 测试</div>
+          </div>
+          <div class="table-row-steps">
+            <span class="t-dot fill"></span><span class="t-dot fill"></span><span class="t-dot fill"></span><span class="t-dot fill"></span>
+          </div>
+          <div class="table-row-time">2 days ago</div>
+        </div>
+        <div class="table-row">
+          <div>
+            <div class="table-row-name">SEO Content Pipeline</div>
+            <div class="table-row-desc">关键词 → 大纲 → 草稿 → 发布</div>
+          </div>
+          <div class="table-row-steps">
+            <span class="t-dot fill"></span><span class="t-dot fill"></span><span class="t-dot fill"></span><span class="t-dot fill"></span>
+          </div>
+          <div class="table-row-time">5 days ago</div>
+        </div>
+        <div class="table-row">
+          <div>
+            <div class="table-row-name">Bug Fix Pipeline</div>
+            <div class="table-row-desc">复现 → 定位 → 修复 → 验证</div>
+          </div>
+          <div class="table-row-steps">
+            <span class="t-dot fill"></span><span class="t-dot fill"></span><span class="t-dot fill"></span><span class="t-dot"></span>
+          </div>
+          <div class="table-row-time">1 week ago</div>
+        </div>
+        <div class="table-row">
+          <div>
+            <div class="table-row-name">Code Review Pipeline</div>
+            <div class="table-row-desc">diff → 安全审查 → 性能审查 → 代码风格</div>
+          </div>
+          <div class="table-row-steps">
+            <span class="t-dot fill"></span><span class="t-dot fill"></span><span class="t-dot fill"></span><span class="t-dot fill"></span>
+          </div>
+          <div class="table-row-time">2 weeks ago</div>
+        </div>
+        <div class="table-row">
+          <div>
+            <div class="table-row-name">Quick Prototype</div>
+            <div class="table-row-desc">需求分析 → 快速原型开发</div>
+          </div>
+          <div class="table-row-steps">
+            <span class="t-dot fill"></span><span class="t-dot fill"></span>
+          </div>
+          <div class="table-row-time">3 weeks ago</div>
+        </div>
+      </div>
+    </div>
+
+    <!-- Right: Detail -->
+    <div class="detail-panel">
+      <div class="detail-inner">
+        <div class="detail-header">
+          <h3>Design → Develop → Test</h3>
+          <p>标准四步交付流水线</p>
+        </div>
+
+        <div class="detail-pipe">
+          <div class="dp-step">
+            <span class="dp-num first">1</span>
+            <span class="dp-agent">Claude Opus</span>
+            <span class="dp-role">需求分析</span>
+          </div>
+          <div class="dp-step">
+            <span class="dp-num">2</span>
+            <span class="dp-agent">Claude Opus</span>
+            <span class="dp-role">UI 设计</span>
+          </div>
+          <div class="dp-step">
+            <span class="dp-num">3</span>
+            <span class="dp-agent">Codex CLI</span>
+            <span class="dp-role">前端开发</span>
+          </div>
+          <div class="dp-step">
+            <span class="dp-num">4</span>
+            <span class="dp-agent">Codex CLI</span>
+            <span class="dp-role">自动化测试</span>
+          </div>
+        </div>
+
+        <div class="detail-actions">
+          <button class="btn">Edit</button>
+          <button class="btn">Duplicate</button>
+          <button class="btn" style="color:var(--red);border-color:rgba(248,81,73,0.3);">Delete</button>
+        </div>
+      </div>
+    </div>
+  </div>
+</body>
+</html>

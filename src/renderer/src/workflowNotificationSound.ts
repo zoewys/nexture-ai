@@ -2,7 +2,27 @@ export type WorkflowNotificationSound = 'confirm' | 'finished'
 
 type AudioContextConstructor = new () => AudioContext
 
+const WORKFLOW_NOTIFICATION_SOUND_ENABLED_KEY = 'agent-studio.workflow.notification-sound-enabled'
+
 let audioContext: AudioContext | null = null
+
+export function readWorkflowNotificationSoundEnabled(): boolean {
+  if (typeof window === 'undefined') return true
+  try {
+    return window.localStorage.getItem(WORKFLOW_NOTIFICATION_SOUND_ENABLED_KEY) !== 'false'
+  } catch {
+    return true
+  }
+}
+
+export function writeWorkflowNotificationSoundEnabled(enabled: boolean): void {
+  if (typeof window === 'undefined') return
+  try {
+    window.localStorage.setItem(WORKFLOW_NOTIFICATION_SOUND_ENABLED_KEY, String(enabled))
+  } catch {
+    // Persisting this preference is best-effort.
+  }
+}
 
 export function prepareWorkflowNotificationSound(): void {
   const ctx = getAudioContext()
@@ -13,6 +33,8 @@ export function prepareWorkflowNotificationSound(): void {
 }
 
 export function playWorkflowNotificationSound(kind: WorkflowNotificationSound): void {
+  if (!readWorkflowNotificationSoundEnabled()) return
+
   const ctx = getAudioContext()
   if (!ctx) return
 

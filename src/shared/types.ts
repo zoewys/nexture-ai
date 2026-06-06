@@ -191,17 +191,28 @@ export interface WorkflowStepExecution {
 
 export interface WorkflowRunStep {
   agentId: string
+  displayName?: string
   status: StepStatus
   executions: WorkflowStepExecution[]
 }
+
+export type WorkflowRunStatus =
+  | 'running'
+  | 'awaiting-confirm'
+  | 'completed'
+  | 'error'
+  | 'aborted'
+  | 'interrupted'
 
 export interface WorkflowRun {
   id: string
   templateId: string
   templateName: string
+  /** User-facing instance name. Defaults to templateName when omitted. */
+  runName?: string
   projectPath: string
   initialPrompt: string
-  status: 'running' | 'awaiting-confirm' | 'completed' | 'error' | 'aborted'
+  status: WorkflowRunStatus
   currentStepIndex: number
   steps: WorkflowRunStep[]
   startedAt: number
@@ -210,8 +221,11 @@ export interface WorkflowRun {
 
 export interface WorkflowStartInput {
   templateId: string
+  runName?: string
   projectPath: string
   initialPrompt: string
+  /** True only after the user accepts a same-working-tree warning. */
+  allowUnsafeSameGitRoot?: boolean
 }
 
 export interface WorkflowStartResult {
@@ -225,6 +239,21 @@ export type WorkflowEvent =
 export interface WorkflowEventEnvelope {
   runId: string
   event: WorkflowEvent
+}
+
+export interface WorkflowRunGitSafety {
+  projectPath: string
+  gitRoot?: string
+  commonGitDir?: string
+  branch?: string
+  isGitRepo: boolean
+  isLinkedWorktree: boolean
+  sameWorkingTreeRunIds: string[]
+  relatedWorktreeRunIds: string[]
+  /** Combined list for simple UI badges. */
+  conflictingRunIds: string[]
+  level: 'safe' | 'warning' | 'requires-confirmation'
+  message?: string
 }
 
 // ── IPC channel names + payloads ─────────────────────────────────────────────
@@ -259,6 +288,12 @@ export const IPC = {
   workflowsDelete: 'workflows:delete',
   /** renderer → main: start a workflow run. */
   workflowStart: 'workflow:start',
+  /** renderer → main: list persisted workflow runs. */
+  workflowRunsList: 'workflow:runs:list',
+  /** renderer → main: delete one persisted workflow run. */
+  workflowDeleteRun: 'workflow:runs:delete',
+  /** renderer → main: inspect project directory concurrency and git safety. */
+  workflowGitSafety: 'workflow:git-safety',
   /** renderer → main: confirm the current awaiting handoff and advance. */
   workflowConfirmStep: 'workflow:confirm-step',
   /** renderer → main: rerun one step and stale downstream steps. */

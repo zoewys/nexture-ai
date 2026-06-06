@@ -6,6 +6,7 @@ import type {
   RunConfig,
   WorkflowEventEnvelope,
   WorkflowRun,
+  WorkflowRunGitSafety,
   WorkflowStartInput,
   WorkflowStartResult,
   WorkflowStepExecution,
@@ -15,6 +16,7 @@ import type { AgentStore } from './AgentStore'
 import type { RunManager } from './RunManager'
 import type { TranscriptStore } from './TranscriptStore'
 import type { WorkflowStore } from './WorkflowStore'
+import { inspectWorkflowGitSafety } from './gitSafety'
 
 type EmitWorkflow = (envelope: WorkflowEventEnvelope) => void
 
@@ -48,7 +50,9 @@ export class WorkflowManager {
     private readonly transcripts: TranscriptStore,
     private readonly emit: EmitWorkflow
   ) {
-    for (const run of workflowStore.listRuns()) this.runs.set(run.id, run)
+    for (const run of this.markInterruptedRunsOnStartup(workflowStore.listRuns())) {
+      this.runs.set(run.id, run)
+    }
   }
 
   start(input: WorkflowStartInput): WorkflowStartResult {
@@ -58,11 +62,17 @@ export class WorkflowManager {
     if (!template) throw new Error(`Workflow template not found: ${input.templateId}`)
     if (template.steps.length === 0) throw new Error('Workflow template has no steps')
 
+    const safety = inspectWorkflowGitSafety(input.projectPath, this.listRuns())
+    if (safety.level === 'requires-confirmation' && !input.allowUnsafeSameGitRoot) {
+      throw new Error(safety.message ?? 'Workflow requires confirmation before starting')
+    }
+
     const now = Date.now()
     const run: WorkflowRun = {
       id: randomUUID(),
       templateId: template.id,
       templateName: template.name,
+      runName: input.runName?.trim() || undefined,
       projectPath: input.projectPath,
       initialPrompt: input.initialPrompt,
       status: 'running',
@@ -79,6 +89,26 @@ export class WorkflowManager {
     this.emitUpdate(run)
     this.startStep(run.id, 0)
     return { run }
+  }
+
+  listRuns(): WorkflowRun[] {
+    return [...this.runs.values()].sort((a, b) => b.startedAt - a.startedAt)
+  }
+
+  deleteRun(runId: string): void {
+    const run = this.getRun(runId)
+    if (run.status === 'running') {
+      throw new Error('Stop a running workflow before deleting it')
+    }
+    const live = this.liveByRunId.get(runId)
+    if (live) this.runManager.abort(live.childRunId)
+    this.liveByRunId.delete(runId)
+    this.runs.delete(runId)
+    this.workflowStore.deleteRun(runId)
+  }
+
+  inspectGitSafety(projectPath: string): WorkflowRunGitSafety {
+    return inspectWorkflowGitSafety(projectPath, this.listRuns())
   }
 
   confirmStep(runId: string): WorkflowRun {
@@ -405,6 +435,38 @@ export class WorkflowManager {
       '# Handoff requirement',
       HANDOFF_SCHEMA_TEXT
     ].join('\n')
+  }
+
+  private markInterruptedRunsOnStartup(runs: WorkflowRun[]): WorkflowRun[] {
+    return runs.map((run) => {
+      if (run.status !== 'running') return run
+
+      const interrupted: WorkflowRun = {
+        ...run,
+        finishedAt: run.finishedAt ?? Date.now(),
+        steps: run.steps.map((step, index) => {
+          if (index !== run.currentStepIndex || step.status !== 'running') return step
+          return {
+            ...step,
+            status: 'error',
+            executions: step.executions.map((execution, executionIndex, list) => {
+              if (executionIndex !== list.length - 1 || execution.status !== 'running') {
+                return execution
+              }
+              return {
+                ...execution,
+                status: 'error',
+                finishedAt: execution.finishedAt ?? Date.now(),
+                error: 'App restarted before this workflow step finished'
+              }
+            })
+          }
+        })
+      }
+      interrupted.status = 'interrupted'
+      this.workflowStore.saveRun(interrupted)
+      return interrupted
+    })
   }
 
   private getRun(runId: string): WorkflowRun {

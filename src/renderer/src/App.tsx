@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useRef, useState } from 'react'
+import { useEffect, useMemo, useState } from 'react'
 import type {
   AgentDefinition,
   AgentEvent,
@@ -16,18 +16,15 @@ import { AgentManager } from './AgentManager'
 import { CodexOptions } from './CodexOptions'
 import { ModelSelect } from './ModelSelect'
 import { TranscriptViewer } from './TranscriptViewer'
-import { WorkflowPanel } from './WorkflowPanel'
+import { TemplatesView } from './TemplatesView'
+import { UiReviewMockNav } from './UiReviewMockNav'
+import { WorkflowWorkspace } from './WorkflowWorkspace'
 import { formatHandoffDisplay } from './handoffDisplay'
 import { readLastProjectPath, rememberProjectPath } from './projectPathMemory'
+import { useUiReviewFixture } from './uiReviewFixture'
+import { prepareWorkflowNotificationSound } from './workflowNotificationSound'
 import {
-  playWorkflowNotificationSound,
-  prepareWorkflowNotificationSound,
-  type WorkflowNotificationSound
-} from './workflowNotificationSound'
-import {
-  GitBranch,
   Play,
-  Bot,
   FolderOpen,
   Send,
   RotateCcw,
@@ -38,18 +35,17 @@ import {
   ClipboardCheck
 } from './Icons'
 
-type WorkspaceMode = 'workflow' | 'single' | 'agents'
-
-interface WorkflowNotification {
-  key: string
-  sound: WorkflowNotificationSound
-}
+type WorkspaceMode = 'workflow' | 'templates' | 'agents' | 'single'
+type UiReviewWorkflowSurface = 'workflow' | 'new-run'
 
 export function App(): JSX.Element {
   const { state, start, continueSession, push, abort, reset } = useRun()
-  const { agents, save: saveAgent, remove: removeAgent } = useAgents()
+  const { agents: savedAgents, save: saveAgent, remove: removeAgent } = useAgents()
   const { models: modelCatalog, loading: modelsLoading } = useCliModels()
-  const workflows = useWorkflows()
+  const savedWorkflows = useWorkflows()
+  const uiReview = useUiReviewFixture()
+  const agents = uiReview.enabled ? uiReview.agents : savedAgents
+  const workflows = uiReview.enabled ? uiReview.workflows : savedWorkflows
   const [clis, setClis] = useState<CliCheckResult | null>(null)
   const [mode, setMode] = useState<WorkspaceMode>('workflow')
   const [vendor, setVendor] = useState<AgentVendor>('claude')
@@ -63,8 +59,9 @@ export function App(): JSX.Element {
   const [workflowInputError, setWorkflowInputError] = useState<string | null>(null)
   const [selectedAgentId, setSelectedAgentId] = useState<string | null>(null)
   const [selectedWorkflowStep, setSelectedWorkflowStep] = useState(0)
+  const [uiReviewWorkflowSurface, setUiReviewWorkflowSurface] =
+    useState<UiReviewWorkflowSurface>('workflow')
   const [configOpen, setConfigOpen] = useState(true)
-  const workflowSoundKeyRef = useRef<string | null>(null)
 
   const selectedAgent = useMemo(
     () => agents.find((a) => a.id === selectedAgentId) ?? null,
@@ -106,20 +103,6 @@ export function App(): JSX.Element {
       window.removeEventListener('keydown', prepareSound)
     }
   }, [])
-
-  useEffect(() => {
-    const run = workflows.currentRun
-    if (!run) {
-      workflowSoundKeyRef.current = null
-      return
-    }
-
-    const notification = workflowNotificationForRun(run)
-    if (!notification || workflowSoundKeyRef.current === notification.key) return
-
-    workflowSoundKeyRef.current = notification.key
-    playWorkflowNotificationSound(notification.sound)
-  }, [workflows.currentRun])
 
   const canStart = !state.running && cwd.trim() !== '' && prompt.trim() !== ''
 
@@ -252,30 +235,51 @@ export function App(): JSX.Element {
   const subtitle = () => {
     switch (mode) {
       case 'agents':
-        return `Agent Library · ${agents.length}`
+        return 'Agents'
+      case 'templates':
+        return 'Templates'
       case 'workflow':
-        return workflows.currentRun
-          ? `Workflow · ${workflowRunStatusLabel(workflows.currentRun.status)}`
+        return uiReview.enabled && uiReviewWorkflowSurface === 'new-run'
+          ? 'Workflow · New Run Drawer'
           : 'Workflow'
       case 'single':
-        return `Single Run · ${vendor}`
+        return 'Single Agent'
     }
   }
 
   const isAgents = mode === 'agents'
+  const isWorkflow = mode === 'workflow'
+  const isTemplates = mode === 'templates'
+  const topbarChips = uiReview.enabled
+    ? uiReview.topbarChips[mode]
+    : buildTopbarChips(
+        mode,
+        workflows.runs.filter((run) => run.status === 'running').length,
+        workflows.runs.filter((run) => run.status === 'awaiting-confirm').length,
+        workflows.templates.length,
+        agents.length
+      )
 
   return (
-    <div className="app">
+    <div className={['app', uiReview.enabled ? 'app-ui-review' : ''].filter(Boolean).join(' ')}>
       <header className="app-header">
-        <h1>Agent Studio</h1>
-        <span className="app-subtitle">{subtitle()}</span>
+        <div className="app-brand">
+          <h1>Agent Studio</h1>
+          <span className="app-subtitle">{subtitle()}</span>
+        </div>
+        <div className="topbar-chips" aria-label="Workspace summary">
+          {topbarChips.map((chip) => (
+            <span className="topbar-chip" key={chip}>{chip}</span>
+          ))}
+        </div>
       </header>
 
       <div
         className={[
           'app-body',
-          isAgents ? 'app-body-agents' : '',
-          !isAgents && !configOpen ? 'app-body-config-collapsed' : ''
+          isAgents || isTemplates ? 'app-body-agents' : '',
+          isWorkflow ? 'app-body-workflow' : '',
+          !isAgents && !isTemplates && !isWorkflow && !configOpen ? 'app-body-config-collapsed' : ''
         ].filter(Boolean).join(' ')}
       >
         <nav className="mode-rail" aria-label="Workspace modes">
@@ -284,24 +288,40 @@ export function App(): JSX.Element {
             className={`mode-item ${mode === 'workflow' ? 'mode-item-active' : ''}`}
             onClick={() => setMode('workflow')}
           >
-            <span className="mode-icon"><GitBranch /></span>
+            <span className="mode-icon">
+              {reviewModeIcon('workflow')}
+            </span>
             <span>Workflow</span>
           </button>
           <button
             type="button"
-            className={`mode-item ${mode === 'single' ? 'mode-item-active' : ''}`}
-            onClick={() => setMode('single')}
+            className={`mode-item ${isTemplates ? 'mode-item-active' : ''}`}
+            onClick={() => setMode('templates')}
           >
-            <span className="mode-icon"><Play /></span>
-            <span>Single Run</span>
+            <span className="mode-icon">
+              {reviewModeIcon('templates')}
+            </span>
+            <span>Templates</span>
           </button>
           <button
             type="button"
             className={`mode-item ${isAgents ? 'mode-item-active' : ''}`}
             onClick={() => setMode(isAgents ? 'workflow' : 'agents')}
           >
-            <span className="mode-icon"><Bot /></span>
+            <span className="mode-icon">
+              {reviewModeIcon('agents')}
+            </span>
             <span>Agents</span>
+          </button>
+          <button
+            type="button"
+            className={`mode-item ${mode === 'single' ? 'mode-item-active' : ''}`}
+            onClick={() => setMode('single')}
+          >
+            <span className="mode-icon">
+              {reviewModeIcon('single')}
+            </span>
+            <span>Single</span>
           </button>
         </nav>
 
@@ -316,6 +336,25 @@ export function App(): JSX.Element {
               onClose={() => setMode('workflow')}
             />
           </div>
+        ) : isTemplates ? (
+          <div className="panel templates-page">
+            <TemplatesView
+              agents={agents}
+              templates={workflows.templates}
+              onSave={workflows.save}
+              onDelete={workflows.remove}
+            />
+          </div>
+        ) : isWorkflow ? (
+          <main className="panel panel-runtime panel-runtime-workflow">
+            <WorkflowWorkspace
+              agents={agents}
+              workflows={workflows}
+              newRunDefaults={uiReview.enabled ? uiReview.newRunDefaults : undefined}
+              uiReviewEnabled={uiReview.enabled}
+              onUiReviewSurfaceChange={setUiReviewWorkflowSurface}
+            />
+          </main>
         ) : (
           <>
             <aside className={`panel panel-config ${configOpen ? '' : 'panel-config-collapsed'}`}>
@@ -324,7 +363,7 @@ export function App(): JSX.Element {
                   <div className="workspace-panel-header">
                     <div className="panel-heading-line">
                       <span className="section-title">
-                        {mode === 'workflow' ? 'Workflow Config' : 'Single Run Config'}
+                        Single Run
                       </span>
                       <button
                         type="button"
@@ -336,26 +375,11 @@ export function App(): JSX.Element {
                         <ChevronLeft size={15} />
                       </button>
                     </div>
-                    <h2>
-                      {mode === 'workflow' ? 'Orchestrate multiple agents' : 'Run a single agent'}
-                    </h2>
-                    <p>
-                      {mode === 'workflow'
-                        ? 'Create a linear pipeline and review handoffs in the run panel.'
-                        : 'Pick a preset agent or configure a one-shot CLI run.'}
-                    </p>
+                    <h2>Single Run</h2>
+                    <p>保留独立入口；不参与 workflow 多运行队列。</p>
                   </div>
 
-                  {mode === 'workflow' ? (
-                    <WorkflowPanel
-                      agents={agents}
-                      templates={workflows.templates}
-                      onSave={workflows.save}
-                      onDelete={workflows.remove}
-                      onStart={startWorkflow}
-                    />
-                  ) : (
-                    <>
+                  <>
                       <label className="field">
                         <span>Agent</span>
                         <div className="field-row">
@@ -371,7 +395,7 @@ export function App(): JSX.Element {
                             ))}
                           </select>
                           <button onClick={() => setMode('agents')} type="button">
-                            Manage
+                            Agent
                           </button>
                         </div>
                       </label>
@@ -448,7 +472,7 @@ export function App(): JSX.Element {
                           onClick={handleStart}
                           type="button"
                         >
-                          <Play size={14} /> {state.running ? 'Running...' : 'Start Run'}
+                          {state.running ? 'Running...' : 'Start Run'}
                         </button>
                         {state.running && (
                           <button onClick={abort} type="button">
@@ -457,12 +481,11 @@ export function App(): JSX.Element {
                         )}
                         {!state.running && state.events.length > 0 && (
                           <button onClick={reset} type="button">
-                            <RotateCcw size={14} /> Clear
+                            Clear
                           </button>
                         )}
                       </div>
-                    </>
-                  )}
+                  </>
                 </>
               ) : (
                 <button
@@ -479,73 +502,82 @@ export function App(): JSX.Element {
             </aside>
 
             <main className="panel panel-runtime">
-              {mode === 'workflow' ? (
-                <WorkflowRuntime
-                  agents={agents}
-                  currentRun={workflows.currentRun}
-                  selectedStepIndex={selectedWorkflowStep}
-                  selectedExecution={selectedWorkflowExecution}
-                  onSelectStep={setSelectedWorkflowStep}
-                  onConfirm={handleWorkflowConfirm}
-                  onRerun={workflows.rerunStep}
-                  onAbort={workflows.abort}
-                  onClearRun={workflows.clearRun}
-                  composerValue={workflowInput}
-                  composerEditable={workflowComposerEditable}
-                  composerEnabled={workflowComposerEnabled}
-                  composerPlaceholder={workflowComposerPlaceholder}
-                  composerError={workflowInputError}
-                  onComposerChange={(value) => {
-                    setWorkflowInput(value)
-                    setWorkflowInputError(null)
-                  }}
-                  onComposerSend={handleWorkflowInputSend}
-                  handoff={selectedWorkflowHandoff}
-                />
-              ) : (
-                <>
-                  <TranscriptViewer events={state.events} />
+              <>
+                <TranscriptViewer events={state.events} />
 
-                  {state.events.length > 0 && (
-                    <div className="interject">
-                      <input
-                        value={interjection}
-                        disabled={!composerEnabled}
-                        placeholder={
-                          canInterject
-                            ? '向运行中的 agent 发送消息...'
-                            : canResume
-                              ? '继续此会话...'
-                              : canFollowUp
-                                ? '继续对话（将基于当前 transcript 重建上下文）...'
-                                : vendor === 'claude'
-                                  ? '先启动一次运行以创建会话...'
-                                  : state.running
-                                    ? `${vendor} 运行中暂不支持实时输入`
-                                    : '先启动一次运行以创建对话...'
-                        }
-                        onChange={(e) => setInterjection(e.target.value)}
-                        onKeyDown={(e) => {
-                          if (e.key === 'Enter') void handleComposerSend()
-                        }}
-                      />
-                      <button
-                        onClick={handleComposerSend}
-                        disabled={!composerEnabled}
-                        type="button"
-                      >
-                        <Send size={14} /> 发送
-                      </button>
-                    </div>
-                  )}
-                </>
-              )}
+                {state.events.length > 0 && (
+                  <div className="interject">
+                    <input
+                      value={interjection}
+                      disabled={!composerEnabled}
+                      placeholder={
+                        canInterject
+                          ? '向运行中的 agent 发送消息...'
+                          : canResume
+                            ? '继续此会话...'
+                            : canFollowUp
+                              ? '继续对话（将基于当前 transcript 重建上下文）...'
+                              : vendor === 'claude'
+                                ? '先启动一次运行以创建会话...'
+                                : state.running
+                                  ? `${vendor} 运行中暂不支持实时输入`
+                                  : '先启动一次运行以创建对话...'
+                      }
+                      onChange={(e) => setInterjection(e.target.value)}
+                      onKeyDown={(e) => {
+                        if (e.key === 'Enter') void handleComposerSend()
+                      }}
+                    />
+                    <button
+                      onClick={handleComposerSend}
+                      disabled={!composerEnabled}
+                      type="button"
+                    >
+                      发送
+                    </button>
+                  </div>
+                )}
+              </>
             </main>
           </>
         )}
       </div>
+
+      {uiReview.enabled && mode !== 'workflow' && <UiReviewMockNav active={mode} />}
     </div>
   )
+}
+
+function reviewModeIcon(mode: WorkspaceMode): string {
+  switch (mode) {
+    case 'workflow':
+      return '⌘'
+    case 'templates':
+      return '▦'
+    case 'agents':
+      return '◎'
+    case 'single':
+      return '▶'
+  }
+}
+
+function buildTopbarChips(
+  mode: WorkspaceMode,
+  runningCount: number,
+  waitingCount: number,
+  templateCount: number,
+  agentCount: number
+): string[] {
+  switch (mode) {
+    case 'workflow':
+      return [`${runningCount} running`, `${waitingCount} waiting`, 'sound per run']
+    case 'templates':
+      return [`${templateCount} templates`, 'node canvas later', 'linear V1']
+    case 'agents':
+      return [`${agentCount} agents`, '2 CLIs', 'templates linked']
+    case 'single':
+      return ['single run', 'follow-up', 'transcript']
+  }
 }
 
 function buildSingleRunFollowUpPrompt(
@@ -842,26 +874,6 @@ function HandoffPanel({
   )
 }
 
-function workflowNotificationForRun(run: WorkflowRun): WorkflowNotification | null {
-  if (run.status === 'awaiting-confirm') {
-    const step = run.steps[run.currentStepIndex]
-    const execution = step?.executions.at(-1)
-    return {
-      key: `${run.id}:confirm:${run.currentStepIndex}:${execution?.id ?? 'none'}`,
-      sound: 'confirm'
-    }
-  }
-
-  if (run.status === 'completed' || run.status === 'error' || run.status === 'aborted') {
-    return {
-      key: `${run.id}:finished:${run.status}:${run.finishedAt ?? 'none'}`,
-      sound: 'finished'
-    }
-  }
-
-  return null
-}
-
 function workflowRunStatusLabel(status: WorkflowRun['status']): string {
   switch (status) {
     case 'running':
@@ -874,6 +886,8 @@ function workflowRunStatusLabel(status: WorkflowRun['status']): string {
       return '错误'
     case 'aborted':
       return '已停止'
+    case 'interrupted':
+      return '已中断'
   }
 }
 
