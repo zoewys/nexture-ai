@@ -1,0 +1,667 @@
+<!doctype html>
+<html lang="zh-CN">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>Agent Studio UI Mockups V4</title>
+  <style>
+    :root {
+      --bg: #17191f;
+      --header: #191c23;
+      --panel: #20232b;
+      --surface: #151922;
+      --line: #343946;
+      --line-soft: #2a2f3b;
+      --muted: #9aa3b5;
+      --text: #eef2f8;
+      --soft: #c8d0df;
+      --accent: #6c8cff;
+      --green: #4caf7d;
+      --yellow: #d4a548;
+      --red: #db6b6b;
+      font-family: Inter, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
+    }
+
+    * { box-sizing: border-box; }
+    body {
+      margin: 0;
+      height: 100vh;
+      overflow: hidden;
+      background: var(--bg);
+      color: var(--text);
+    }
+    button, input, textarea, select { font: inherit; }
+
+    .app {
+      height: 100vh;
+      display: grid;
+      grid-template-rows: 48px minmax(0, 1fr);
+    }
+
+    .topbar {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      gap: 14px;
+      padding: 0 16px;
+      border-bottom: 1px solid var(--line);
+      background: var(--header);
+    }
+
+    .brand {
+      display: flex;
+      align-items: baseline;
+      gap: 10px;
+      font-weight: 750;
+    }
+
+    .brand span {
+      color: var(--muted);
+      font-size: 12px;
+      font-weight: 600;
+    }
+
+    .chips {
+      display: flex;
+      align-items: center;
+      gap: 8px;
+      font-size: 12px;
+    }
+
+    .chip {
+      border: 1px solid var(--line);
+      border-radius: 999px;
+      background: #1d2028;
+      color: var(--soft);
+      padding: 4px 9px;
+      white-space: nowrap;
+    }
+
+    .body {
+      min-height: 0;
+      display: grid;
+      grid-template-columns: 76px 400px minmax(0, 1fr) 250px;
+    }
+
+    .body.simple {
+      grid-template-columns: 76px 360px minmax(0, 1fr);
+    }
+
+    .nav {
+      border-right: 1px solid var(--line);
+      background: #1b1e25;
+      padding: 10px 8px;
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      gap: 10px;
+    }
+
+    .nav a {
+      width: 46px;
+      height: 46px;
+      border-radius: 8px;
+      display: grid;
+      place-items: center;
+      color: var(--muted);
+      text-decoration: none;
+      border: 1px solid transparent;
+      background: transparent;
+      font-size: 18px;
+    }
+
+    .nav a.active {
+      color: white;
+      border-color: rgba(108, 140, 255, .58);
+      background: rgba(108, 140, 255, .14);
+    }
+
+    .panel, .steps-panel {
+      min-width: 0;
+      min-height: 0;
+      background: var(--panel);
+      display: flex;
+      flex-direction: column;
+    }
+
+    .panel { border-right: 1px solid var(--line); }
+    .steps-panel { border-left: 1px solid var(--line); }
+
+    .head {
+      padding: 14px;
+      border-bottom: 1px solid var(--line);
+      display: grid;
+      gap: 10px;
+    }
+
+    .head-row,
+    .row {
+      min-width: 0;
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      gap: 8px;
+    }
+
+    .title {
+      font-weight: 750;
+      font-size: 16px;
+    }
+
+    .sub {
+      color: var(--muted);
+      font-size: 12px;
+      line-height: 1.4;
+    }
+
+    .btn {
+      min-height: 34px;
+      border-radius: 6px;
+      border: 1px solid var(--line);
+      background: #242833;
+      color: var(--soft);
+      font-weight: 750;
+      padding: 0 11px;
+      white-space: nowrap;
+    }
+
+    .btn.small {
+      min-height: 26px;
+      padding: 0 8px;
+      font-size: 11px;
+      border-radius: 5px;
+    }
+
+    .btn.primary {
+      border-color: transparent;
+      background: var(--accent);
+      color: white;
+    }
+
+    .btn.danger {
+      border-color: rgba(219, 107, 107, .55);
+      background: #2a2025;
+      color: #ffd0d0;
+    }
+
+    .filters {
+      display: grid;
+      grid-template-columns: repeat(5, 1fr);
+      gap: 5px;
+    }
+
+    .filter {
+      border: 1px solid var(--line);
+      border-radius: 6px;
+      background: #1c1f27;
+      color: var(--muted);
+      text-align: center;
+      padding: 6px 0;
+      font-size: 11px;
+      font-weight: 650;
+    }
+
+    .filter.active {
+      color: white;
+      border-color: var(--accent);
+    }
+
+    .list, .step-list {
+      min-height: 0;
+      overflow: auto;
+      display: flex;
+      flex-direction: column;
+      gap: 8px;
+      padding: 8px;
+    }
+
+    .card {
+      border: 1px solid var(--line);
+      border-radius: 8px;
+      background: #20242d;
+      padding: 10px;
+      display: grid;
+      gap: 8px;
+      cursor: default;
+    }
+
+    .card.active {
+      border-color: var(--accent);
+      background: rgba(108, 140, 255, .1);
+    }
+
+    .card.wait {
+      border-color: rgba(212, 165, 72, .72);
+      background: rgba(212, 165, 72, .08);
+    }
+
+    .card.error {
+      border-color: rgba(219, 107, 107, .65);
+      background: rgba(219, 107, 107, .08);
+    }
+
+    .name {
+      min-width: 0;
+      overflow: hidden;
+      text-overflow: ellipsis;
+      white-space: nowrap;
+      font-size: 13px;
+      font-weight: 750;
+    }
+
+    .meta {
+      min-width: 0;
+      color: var(--muted);
+      font-size: 11px;
+      overflow: hidden;
+      text-overflow: ellipsis;
+      white-space: nowrap;
+    }
+
+    .status {
+      flex: 0 0 auto;
+      font-size: 11px;
+      font-weight: 800;
+      color: var(--muted);
+    }
+    .status.running { color: var(--accent); }
+    .status.waiting { color: var(--yellow); }
+    .status.done { color: var(--green); }
+    .status.error { color: var(--red); }
+
+    .bar {
+      display: grid;
+      grid-template-columns: repeat(6, 1fr);
+      gap: 4px;
+    }
+
+    .seg {
+      height: 5px;
+      border-radius: 999px;
+      background: #3a3f4d;
+    }
+    .seg.running { background: var(--accent); }
+    .seg.waiting { background: var(--yellow); }
+    .seg.done { background: var(--green); }
+    .seg.error { background: var(--red); }
+
+    .tail {
+      border-radius: 6px;
+      background: var(--surface);
+      padding: 7px 8px;
+      color: #ccd5e5;
+      font-family: "SF Mono", Menlo, monospace;
+      font-size: 11px;
+      line-height: 1.45;
+      max-height: 62px;
+      overflow: hidden;
+    }
+
+    .main {
+      min-width: 0;
+      min-height: 0;
+      display: grid;
+      grid-template-rows: auto minmax(0, 1fr) 64px;
+      background: #191c23;
+    }
+
+    .main.readonly {
+      grid-template-rows: auto minmax(0, 1fr);
+    }
+
+    .run-head {
+      border-bottom: 1px solid var(--line);
+      background: #1d2028;
+      padding: 14px 16px;
+      display: grid;
+      gap: 10px;
+    }
+
+    h1 {
+      margin: 0;
+      font-size: 19px;
+      line-height: 1.2;
+    }
+
+    h2 {
+      margin: 0;
+      font-size: 15px;
+    }
+
+    .path {
+      margin-top: 4px;
+      color: var(--muted);
+      font-size: 12px;
+    }
+
+    .summary-line {
+      display: flex;
+      align-items: center;
+      gap: 8px;
+      color: var(--soft);
+      font-size: 13px;
+      font-weight: 700;
+    }
+
+    .dot {
+      width: 8px;
+      height: 8px;
+      border-radius: 50%;
+      background: var(--muted);
+      flex: 0 0 auto;
+    }
+    .dot.running { background: var(--accent); }
+    .dot.waiting { background: var(--yellow); }
+    .dot.done { background: var(--green); }
+    .dot.error { background: var(--red); }
+
+    .warning {
+      border: 1px solid rgba(212, 165, 72, .55);
+      background: rgba(212, 165, 72, .08);
+      color: #f1d18a;
+      border-radius: 6px;
+      padding: 8px 9px;
+      font-size: 12px;
+    }
+
+    .transcript {
+      min-height: 0;
+      overflow: auto;
+      padding: 14px 18px;
+      font-family: "SF Mono", Menlo, monospace;
+      font-size: 12px;
+      line-height: 1.65;
+      color: #d9e0ef;
+    }
+
+    .line { margin-bottom: 10px; }
+    .line.dim { color: var(--muted); }
+    .line.accent { color: #9eb0ff; }
+
+    .composer {
+      border-top: 1px solid var(--line);
+      display: grid;
+      grid-template-columns: 24px 1fr 76px;
+      gap: 8px;
+      align-items: center;
+      padding: 10px 12px;
+      background: #1d2028;
+    }
+
+    input, textarea, select {
+      border: 1px solid var(--line);
+      border-radius: 6px;
+      background: var(--surface);
+      color: var(--text);
+      padding: 8px 10px;
+      min-width: 0;
+    }
+
+    textarea {
+      resize: none;
+      line-height: 1.45;
+    }
+
+    .steps-head {
+      padding: 14px;
+      border-bottom: 1px solid var(--line);
+      display: grid;
+      gap: 10px;
+    }
+
+    .search {
+      height: 32px;
+      border: 1px solid var(--line);
+      border-radius: 6px;
+      background: var(--surface);
+      color: var(--text);
+      padding: 0 9px;
+      width: 100%;
+    }
+
+    .step {
+      border: 1px solid var(--line-soft);
+      border-radius: 8px;
+      background: #1e222b;
+      padding: 8px;
+      display: grid;
+      gap: 5px;
+    }
+
+    .step.active {
+      border-color: var(--accent);
+      background: rgba(108, 140, 255, .1);
+    }
+
+    .step.wait {
+      border-color: rgba(212, 165, 72, .68);
+      background: rgba(212, 165, 72, .08);
+    }
+
+    .drawer {
+      position: absolute;
+      top: 48px;
+      right: 0;
+      bottom: 0;
+      width: 470px;
+      border-left: 1px solid var(--line);
+      background: #20232b;
+      box-shadow: -24px 0 64px rgba(0, 0, 0, .32);
+      display: grid;
+      grid-template-rows: auto minmax(0, 1fr) 58px;
+      z-index: 2;
+    }
+
+    .drawer-body, .workspace {
+      min-height: 0;
+      overflow: auto;
+      padding: 14px;
+      display: grid;
+      gap: 12px;
+      align-content: start;
+    }
+
+    .drawer-actions {
+      border-top: 1px solid var(--line);
+      padding: 10px 14px;
+      display: flex;
+      justify-content: flex-end;
+      gap: 8px;
+      background: #1d2028;
+    }
+
+    .field {
+      display: grid;
+      gap: 6px;
+    }
+
+    .field label {
+      color: var(--muted);
+      font-size: 12px;
+      font-weight: 750;
+    }
+
+    .split {
+      display: grid;
+      grid-template-columns: 1fr 1fr;
+      gap: 10px;
+    }
+
+    .artifact, .template-card {
+      border: 1px solid var(--line);
+      border-radius: 8px;
+      background: var(--panel);
+      padding: 12px;
+      display: grid;
+      gap: 10px;
+    }
+
+    .template-grid {
+      display: grid;
+      grid-template-columns: repeat(2, minmax(0, 1fr));
+      gap: 12px;
+    }
+
+    .template-card.active { border-color: var(--accent); }
+
+    .pills {
+      display: flex;
+      flex-wrap: wrap;
+      gap: 6px;
+    }
+
+    .pill-small {
+      border: 1px solid var(--line);
+      border-radius: 999px;
+      background: #1b1f27;
+      color: var(--soft);
+      padding: 4px 8px;
+      font-size: 11px;
+      white-space: nowrap;
+    }
+
+    .canvas-preview {
+      height: 190px;
+      border: 1px dashed #4a5263;
+      border-radius: 8px;
+      background: #171b23;
+      position: relative;
+      overflow: hidden;
+    }
+
+    .node {
+      position: absolute;
+      min-width: 120px;
+      height: 42px;
+      border: 1px solid var(--line);
+      border-radius: 8px;
+      background: #252a35;
+      display: grid;
+      place-items: center;
+      font-size: 12px;
+      font-weight: 750;
+    }
+
+    .node.a { left: 24px; top: 72px; }
+    .node.b { left: 190px; top: 32px; }
+    .node.c { left: 360px; top: 72px; border-color: var(--accent); }
+    .node.d { left: 530px; top: 112px; }
+
+    .edge {
+      position: absolute;
+      height: 2px;
+      background: #596173;
+      transform-origin: left center;
+    }
+    .edge.ab { left: 144px; top: 93px; width: 72px; transform: rotate(-22deg); }
+    .edge.bc { left: 310px; top: 54px; width: 78px; transform: rotate(22deg); }
+    .edge.cd { left: 480px; top: 95px; width: 75px; transform: rotate(20deg); }
+
+    .mock-nav {
+      position: fixed;
+      left: 50%;
+      bottom: 12px;
+      transform: translateX(-50%);
+      z-index: 10;
+      border: 1px solid var(--line);
+      border-radius: 999px;
+      background: rgba(25, 28, 35, .92);
+      padding: 5px;
+      display: flex;
+      gap: 4px;
+      box-shadow: 0 12px 36px rgba(0, 0, 0, .28);
+    }
+
+    .mock-nav a {
+      color: var(--muted);
+      text-decoration: none;
+      font-size: 12px;
+      padding: 6px 10px;
+      border-radius: 999px;
+    }
+
+    .mock-nav a.active {
+      background: rgba(108, 140, 255, .18);
+      color: white;
+    }
+  </style>
+</head>
+<body>
+  <div id="root"></div>
+  <script>
+    const params = new URLSearchParams(location.search);
+    const screen = params.get('screen') || 'workflow';
+
+    function app(active, content, opts = {}) {
+      const nav = [['workflow', '⌘', 'Workflow'], ['templates', '▦', 'Templates'], ['agents', '◎', 'Agents'], ['single', '▶', 'Single']];
+      const chips = opts.chips || ['3 running', '2 waiting', '52 history'];
+      return `<div class="app"><header class="topbar"><div class="brand">Agent Studio <span>${opts.subtitle || title(active)}</span></div><div class="chips">${chips.map(x => `<span class="chip">${x}</span>`).join('')}</div></header><div class="body ${opts.simple ? 'simple' : ''}"><nav class="nav">${nav.map(([id, icon, name]) => `<a class="${active === id ? 'active' : ''}" title="${name}" href="?screen=${id}">${icon}</a>`).join('')}</nav>${content}</div></div>${mockNav()}`;
+    }
+
+    function title(id) {
+      return { workflow: 'Workflow', templates: 'Templates', agents: 'Agents', single: 'Single Agent' }[id] || 'Workflow';
+    }
+
+    function runCard(name, status, meta, cls, steps, tail) {
+      return `<div class="card ${cls || ''}">
+        <div class="row"><div class="name">${name}</div><div class="status ${status.cls || ''}">${status.text}</div></div>
+        <div class="meta">${meta}</div>
+        <div class="bar">${steps.map(s => `<div class="seg ${s}"></div>`).join('')}</div>
+        <div class="tail">${tail}</div>
+      </div>`;
+    }
+
+    function workflowScreen(showDrawer = false) {
+      const left = `<aside class="panel"><div class="head"><div class="head-row"><div class="title">Workflow Runs</div><a class="btn primary" href="?screen=new-run" style="text-decoration:none;display:grid;place-items:center;">New Run</a></div><div class="sub">按开始时间倒序；点击 run 卡片进入详情和确认</div><div class="filters"><div class="filter active">All</div><div class="filter">Run</div><div class="filter">Wait</div><div class="filter">Done</div><div class="filter">Error</div></div></div><div class="list">
+        ${runCard('Todo App · Dev Flow', { text: 'WAIT', cls: 'waiting' }, '14:21 · /work/app-a · worktree feature/todo-ui', 'active wait', ['done','done','done','done','waiting',''], 'assistant: CRUD done<br>handoff ready · waiting for confirm')}
+        ${runCard('Bookmark Manager · Test', { text: 'RUN', cls: 'running' }, '14:12 · /work/bookmarks · branch test-cases', '', ['done','running','','','',''], 'tool: npm test<br>browser: screenshot captured')}
+        ${runCard('Agent Studio · Fix Icons', { text: 'WAIT', cls: 'waiting' }, '13:58 · /work/agent-studio · same repo warning', 'wait', ['done','waiting','','','',''], 'assistant: icon rail polished<br>handoff ready · waiting for confirm')}
+        ${runCard('Landing Page · Research', { text: 'DONE', cls: 'done' }, '13:20 · /work/sites/landing · completed 18m', '', ['done','done','done','done','done','done'], 'summary: landing page completed<br>tests passed · ready for review')}
+        ${runCard('Icon QA · Visual', { text: 'ERROR', cls: 'error' }, '12:48 · /work/agent-studio · failed at step 4', 'error', ['done','done','error','','',''], 'error: screenshot mismatch<br>next: inspect collapsed rail icons')}
+      </div></aside>`;
+
+      const main = `<main class="main"><section class="run-head"><div class="row"><div><h1>Todo App · Dev Flow</h1><div class="path">/Users/siyuan/work/app-a · worktree: feature/todo-ui · started 14:21</div></div><div class="row"><button class="btn">Rerun Step</button><button class="btn danger">Stop</button></div></div><div class="summary-line"><span class="dot waiting"></span>Step 5 / 14 · 开发实现 · 等待确认</div><div class="warning">⚠ 与另一个 run 使用相同 Git root。当前目录是 git worktree，允许继续；如果不是 worktree，启动时会要求二次确认。</div></section><section class="transcript"><div class="line dim">system: developer agent finished current turn</div><div class="line">assistant: 已完成 Todo List CRUD 页面，包含新增、编辑、删除、筛选与本地状态保存。</div><div class="line accent">tool: modified src/App.tsx, src/styles.css</div><div class="line">assistant: Handoff JSON parsed successfully. Waiting for user confirmation before browser verification.</div><div class="line dim">handoff: 4 artifacts · next step: run browser verification and edge case tests</div></section><section class="composer"><div>›</div><input placeholder="向当前 workflow / step 发送消息..."><button class="btn primary">发送</button></section></main>`;
+
+      const steps = `<aside class="steps-panel"><div class="steps-head"><div class="row"><div class="title">Steps</div><span class="chip">14 total</span></div><input class="search" value="" placeholder="搜索步骤 / agent"></div><div class="step-list">${step('1', '需求澄清', 'PM Analyst', 'done')}${step('2', '信息架构', 'UX Architect', 'done')}${step('3', 'UI Mockup', 'UI Designer', 'done')}${step('4', '技术方案', 'Senior Engineer', 'done')}${step('5', '开发实现', 'Developer', 'waiting active wait')}${step('6', '浏览器验证', 'QA Verifier', '')}${step('7', '移动端适配', 'Frontend QA', '')}${step('8', '回归测试', 'Test Agent', '')}${step('9', '修复反馈', 'Developer', '')}${step('10', '最终验收', 'QA Verifier', '')}${step('11', '提交整理', 'Release Agent', '')}${step('12', '文档更新', 'Doc Agent', '')}${step('13', '总结沉淀', 'PM Analyst', '')}${step('14', '收尾检查', 'QA Verifier', '')}</div></aside>`;
+
+      return app('workflow', left + main + steps + (showDrawer ? newRunDrawer() : ''), { subtitle: showDrawer ? 'Workflow · New Run Drawer' : 'Workflow', chips: ['3 running', '2 waiting', 'sound per run'] });
+    }
+
+    function step(index, name, agent, cls) {
+      const statusClass = cls.includes('done') ? 'done' : cls.includes('waiting') ? 'waiting' : cls.includes('error') ? 'error' : '';
+      const label = cls.includes('done') ? '完成' : cls.includes('waiting') ? '等待确认' : '待运行';
+      return `<div class="step ${cls}"><div class="row"><div class="name">${index}. ${name}</div><span class="dot ${statusClass}"></span></div><div class="row"><div class="meta">${agent}</div><div class="status ${statusClass}">${label}</div></div></div>`;
+    }
+
+    function newRunDrawer() {
+      return `<aside class="drawer"><div class="head"><div class="head-row"><div><div class="title">New Workflow Run</div><div class="sub">从模板启动一个新的任务实例</div></div><a class="btn" href="?screen=workflow" style="text-decoration:none;display:grid;place-items:center;">Close</a></div></div><div class="drawer-body"><div class="field"><label>Template</label><select><option>Dev Flow · 14 steps</option><option>Fix Bug Flow · 6 steps</option><option>Research Flow · 3 steps</option></select></div><div class="field"><label>Run Name</label><input value="Todo App · Dev Flow"></div><div class="field"><label>Project Directory</label><input value="/Users/siyuan/work/app-a"></div><div class="split"><div class="field"><label>Git Root</label><input value="/Users/siyuan/work"></div><div class="field"><label>Worktree</label><input value="feature/todo-ui"></div></div><div class="warning">⚠ 已检测到同 Git root 下有 1 个 workflow 正在运行。当前目录是 worktree：允许继续；如果不是 worktree，需要点击“仍然启动”。</div><div class="field"><label>Task Prompt</label><textarea rows="9">开发一个 Web Todo List，支持新增、编辑、删除、完成状态切换和筛选。</textarea></div><div class="artifact"><div class="row"><h2>Template Preview</h2><span class="chip">Dev Flow</span></div><div class="pills"><span class="pill-small">1 需求</span><span class="pill-small">2 IA</span><span class="pill-small">3 UI</span><span class="pill-small">4 技术方案</span><span class="pill-small">5 开发</span><span class="pill-small">... 14 收尾</span></div></div></div><div class="drawer-actions"><button class="btn">Save Draft</button><button class="btn primary">Start Run</button></div></aside>`;
+    }
+
+    function templatesScreen() {
+      const left = `<aside class="panel"><div class="head"><div class="head-row"><div class="title">Templates</div><button class="btn primary">New</button></div><div class="sub">模板定义流程；Runs 是模板启动后的实例</div></div><div class="list"><div class="card active"><div class="row"><div class="name">Dev Flow</div><div class="status running">14 steps</div></div><div class="meta">线性流程 · 可未来升级节点画布</div></div><div class="card"><div class="row"><div class="name">Fix Bug Flow</div><div class="status">6 steps</div></div><div class="meta">定位 → 修复 → 验证</div></div></div></aside>`;
+      const main = `<main class="main readonly"><section class="run-head"><div class="row"><div><h1>Dev Flow Template</h1><div class="path">当前用有序步骤编辑；后续可切换为节点拖拽画布</div></div><div class="row"><button class="btn">Duplicate</button><button class="btn primary">Save</button></div></div></section><section class="workspace"><div class="artifact"><div class="row"><h2>Future Node Canvas Preview</h2><span class="chip">layout-safe</span></div><div class="canvas-preview"><div class="edge ab"></div><div class="edge bc"></div><div class="edge cd"></div><div class="node a">需求</div><div class="node b">设计</div><div class="node c">开发</div><div class="node d">测试</div></div><div class="sub">节点拖拽主要影响 Template 编辑器和 run 的 Graph View；Runs 列表、详情、历史不需要整体重做。</div></div></section></main>`;
+      return app('templates', left + main, { simple: true, subtitle: 'Templates', chips: ['3 templates', 'node canvas later', 'linear V1'] });
+    }
+
+    function agentsScreen() {
+      const left = `<aside class="panel"><div class="head"><div class="head-row"><div class="title">Agents</div><button class="btn primary">New</button></div></div><div class="list"><div class="card active"><div class="row"><div class="name">Developer</div><div class="status running">codex</div></div><div class="meta">used in Dev Flow step 5</div></div><div class="card"><div class="row"><div class="name">UI Designer</div><div class="status">claude</div></div><div class="meta">used in Dev Flow step 3</div></div></div></aside>`;
+      const main = `<main class="main readonly"><section class="run-head"><div class="row"><div><h1>Developer Agent</h1><div class="path">Codex · gpt-5-codex-high · bypassPermissions</div></div><div class="row"><button class="btn danger">Delete</button><button class="btn primary">Save</button></div></div></section><section class="workspace"><div class="field"><label>System Prompt</label><textarea rows="12">You are the implementation agent. Read upstream handoff, modify the repository carefully, run focused verification, and output a structured handoff JSON for the next step.</textarea></div></section></main>`;
+      return app('agents', left + main, { simple: true, subtitle: 'Agents', chips: ['9 agents', '2 CLIs', 'templates linked'] });
+    }
+
+    function singleScreen() {
+      const left = `<aside class="panel"><div class="head"><div class="head-row"><div class="title">Single Run</div><button class="btn">Agent</button></div><div class="sub">保留独立入口；不参与 workflow 多运行队列</div></div><div class="workspace"><div class="field"><label>Agent</label><select><option>Developer</option></select></div><div class="field"><label>CLI</label><select><option>codex</option></select></div><div class="field"><label>Project Directory</label><input value="/Users/siyuan/work/agent-studio"></div><div class="field"><label>Prompt</label><textarea rows="8">检查当前 UI 中按钮 icon 是否还有裁切问题。</textarea></div><button class="btn primary">Start Run</button></div></aside>`;
+      const main = `<main class="main"><section class="run-head"><div class="row"><div><h1>Single Agent Run</h1><div class="path">codex · Developer · /Users/siyuan/work/agent-studio</div></div><button class="btn danger">Stop</button></div><div class="summary-line"><span class="dot running"></span>Current Turn · running</div></section><section class="transcript"><div class="line dim">system: run started</div><div class="line">assistant: I am checking SVG paths and button alignment rules.</div><div class="line accent">tool: read src/renderer/src/Icons.tsx</div></section><section class="composer"><div>›</div><input placeholder="继续对话或中途插话..."><button class="btn primary">发送</button></section></main>`;
+      return app('single', left + main, { simple: true, subtitle: 'Single Agent', chips: ['single run', 'follow-up', 'transcript'] });
+    }
+
+    function mockNav() {
+      const pages = [['workflow', 'Workflow'], ['new-run', 'New Run Drawer'], ['templates', 'Templates'], ['agents', 'Agents'], ['single', 'Single']];
+      return `<div class="mock-nav">${pages.map(([id, label]) => `<a class="${screen === id ? 'active' : ''}" href="?screen=${id}">${label}</a>`).join('')}</div>`;
+    }
+
+    const renderers = { workflow: () => workflowScreen(false), 'new-run': () => workflowScreen(true), templates: templatesScreen, agents: agentsScreen, single: singleScreen };
+    document.getElementById('root').innerHTML = (renderers[screen] || renderers.workflow)();
+  </script>
+</body>
+</html>
