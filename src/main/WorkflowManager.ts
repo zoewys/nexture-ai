@@ -189,7 +189,7 @@ export class WorkflowManager {
         (item) => item.id === live.executionId
       )
       if (!execution) throw new Error('Live workflow execution not found')
-      execution.events.push({ kind: 'system', text: `↳ User: ${clean}` })
+      execution.events.push({ kind: 'system', text: `↳ ${clean}` })
       this.workflowStore.saveRun(run)
       this.emitUpdate(run)
       this.transcripts.recordUserInput(live.childRunId, clean)
@@ -218,7 +218,7 @@ export class WorkflowManager {
       agentId: agent.id,
       status: 'running',
       startedAt: Date.now(),
-      events: [{ kind: 'system', text: `↳ User: ${clean}` }]
+      events: [{ kind: 'system', text: `↳ ${clean}` }]
     }
     step.executions.push(execution)
     step.status = 'running'

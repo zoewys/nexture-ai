@@ -1,5 +1,5 @@
 import { app } from 'electron'
-import { appendFileSync, mkdirSync, readFileSync, existsSync } from 'node:fs'
+import { promises as fsp, existsSync, mkdirSync, readFileSync } from 'node:fs'
 import { join } from 'node:path'
 import type { AgentEvent } from '@shared/types'
 
@@ -18,6 +18,9 @@ type TranscriptRecord =
  *
  * The sessionId isn't known until the `session-started` event arrives, so
  * records are buffered per-runId and flushed once the session is identified.
+ *
+ * Writes are async (queued per-file) to avoid blocking the main thread —
+ * inspired by CodeIsland's non-blocking I/O model.
  */
 export class TranscriptStore {
   private readonly dir = join(app.getPath('userData'), 'transcripts')
@@ -25,6 +28,13 @@ export class TranscriptStore {
   private sessionByRun = new Map<string, string>()
   /** runId → records seen before the sessionId was known. */
   private pending = new Map<string, TranscriptRecord[]>()
+
+  /**
+   * Per-file serialised write chain. Each file gets a Promise chain so
+   * appends within one session stay ordered; different sessions/files
+   * can write concurrently.
+   */
+  private writeChains = new Map<string, Promise<void>>()
 
   constructor() {
     mkdirSync(this.dir, { recursive: true })
@@ -52,6 +62,9 @@ export class TranscriptStore {
   /**
    * Rebuild a single prompt from a session's transcript for resume-fallback:
    * a readable replay of prior user/assistant turns, then the new message.
+   *
+   * Uses sync reads because this runs inside the resume-failure recovery path,
+   * which already blocks the turn pump — the sync I/O is negligible here.
    */
   buildResumePrompt(sessionId: string, newText: string): string {
     const path = this.getTranscriptPath(sessionId)
@@ -95,7 +108,7 @@ export class TranscriptStore {
     if (buffered) {
       this.pending.delete(runId)
       const path = this.getTranscriptPath(sessionId)
-      for (const rec of buffered) this.appendLine(path, rec)
+      for (const rec of buffered) this.enqueueWrite(path, rec)
     }
   }
 
@@ -108,14 +121,32 @@ export class TranscriptStore {
       else this.pending.set(runId, [rec])
       return
     }
-    this.appendLine(this.getTranscriptPath(sessionId), rec)
+    this.enqueueWrite(this.getTranscriptPath(sessionId), rec)
   }
 
-  private appendLine(path: string, rec: TranscriptRecord): void {
-    try {
-      appendFileSync(path, JSON.stringify(rec) + '\n')
-    } catch {
-      // Persistence is best-effort; never let a write error break a run.
-    }
+  /**
+   * Enqueue an async append on this file's write chain. Each file gets a
+   * Promise chain: the next append waits for the previous one to finish,
+   * guaranteeing write ordering within a session. Writes to different files
+   * proceed concurrently.
+   *
+   * Failures are silently swallowed — persistence is best-effort and must
+   * never break a run.
+   */
+  private enqueueWrite(path: string, rec: TranscriptRecord): void {
+    const line = JSON.stringify(rec) + '\n'
+    const prev = this.writeChains.get(path) ?? Promise.resolve()
+    const next = prev
+      .then(() => fsp.appendFile(path, line))
+      .catch(() => {
+        /* best-effort */
+      })
+    this.writeChains.set(path, next)
+    // Cleanup finished chains so the Map doesn't grow unboundedly.
+    next.finally(() => {
+      if (this.writeChains.get(path) === next) {
+        this.writeChains.delete(path)
+      }
+    })
   }
 }

@@ -268,6 +268,8 @@ export const IPC = {
   runAbort: 'run:abort',
   /** main → renderer: a normalized AgentEvent for a given runId. */
   runEvent: 'run:event',
+  /** main → renderer: incremental transcript delta from file tailing. */
+  transcriptDelta: 'transcript:delta',
   /** renderer → main: detect which CLIs are installed. */
   checkClis: 'cli:check',
   /** renderer → main: ask installed CLIs for their current model choices. */

@@ -33,7 +33,7 @@ body {
 
 .app {
   display: grid;
-  grid-template-rows: 48px minmax(0, 1fr);
+  grid-template-rows: auto minmax(0, 1fr);
   height: 100vh;
 }
 
@@ -42,10 +42,17 @@ body {
   align-items: center;
   justify-content: space-between;
   gap: 14px;
-  padding: 0 16px;
+  padding: 28px 16px 10px;
   border-bottom: 1px solid var(--border);
   background: var(--bg-header);
   -webkit-app-region: drag;
+}
+
+.app-header h1,
+.app-subtitle,
+.app-header button,
+.app-header .topbar-chips {
+  -webkit-app-region: no-drag;
 }
 
 .app-brand {
@@ -160,6 +167,7 @@ body {
   font-size: 0;
   line-height: 1;
   min-height: 46px;
+  position: relative;
 }
 
 .mode-item:hover:not(:disabled) {
@@ -192,11 +200,27 @@ body {
 
 .mode-item > span:not(.mode-icon) {
   position: absolute;
-  width: 1px;
-  height: 1px;
-  overflow: hidden;
-  clip: rect(0 0 0 0);
+  left: calc(100% + 10px);
+  top: 50%;
+  transform: translateY(-50%);
+  width: auto;
+  height: auto;
+  overflow: visible;
+  clip: auto;
   white-space: nowrap;
+  background: #2a2f3b;
+  color: var(--text-soft);
+  font-size: 12px;
+  padding: 5px 10px;
+  border-radius: 6px;
+  pointer-events: none;
+  opacity: 0;
+  transition: opacity 0.15s;
+  z-index: 10;
+}
+
+.mode-item:hover > span:not(.mode-icon) {
+  opacity: 1;
 }
 
 .workspace-panel-header,
@@ -1256,9 +1280,24 @@ button.icon-only {
   gap: 12px;
 }
 
+.workflow-run-detail-header > div:first-child {
+  flex: 1;
+  min-width: 0;
+  overflow: hidden;
+}
+
 .workflow-run-detail-header h2 {
   margin: 0 0 3px;
   font-size: 15px;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.workflow-run-detail-header p {
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
 }
 
 .workflow-run-detail-actions {
@@ -1266,6 +1305,7 @@ button.icon-only {
   gap: 8px;
   flex-wrap: wrap;
   justify-content: flex-end;
+  flex-shrink: 0;
 }
 
 .workflow-detail-handoff {
@@ -1663,6 +1703,13 @@ button.icon-only {
   padding: 10px 16px;
   border-bottom: 1px solid var(--border);
   background: var(--bg-panel);
+  min-width: 0;
+}
+
+.workflow-detail-header strong {
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
 }
 
 .workflow-run-step-summary {

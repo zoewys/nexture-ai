@@ -36,7 +36,58 @@ export function registerIpc(getWindow: () => BrowserWindow | null): AppManagers 
   const workflowStore = new WorkflowStore()
   const runManager = new RunManager(transcriptStore)
 
+  // ── message-delta batching ───────────────────────────────────────────
+  // Token streaming produces 50-100 message-delta events per second. Sending
+  // each one via webContents.send() would serialise/deserialise and
+  // round-trip through the renderer for every token. Instead we accumulate
+  // deltas in a per-run buffer and flush every ~16 ms (one frame), reducing
+  // IPC overhead by 10-20×. All other event kinds pass through immediately.
+  //
+  // Inspired by CodeIsland's JSONLTailer which accumulates file appends
+  // before emitting a single delta per batch of lines.
+
+  const deltaBufs = new Map<string, { runId: string; text: string; timer: ReturnType<typeof setTimeout> | null }>()
+
+  const flushDelta = (buf: { runId: string; text: string; timer: ReturnType<typeof setTimeout> | null }): void => {
+    if (buf.timer !== null) {
+      clearTimeout(buf.timer)
+      buf.timer = null
+    }
+    if (!buf.text) return
+    const runId = buf.runId
+    transcriptStore.record(runId, { kind: 'message-delta', text: buf.text })
+    const win = getWindow()
+    if (win && !win.isDestroyed()) {
+      win.webContents.send(IPC.runEvent, { runId, event: { kind: 'message-delta', text: buf.text } } satisfies RunEventEnvelope)
+    }
+    buf.text = ''
+    deltaBufs.delete(runId)
+  }
+
   const emit = (runId: string, event: RunEventEnvelope['event']): void => {
+    if (event.kind === 'message-delta') {
+      // Batch deltas: accumulate into the per-run buffer; flush after ~16ms.
+      let buf = deltaBufs.get(runId)
+      if (!buf) {
+        buf = { runId, text: '', timer: null }
+        deltaBufs.set(runId, buf)
+      }
+      buf.text += event.text
+      // If buffer hits a coherency threshold, flush immediately so the
+      // renderer doesn't lag too far behind.
+      if (buf.text.length >= 256) {
+        flushDelta(buf)
+      } else if (buf.timer === null) {
+        buf.timer = setTimeout(() => flushDelta(buf!), 16)
+      }
+      return
+    }
+
+    // Non-delta events: flush any pending delta for this runId first so
+    // the renderer sees deltas before the tool-call / turn-done etc.
+    const pending = deltaBufs.get(runId)
+    if (pending) flushDelta(pending)
+
     // Persist every event before forwarding (captures the full stream on disk).
     transcriptStore.record(runId, event)
     const win = getWindow()

@@ -57,7 +57,7 @@ export function useRun(): {
     setState((prev) => ({
       ...prev,
       running: true,
-      events: [...prev.events, { kind: 'system', text: `↳ you: ${displayText ?? config.prompt}` }]
+      events: [...prev.events, { kind: 'system', text: `↳ ${displayText ?? config.prompt}` }]
     }))
     const { runId } = await window.api.startRun(config)
     runIdRef.current = runId
@@ -71,7 +71,7 @@ export function useRun(): {
     setState((prev) => ({
       ...prev,
       running: true,
-      events: [...prev.events, { kind: 'system', text: `↳ you: ${text}` }]
+      events: [...prev.events, { kind: 'system', text: `↳ ${text}` }]
     }))
     await window.api.pushInput(id, text)
   }, [])

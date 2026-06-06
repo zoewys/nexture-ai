@@ -87,8 +87,30 @@ export function spawnProcess(opts: SpawnOptions, cb: ProcessCallbacks): ProcessH
     }
   })
 
+  // ── stderr: guard against runaway output (e.g. infinite error loops) ──
+
+  // 128 KB soft cap — far above healthy stderr volume but prevents memory
+  // exhaustion from a misbehaving process. Only the first chunk that
+  // exceeds the cap is truncated; subsequent bytes are silently dropped.
+  const STDERR_MAX_BYTES = 128 * 1024
+  let stderrTotal = 0
+  let stderrTruncated = false
+
   child.stderr.setEncoding('utf8')
-  child.stderr.on('data', (chunk: string) => cb.onStderr(chunk))
+  child.stderr.on('data', (chunk: string) => {
+    stderrTotal += chunk.length
+    if (stderrTotal > STDERR_MAX_BYTES) {
+      if (!stderrTruncated) {
+        stderrTruncated = true
+        // Deliver one last chunk with a truncation marker so the user
+        // knows stderr was capped.
+        const headroom = Math.max(0, STDERR_MAX_BYTES - (stderrTotal - chunk.length))
+        cb.onStderr(chunk.slice(0, headroom) + '\n[stderr truncated]')
+      }
+      return
+    }
+    cb.onStderr(chunk)
+  })
 
   child.on('error', (err) => {
     opts.abortSignal.removeEventListener('abort', onAbort)
@@ -97,7 +119,10 @@ export function spawnProcess(opts: SpawnOptions, cb: ProcessCallbacks): ProcessH
 
   child.on('close', (code, signal) => {
     opts.abortSignal.removeEventListener('abort', onAbort)
-    // Flush any trailing partial line that had no newline.
+    // Flush any trailing partial line that had no terminating newline.
+    // This covers the edge case where a CLI writes output without a
+    // final newline before exiting — without this flush the last JSON
+    // object would be silently dropped.
     if (stdoutBuf.trim().length > 0) {
       cb.onStdoutLine(stdoutBuf)
       stdoutBuf = ''

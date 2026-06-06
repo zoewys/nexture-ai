@@ -340,21 +340,24 @@ function BlockView({ block }: { block: Block }): JSX.Element | null {
     }
 
     case 'thinking': {
-      const overflow = block.text.length > 300
-      const displayText = overflow && !thinkExp ? block.text.slice(0, 300) + '…' : block.text
+      const maxPreview = 300
+      const collapsed = !thinkExp
+      const previewText = block.text.slice(0, maxPreview)
+      const needsTruncation = block.text.length > maxPreview
+      const displayText = collapsed ? previewText + (needsTruncation ? '…' : '') : block.text
       return (
         <div className="cli-think">
           <div
-            className={`cli-think-head ${overflow ? 'cli-clickable' : ''}`}
-            onClick={() => overflow && setThinkExp((v) => !v)}
-            role={overflow ? 'button' : undefined}
-            tabIndex={overflow ? 0 : undefined}
+            className="cli-think-head cli-clickable"
+            onClick={() => setThinkExp((v) => !v)}
+            role="button"
+            tabIndex={0}
           >
             <span className="cli-think-dot" />
             Thinking
-            {overflow && (
-              <span className="cli-think-toggle">{thinkExp ? '▲ Collapse' : '▼ Expand'}</span>
-            )}
+            <span className="cli-think-toggle">
+              {thinkExp ? '▲ Collapse' : needsTruncation ? '▼ Expand' : '▼ Show'}
+            </span>
           </div>
           <pre className="cli-think-body">{displayText}</pre>
         </div>

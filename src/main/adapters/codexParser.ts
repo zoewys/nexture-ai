@@ -137,9 +137,23 @@ function parseItemCompleted(
 
   switch (item.type) {
     case 'agent_message': {
-      if (id) lastTextByItem.delete(id)
       const text = stringValue(item.text)
-      return text ? [{ kind: 'message', role: 'assistant', text }] : []
+      if (!text) return []
+
+      // If we previously emitted deltas for this item, only emit the
+      // remaining suffix as a message-delta so groupEvents accumulates
+      // it into pending. This avoids duplicating the full message when
+      // the deltas already covered most of the text. When there were no
+      // prior deltas at all, fall back to a full message.
+      if (id && lastTextByItem.has(id)) {
+        const previous = lastTextByItem.get(id)!
+        lastTextByItem.delete(id)
+        const suffix = text.startsWith(previous) ? text.slice(previous.length) : text
+        return suffix ? [{ kind: 'message-delta', text: suffix }] : []
+      }
+
+      if (id) lastTextByItem.delete(id)
+      return [{ kind: 'message', role: 'assistant', text }]
     }
 
     case 'reasoning': {

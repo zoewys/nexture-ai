@@ -588,8 +588,8 @@ function buildSingleRunFollowUpPrompt(
   const transcript = events
     .flatMap((event): string[] => {
       if (event.kind === 'message') return [`Assistant: ${event.text}`]
-      if (event.kind === 'system' && event.text.startsWith('↳ you: ')) {
-        return [`User: ${event.text.slice('↳ you: '.length)}`]
+      if (event.kind === 'system' && event.text.startsWith('↳ ')) {
+        return [`User: ${event.text.slice(2).trim()}`]
       }
       return []
     })
