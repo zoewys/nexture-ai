@@ -37,6 +37,8 @@ interface SingleRunPanelProps {
   modelCatalog: ModelCatalog | null
   modelsLoading: boolean
   runState: RunState
+  configOpen: boolean
+  onConfigOpenChange: (open: boolean) => void
   onStart: (config: RunConfig) => Promise<void>
   onContinueSession: (config: RunConfig, displayText?: string) => Promise<void>
   onPush: (text: string) => Promise<void>
@@ -51,6 +53,8 @@ export function SingleRunPanel({
   modelCatalog,
   modelsLoading,
   runState: state,
+  configOpen,
+  onConfigOpenChange,
   onStart,
   onContinueSession,
   onPush,
@@ -66,7 +70,6 @@ export function SingleRunPanel({
   const [codexServiceTier, setCodexServiceTier] = useState<string | undefined>()
   const [interjection, setInterjection] = useState('')
   const [selectedAgentId, setSelectedAgentId] = useState<string | null>(null)
-  const [configOpen, setConfigOpen] = useState(true)
 
   const selectedAgent = useMemo(
     () => agents.find((a) => a.id === selectedAgentId) ?? null,
@@ -151,7 +154,7 @@ export function SingleRunPanel({
                   className="icon-only panel-collapse-button"
                   title="收起配置栏"
                   aria-label="收起配置栏"
-                  onClick={() => setConfigOpen(false)}
+                  onClick={() => onConfigOpenChange(false)}
                 >
                   <ChevronLeft size={15} />
                 </button>
@@ -274,7 +277,7 @@ export function SingleRunPanel({
             className="panel-vertical-toggle"
             title="展开配置栏"
             aria-label="展开配置栏"
-            onClick={() => setConfigOpen(true)}
+            onClick={() => onConfigOpenChange(true)}
           >
             <ChevronRight size={16} />
             <SlidersHorizontal size={16} />

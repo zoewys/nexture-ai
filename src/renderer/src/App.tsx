@@ -39,6 +39,7 @@ export function App(): JSX.Element {
   const workflows = uiReview.enabled ? uiReview.workflows : savedWorkflows
   const [clis, setClis] = useState<CliCheckResult | null>(null)
   const [mode, setMode] = useState<WorkspaceMode>('workflow')
+  const [configOpen, setConfigOpen] = useState(true)
   const [uiReviewWorkflowSurface, setUiReviewWorkflowSurface] =
     useState<UiReviewWorkflowSurface>('workflow')
 
@@ -69,7 +70,6 @@ export function App(): JSX.Element {
   const isAgents = mode === 'agents'
   const isWorkflow = mode === 'workflow'
   const isTemplates = mode === 'templates'
-  const configOpen = mode === 'single'
   const topbarChips = uiReview.enabled
     ? uiReview.topbarChips[mode]
     : buildTopbarChips(
@@ -156,6 +156,8 @@ export function App(): JSX.Element {
             modelCatalog={modelCatalog}
             modelsLoading={modelsLoading}
             runState={run.state}
+            configOpen={configOpen}
+            onConfigOpenChange={setConfigOpen}
             onStart={run.start}
             onContinueSession={run.continueSession}
             onPush={run.push}
