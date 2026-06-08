@@ -80,7 +80,18 @@ export function App(): JSX.Element {
   }
 
   useEffect(() => {
-    window.api.checkClis().then(setClis)
+    (async () => {
+      const result = await window.api.checkClis()
+      setClis(result)
+      // Auto-install missing CLIs in the background
+      for (const cli of ['claude', 'codex'] as const) {
+        if (!result[cli]) {
+          await window.api.installCli(cli)
+        }
+      }
+      const updated = await window.api.checkClis()
+      setClis(updated)
+    })()
   }, [])
 
   useEffect(() => {
@@ -461,7 +472,7 @@ export function App(): JSX.Element {
 
                       {!cliAvailable && (
                         <div className="warn">
-                          {vendor} CLI not found in PATH. Install it or pick another CLI.
+                          {vendor} CLI not found. Auto-installing...
                         </div>
                       )}
 

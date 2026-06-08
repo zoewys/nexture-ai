@@ -8,7 +8,6 @@ import type {
 import { FolderOpen } from './Icons'
 import { readLastProjectPath, rememberProjectPath } from './projectPathMemory'
 
-const stepPreviewLabels = ['需求', 'IA', 'UI', '技术方案', '开发']
 
 export interface NewWorkflowRunDefaults {
   initialRunName?: string
@@ -199,7 +198,7 @@ export function NewWorkflowRunDrawer({
 
         <div className="workflow-template-preview">
           <div className="field-row field-row-between">
-            <strong>Template Preview</strong>
+            <strong>Workflow Template</strong>
             <span>
               {uiReviewEnabled ? selectedTemplate?.name : `${selectedTemplate?.steps.length ?? 0} steps`}
             </span>
@@ -207,7 +206,7 @@ export function NewWorkflowRunDrawer({
           <div className="workflow-template-preview-pills">
             {previewSteps.map((step, index) => (
               <span className="pill-small" key={`${step.agentId}-${index}`}>
-                {index + 1} {stepPreviewLabels[index] ?? agentPreviewName(step.agentId, agents)}
+                {index + 1} {step.role || agentPreviewName(step.agentId, agents)}
               </span>
             ))}
             {(selectedTemplate?.steps.length ?? 0) > previewSteps.length && (

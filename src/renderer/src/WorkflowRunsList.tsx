@@ -1,5 +1,6 @@
 import { useState } from 'react'
 import type { WorkflowRun } from '@shared/types'
+import { Trash2 } from './Icons'
 import {
   workflowRunDisplayName,
   workflowRunProgressSegments,
@@ -25,13 +26,15 @@ interface WorkflowRunsListProps {
   selectedRunId: string | null
   onSelectRun: (runId: string) => void
   onNewRun: () => void
+  onDeleteRun: (runId: string) => void
 }
 
 export function WorkflowRunsList({
   runs,
   selectedRunId,
   onSelectRun,
-  onNewRun
+  onNewRun,
+  onDeleteRun
 }: WorkflowRunsListProps): JSX.Element {
   const [filter, setFilter] = useState<FilterKey>('all')
 
@@ -82,9 +85,26 @@ export function WorkflowRunsList({
           >
             <div className="workflow-run-card-main">
               <strong>{workflowRunDisplayName(run)}</strong>
-              <span className={`workflow-run-card-status workflow-run-card-status-${run.status}`}>
-                {runStatusShortLabel(run.status)}
-              </span>
+              <div style={{ display: 'flex', alignItems: 'center', gap: 6 }}>
+                <span className={`workflow-run-card-status workflow-run-card-status-${run.status}`}>
+                  {runStatusShortLabel(run.status)}
+                </span>
+                <button
+                  type="button"
+                  className="icon-only"
+                  style={{ width: 24, height: 24, minHeight: 24, padding: 0, opacity: 0.5 }}
+                  title="删除此运行"
+                  aria-label="删除此运行"
+                  onClick={(e) => {
+                    e.stopPropagation()
+                    if (window.confirm(`Delete run "${workflowRunDisplayName(run)}"?`)) {
+                      onDeleteRun(run.id)
+                    }
+                  }}
+                >
+                  <Trash2 size={13} />
+                </button>
+              </div>
             </div>
             <p>
               {(run as WorkflowRunUiMeta).listMeta ??

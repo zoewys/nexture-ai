@@ -1,5 +1,6 @@
+import { useCallback, useEffect, useRef, useState } from 'react'
 import type { AgentDefinition, WorkflowRun } from '@shared/types'
-import { CheckCircle } from './Icons'
+import { CheckCircle, ChevronLeft } from './Icons'
 import { HandoffPanel } from './HandoffPanel'
 import { TranscriptViewer } from './TranscriptViewer'
 
@@ -12,6 +13,7 @@ export interface WorkflowRunDetailProps {
   agents: AgentDefinition[]
   run: WorkflowRun | null
   selectedStepIndex: number
+  onSelectStep: (stepIndex: number) => void
   selectedExecution: WorkflowRun['steps'][number]['executions'][number] | null
   handoff: NonNullable<WorkflowRun['steps'][number]['executions'][number]['handoff']> | null
   uiReviewEnabled?: boolean
@@ -31,6 +33,7 @@ export function WorkflowRunDetail({
   agents,
   run,
   selectedStepIndex,
+  onSelectStep,
   selectedExecution,
   handoff,
   onConfirm,
@@ -44,6 +47,39 @@ export function WorkflowRunDetail({
   onComposerChange,
   onComposerSend
 }: WorkflowRunDetailProps): JSX.Element {
+  const [handoffOpen, setHandoffOpen] = useState(true)
+  const [handoffWidth, setHandoffWidth] = useState(340)
+  const resizing = useRef(false)
+  const bodyRef = useRef<HTMLDivElement>(null)
+
+  const onResizeStart = useCallback((e: React.MouseEvent) => {
+    e.preventDefault()
+    resizing.current = true
+    document.body.style.cursor = 'col-resize'
+    document.body.style.userSelect = 'none'
+  }, [])
+
+  useEffect(() => {
+    const onMove = (e: MouseEvent) => {
+      if (!resizing.current || !bodyRef.current) return
+      const rect = bodyRef.current.getBoundingClientRect()
+      const w = rect.right - e.clientX
+      setHandoffWidth(Math.max(240, Math.min(600, w)))
+    }
+    const onUp = () => {
+      if (!resizing.current) return
+      resizing.current = false
+      document.body.style.cursor = ''
+      document.body.style.userSelect = ''
+    }
+    window.addEventListener('mousemove', onMove)
+    window.addEventListener('mouseup', onUp)
+    return () => {
+      window.removeEventListener('mousemove', onMove)
+      window.removeEventListener('mouseup', onUp)
+    }
+  }, [])
+
   if (!run) {
     return (
       <main className="workflow-run-detail workflow-run-detail-empty">
@@ -64,10 +100,13 @@ export function WorkflowRunDetail({
 
   return (
     <main className="workflow-run-detail">
+      {/* ── top bar: run title + status + actions ── */}
       <div className="workflow-run-detail-header">
-        <div>
+        <div className="workflow-detail-title">
           <h2>{run.runName || run.templateName}</h2>
-          <p>{displayPath ?? run.projectPath}</p>
+          <span className={`workflow-run-status workflow-run-status-${run.status}`}>
+            {runStatusLabel(run.status)}
+          </span>
         </div>
         <div className="workflow-run-detail-actions">
           {awaitingConfirm && (
@@ -84,38 +123,67 @@ export function WorkflowRunDetail({
         </div>
       </div>
 
-      <div className="workflow-detail-header">
-        <div className="workflow-run-step-summary">
-          <span
-            className={[
-              'workflow-run-step-dot',
-              selectedStep ? `workflow-run-step-dot-${selectedStep.status}` : ''
-            ].filter(Boolean).join(' ')}
-          />
-          <strong>
-            Step {selectedStepIndex + 1} / {run.steps.length} ·{' '}
-            {selectedAgent?.name ?? selectedAgent?.role ?? 'Missing agent'} ·{' '}
-            {selectedStep ? stepStatusLabel(selectedStep.status) : '未知'}
-          </strong>
-        </div>
-        {selectedExecution?.error && (
-          <span className="workflow-error">{selectedExecution.error}</span>
-        )}
+      {/* ── step navigation: compact inline bar ── */}
+      <div className="workflow-step-nav">
+        {run.steps.map((step, index) => {
+          const agent = agents.find((candidate) => candidate.id === step.agentId)
+          return (
+            <button
+              type="button"
+              key={`${run.id}-step-${index}`}
+              className={`workflow-step-chip ${selectedStepIndex === index ? 'workflow-step-chip-active' : ''} workflow-step-chip-${step.status}`}
+              onClick={() => onSelectStep(index)}
+            >
+              <span className="workflow-step-chip-num">{index + 1}</span>
+              <span className="workflow-step-chip-name">{step.role || step.displayName || agent?.name || agent?.role || `Step ${index + 1}`}</span>
+            </button>
+          )
+        })}
       </div>
 
       {gitSafetyMessage && (
-        <div className="workflow-run-warning">
-          {gitSafetyMessage}
-        </div>
+        <div className="workflow-run-warning">{gitSafetyMessage}</div>
       )}
 
-      <TranscriptViewer events={selectedExecution?.events ?? []} />
-
-      {handoff && run.status === 'awaiting-confirm' && (
-        <div className="workflow-detail-handoff">
-          <HandoffPanel handoff={handoff} />
-        </div>
+      {selectedExecution?.error && (
+        <div className="workflow-detail-error">{selectedExecution.error}</div>
       )}
+
+      {/* ── body: transcript | resize handle | handoff ── */}
+      <div
+        ref={bodyRef}
+        className={[
+          'workflow-detail-body',
+          handoff ? 'workflow-detail-body-with-handoff' : '',
+          handoff && !handoffOpen ? 'workflow-detail-body-handoff-collapsed' : ''
+        ].filter(Boolean).join(' ')}
+        style={handoff && handoffOpen ? { gridTemplateColumns: `minmax(0, 1fr) 6px ${handoffWidth}px` } : undefined}
+      >
+        <TranscriptViewer events={selectedExecution?.events ?? []} />
+
+        {handoff && handoffOpen && (
+          <>
+            <div className="handoff-resize-handle" onMouseDown={onResizeStart} />
+            <aside className="handoff-dock" aria-label="结构化交接物">
+              <HandoffPanel handoff={handoff} onCollapse={() => setHandoffOpen(false)} />
+            </aside>
+          </>
+        )}
+
+        {handoff && !handoffOpen && (
+          <aside className="handoff-dock-collapsed" aria-label="已收起的交接物面板">
+            <button
+              type="button"
+              className="handoff-toggle-collapsed"
+              title="展开交接物"
+              aria-label="展开交接物"
+              onClick={() => setHandoffOpen(true)}
+            >
+              <span className="handoff-toggle-label">交接物</span>
+            </button>
+          </aside>
+        )}
+      </div>
 
       <div className="workflow-cli-composer">
         <div className="workflow-cli-prompt">›</div>
@@ -142,6 +210,17 @@ export function WorkflowRunDetail({
       {composerError && <div className="workflow-input-error">{composerError}</div>}
     </main>
   )
+}
+
+function runStatusLabel(status: WorkflowRun['status']): string {
+  switch (status) {
+    case 'running': return '运行中'
+    case 'awaiting-confirm': return '等待确认'
+    case 'completed': return '已完成'
+    case 'error': return '错误'
+    case 'aborted': return '已停止'
+    case 'interrupted': return '已中断'
+  }
 }
 
 function stepStatusLabel(status: WorkflowRun['steps'][number]['status']): string {

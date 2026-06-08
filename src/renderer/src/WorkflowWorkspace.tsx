@@ -2,7 +2,7 @@ import { useEffect, useRef, useState } from 'react'
 import type { AgentDefinition, WorkflowRun } from '@shared/types'
 import { WorkflowRunsList } from './WorkflowRunsList'
 import { WorkflowRunDetail } from './WorkflowRunDetail'
-import { WorkflowStepsPanel } from './WorkflowStepsPanel'
+
 import { NewWorkflowRunDrawer } from './NewWorkflowRunDrawer'
 import type { NewWorkflowRunDefaults } from './NewWorkflowRunDrawer'
 import { UiReviewMockNav } from './UiReviewMockNav'
@@ -109,11 +109,13 @@ export function WorkflowWorkspace({
         selectedRunId={workflows.selectedRunId}
         onSelectRun={workflows.selectRun}
         onNewRun={() => setNewRunDrawerOpen(true)}
+        onDeleteRun={workflows.deleteRun}
       />
       <WorkflowRunDetail
         agents={agents}
         run={selectedRun}
         selectedStepIndex={selectedStepIndex}
+        onSelectStep={setSelectedStepIndex}
         selectedExecution={selectedExecution}
         handoff={handoff}
         uiReviewEnabled={uiReviewEnabled}
@@ -130,12 +132,6 @@ export function WorkflowWorkspace({
           setWorkflowInputError(null)
         }}
         onComposerSend={sendWorkflowInput}
-      />
-      <WorkflowStepsPanel
-        run={selectedRun}
-        agents={agents}
-        selectedStepIndex={selectedStepIndex}
-        onSelectStep={setSelectedStepIndex}
       />
       {newRunDrawerOpen && (
         <NewWorkflowRunDrawer

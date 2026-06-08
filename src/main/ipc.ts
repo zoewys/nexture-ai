@@ -20,6 +20,7 @@ import { AgentStore } from './AgentStore'
 import { WorkflowStore } from './WorkflowStore'
 import { WorkflowManager } from './WorkflowManager'
 import { checkClis } from './cliCheck'
+import { installClaudeCode, installCodexCli } from './cliInstall'
 import { listCliModels } from './cliModels'
 
 export interface AppManagers {
@@ -135,6 +136,10 @@ export function registerIpc(getWindow: () => BrowserWindow | null): AppManagers 
   })
 
   ipcMain.handle(IPC.checkClis, (): Promise<CliCheckResult> => checkClis())
+
+  ipcMain.handle(IPC.cliInstall, async (_e, cli: 'claude' | 'codex') => {
+    return cli === 'claude' ? installClaudeCode() : installCodexCli()
+  })
 
   ipcMain.handle(IPC.listModels, (): Promise<ModelCatalog> => listCliModels())
 

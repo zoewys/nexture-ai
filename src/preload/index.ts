@@ -30,6 +30,9 @@ const api = {
 
   checkClis: (): Promise<CliCheckResult> => ipcRenderer.invoke(IPC.checkClis),
 
+  installCli: (cli: 'claude' | 'codex'): Promise<{ ok: boolean; message: string }> =>
+    ipcRenderer.invoke(IPC.cliInstall, cli),
+
   listModels: (): Promise<ModelCatalog> => ipcRenderer.invoke(IPC.listModels),
 
   listAgents: (): Promise<AgentDefinition[]> => ipcRenderer.invoke(IPC.agentsList),
