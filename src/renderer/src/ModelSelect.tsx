@@ -1,3 +1,10 @@
+/**
+ * ModelSelect.tsx — 模型选择下拉框
+ *
+ * 根据当前 vendor 的模型目录渲染 <select>，支持自由输入模式（当目录为空时）。
+ * 显示 loading 状态和 "unavailable" 提示。
+ */
+
 import { useState } from 'react'
 import type { ModelOption, VendorModelCatalog } from '@shared/types'
 

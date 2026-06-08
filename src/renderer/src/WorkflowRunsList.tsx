@@ -1,3 +1,10 @@
+/**
+ * WorkflowRunsList.tsx — 工作流运行列表侧栏
+ *
+ * 展示所有 workflow run 实例的列表（按时间倒序），每项显示：
+ * 运行名称、模板名、状态徽标、开始时间。支持选中高亮和删除操作。
+ */
+
 import { useState } from 'react'
 import type { WorkflowRun } from '@shared/types'
 import { Trash2 } from './Icons'

@@ -1,3 +1,14 @@
+/**
+ * HandoffPanel.tsx — 结构化交接物展示面板
+ *
+ * 渲染一个 workflow step 完成后产出的 HandoffArtifact：
+ *  - Summary：步骤完成摘要
+ *  - Artifacts 表格：产出物列表（类型 / 路径 / 描述）
+ *  - Next-step Guidance：给下游 agent 的建议
+ *
+ * 支持折叠收起。在 WorkflowRunDetail 中作为右侧可拖拽面板使用。
+ */
+
 import type { WorkflowRun } from '@shared/types'
 import { formatHandoffDisplay } from './handoffDisplay'
 import { ChevronRight, ClipboardCheck } from './Icons'

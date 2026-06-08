@@ -1,3 +1,11 @@
+/**
+ * workflowNotificationSound.ts — 8-bit 风格工作流音效
+ *
+ * 使用 Web Audio API 合成方波 + 噪声打击乐音效，
+ * 在 workflow 步骤完成/出错/需要确认时播放提示音。
+ * 需要用户交互后首次调用 prepareWorkflowNotificationSound() 解锁 AudioContext。
+ */
+
 export type WorkflowNotificationSound = 'confirm' | 'finished' | 'error' | 'start'
 
 type AudioContextConstructor = new () => AudioContext

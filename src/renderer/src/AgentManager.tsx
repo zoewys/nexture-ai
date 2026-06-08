@@ -1,3 +1,14 @@
+/**
+ * AgentManager.tsx — Agent 定义管理页
+ *
+ * 对应 "Agents" 模式，提供 Agent 定义的完整 CRUD 界面：
+ *  - 左侧列表：所有已保存的 Agent（名称 + vendor 标签）
+ *  - 右侧编辑表单：名称、角色、vendor、model、system prompt、permission mode
+ *  - 支持新建、编辑、删除 Agent 定义
+ *
+ * Agent 定义被 workflow 模板的步骤引用，也可在 SingleRunPanel 中手动选择使用。
+ */
+
 import { useState } from 'react'
 import type {
   AgentDefinition,

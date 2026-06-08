@@ -1,3 +1,10 @@
+/**
+ * handoffDisplay.ts — HandoffArtifact 数据格式化工具
+ *
+ * 将 HandoffArtifact 原始数据转换为 HandoffPanel 所需的展示结构：
+ * summary / artifacts 表格行 / guidance 文本。纯数据转换，无 UI 依赖。
+ */
+
 import type { HandoffArtifact, HandoffArtifactItem } from '../../shared/types'
 
 export interface HandoffDisplayArtifactRow {

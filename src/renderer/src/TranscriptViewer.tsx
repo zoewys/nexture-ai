@@ -1,3 +1,16 @@
+/**
+ * TranscriptViewer.tsx — Agent 输出流实时渲染器
+ *
+ * 将 AgentEvent[] 流转换为可视化的分块展示：
+ *  - message 块：Markdown 渲染的 assistant 回复
+ *  - thinking 块：可折叠的思考过程
+ *  - tool-call / tool-result 块：工具调用卡片（按类别着色：read/write/exec/search/task）
+ *  - stderr / error / system 块：诊断信息
+ *  - StatusBar：顶部实时活动指示器（streaming / thinking / tool-running）
+ *
+ * 支持自动滚动跟随和手动滚动锁定。
+ */
+
 import { useEffect, useMemo, useRef, useState } from 'react'
 import type { AgentEvent } from '@shared/types'
 import { isNearTranscriptBottom, shouldAutoFollowTranscriptEvent } from './transcriptScroll'

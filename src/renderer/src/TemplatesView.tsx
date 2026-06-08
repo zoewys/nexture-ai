@@ -1,3 +1,14 @@
+/**
+ * TemplatesView.tsx — 工作流模板编辑页
+ *
+ * 对应 "Templates" 模式，提供 workflow 模板的完整 CRUD 界面：
+ *  - 左侧列表：所有已保存的模板（名称 + 步骤数量点阵）
+ *  - 右侧编辑器：名称、描述、Pipeline 预览、步骤拖拽排序、初始 Prompt 模板
+ *  - 每个步骤绑定一个 Agent + 可选 role 标签
+ *  - Prompt 模板支持变量插入（{{projectPath}} / {{branch}} / {{userInput}}）
+ *  - 支持复制、删除模板，Cmd+S 保存快捷键
+ */
+
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react'
 import type { AgentDefinition, WorkflowTemplate } from '@shared/types'
 import type { WorkflowDraft } from './useWorkflows'

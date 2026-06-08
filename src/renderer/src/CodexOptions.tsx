@@ -1,3 +1,11 @@
+/**
+ * CodexOptions.tsx — Codex CLI 专属配置子表单
+ *
+ * 当选择 vendor=codex 时显示，提供：
+ *  - Reasoning Effort 选择（low / medium / high / xhigh）
+ *  - Service Tier 选择（由 CLI 模型目录动态提供选项）
+ */
+
 import type {
   CodexReasoningEffort,
   CodexServiceTierOption,

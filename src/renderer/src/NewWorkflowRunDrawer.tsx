@@ -1,3 +1,14 @@
+/**
+ * NewWorkflowRunDrawer.tsx — 新建工作流运行抽屉
+ *
+ * 从右侧滑出的抽屉面板，用于启动一次新的 workflow run：
+ *  - 选择 workflow 模板
+ *  - 填写项目路径（带 Browse 按钮）
+ *  - 输入初始 prompt
+ *  - Git 安全检测提示（同 worktree 冲突警告）
+ *  - 启动按钮
+ */
+
 import { useEffect, useMemo, useState } from 'react'
 import type {
   AgentDefinition,

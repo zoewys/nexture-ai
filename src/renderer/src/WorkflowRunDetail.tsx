@@ -1,8 +1,20 @@
+/**
+ * WorkflowRunDetail.tsx — 单个工作流运行的详情视图
+ *
+ * 展示选中 run 的：
+ *  - 顶部标题栏（运行名称、状态、操作按钮：确认/重跑/停止/删除）
+ *  - 步骤导航 chips（快速切换当前查看的步骤）
+ *  - TranscriptViewer（当前步骤的 agent 输出流）
+ *  - HandoffPanel（结构化交接物：summary + artifacts + guidance，可拖拽调宽）
+ *  - 底部 Composer（向运行中的 step 插话，或对已完成的 step 继续对话）
+ */
+
 import { useCallback, useEffect, useRef, useState } from 'react'
 import type { AgentDefinition, WorkflowRun } from '@shared/types'
 import { CheckCircle, ChevronLeft } from './Icons'
 import { HandoffPanel } from './HandoffPanel'
 import { TranscriptViewer } from './TranscriptViewer'
+import { workflowRunStatusLabel } from './workflowLabels'
 
 type WorkflowRunUiMeta = WorkflowRun & {
   displayPath?: string
@@ -105,7 +117,7 @@ export function WorkflowRunDetail({
         <div className="workflow-detail-title">
           <h2>{run.runName || run.templateName}</h2>
           <span className={`workflow-run-status workflow-run-status-${run.status}`}>
-            {runStatusLabel(run.status)}
+            {workflowRunStatusLabel(run.status)}
           </span>
         </div>
         <div className="workflow-run-detail-actions">
@@ -212,24 +224,3 @@ export function WorkflowRunDetail({
   )
 }
 
-function runStatusLabel(status: WorkflowRun['status']): string {
-  switch (status) {
-    case 'running': return '运行中'
-    case 'awaiting-confirm': return '等待确认'
-    case 'completed': return '已完成'
-    case 'error': return '错误'
-    case 'aborted': return '已停止'
-    case 'interrupted': return '已中断'
-  }
-}
-
-function stepStatusLabel(status: WorkflowRun['steps'][number]['status']): string {
-  switch (status) {
-    case 'pending': return '待运行'
-    case 'running': return '运行中'
-    case 'awaiting-confirm': return '等待确认'
-    case 'done': return '完成'
-    case 'stale': return '已过期'
-    case 'error': return '错误'
-  }
-}
