@@ -14,7 +14,7 @@ import type { MemoryStore } from './MemoryStore'
 type ReflectionRunManager = Pick<RunManager, 'start'>
 type ReflectionMemoryStore = Pick<
   MemoryStore,
-  'getReflectionConfig' | 'getReflectionCwd' | 'saveRawSignal'
+  'getReflectionConfig' | 'getReflectionCwd'
 >
 
 const MIN_CONFIDENCE = 0.6
@@ -43,8 +43,8 @@ export class ReflectionAgent {
 
   /**
    * Reflect on one learning signal and return high-confidence memories.
-   * Parse failures are retried once; repeated parse failures stash the signal
-   * for a later retry and then rethrow.
+   * Parse failures are retried once; repeated parse failures are rethrown so
+   * callers can keep the source signal for a later retry.
    */
   async reflect(
     signal: MemorySignal,
@@ -74,7 +74,6 @@ export class ReflectionAgent {
       }
     }
 
-    this.memoryStore.saveRawSignal(signal)
     throw lastParseError ?? new ReflectionParseError('Reflection output could not be parsed')
   }
 

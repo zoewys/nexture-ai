@@ -22,6 +22,9 @@ import { WorkflowManager } from './WorkflowManager'
 import { checkClis } from './cliCheck'
 import { installClaudeCode, installCodexCli } from './cliInstall'
 import { listCliModels } from './cliModels'
+import { MemoryStore } from './memory/MemoryStore'
+import { ReflectionAgent } from './memory/ReflectionAgent'
+import { SignalCollector } from './memory/SignalCollector'
 
 export interface AppManagers {
   abortAll(): void
@@ -36,6 +39,9 @@ export function registerIpc(getWindow: () => BrowserWindow | null): AppManagers 
   const agentStore = new AgentStore()
   const workflowStore = new WorkflowStore()
   const runManager = new RunManager(transcriptStore)
+  const memoryStore = new MemoryStore()
+  const reflectionAgent = new ReflectionAgent(runManager, memoryStore)
+  const signalCollector = new SignalCollector(reflectionAgent, memoryStore, agentStore)
 
   // ── message-delta batching ───────────────────────────────────────────
   // Token streaming produces 50-100 message-delta events per second. Sending
@@ -109,8 +115,10 @@ export function registerIpc(getWindow: () => BrowserWindow | null): AppManagers 
     workflowStore,
     runManager,
     transcriptStore,
-    emitWorkflow
+    emitWorkflow,
+    signalCollector
   )
+  void signalCollector.drainRawSignals()
 
   ipcMain.handle(IPC.runStart, (_e, config: RunConfig): RunStartResult => {
     // The renderer can't know the on-disk transcript path; fill it here so the

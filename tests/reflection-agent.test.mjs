@@ -107,8 +107,7 @@ test('reflect runs through RunManager with safe config and returns parsed memori
       { kind: 'turn-done', sessionId: 'session-1', reason: 'complete' }
     ]
   ])
-  const savedSignals = []
-  const memoryStore = createMemoryStore(savedSignals)
+  const memoryStore = createMemoryStore()
   const reflectionAgent = new ReflectionAgent(runManager, memoryStore)
 
   const results = await reflectionAgent.reflect(signal, agent, [existingMemory])
@@ -127,7 +126,6 @@ test('reflect runs through RunManager with safe config and returns parsed memori
       confidence: 0.8
     }
   ])
-  assert.deepEqual(savedSignals, [])
 })
 
 test('reflect retries one parse failure before succeeding', async () => {
@@ -145,17 +143,15 @@ test('reflect retries one parse failure before succeeding', async () => {
       { kind: 'turn-done', sessionId: 'session-2', reason: 'complete' }
     ]
   ])
-  const savedSignals = []
-  const reflectionAgent = new ReflectionAgent(runManager, createMemoryStore(savedSignals))
+  const reflectionAgent = new ReflectionAgent(runManager, createMemoryStore())
 
   const results = await reflectionAgent.reflect(signal, agent, [])
 
   assert.equal(runManager.calls.length, 2)
   assert.equal(results[0].content, '不要输出 markdown 包裹 JSON。')
-  assert.deepEqual(savedSignals, [])
 })
 
-test('reflect saves raw signal after repeated parse failure', async () => {
+test('reflect rethrows after repeated parse failure so callers can persist the signal', async () => {
   const runManager = createRunManager([
     [
       { kind: 'message', role: 'assistant', text: 'not json' },
@@ -166,20 +162,18 @@ test('reflect saves raw signal after repeated parse failure', async () => {
       { kind: 'turn-done', sessionId: 'session-2', reason: 'complete' }
     ]
   ])
-  const savedSignals = []
-  const reflectionAgent = new ReflectionAgent(runManager, createMemoryStore(savedSignals))
+  const reflectionAgent = new ReflectionAgent(runManager, createMemoryStore())
 
   await assert.rejects(
     () => reflectionAgent.reflect(signal, agent, []),
     (err) => err instanceof ReflectionParseError
   )
   assert.equal(runManager.calls.length, 2)
-  assert.deepEqual(savedSignals, [signal])
 })
 
 test('reflect returns no memories when reflection is disabled', async () => {
   const runManager = createRunManager([])
-  const memoryStore = createMemoryStore([], { enabled: false })
+  const memoryStore = createMemoryStore({ enabled: false })
   const reflectionAgent = new ReflectionAgent(runManager, memoryStore)
 
   const results = await reflectionAgent.reflect(signal, agent, [])
@@ -203,7 +197,7 @@ function createRunManager(sequences) {
   }
 }
 
-function createMemoryStore(savedSignals, patch = {}) {
+function createMemoryStore(patch = {}) {
   return {
     getReflectionConfig() {
       return {
@@ -215,9 +209,6 @@ function createMemoryStore(savedSignals, patch = {}) {
     },
     getReflectionCwd() {
       return '/tmp/agent-studio-memories'
-    },
-    saveRawSignal(signalToSave) {
-      savedSignals.push(signalToSave)
     }
   }
 }

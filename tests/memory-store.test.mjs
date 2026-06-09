@@ -41,6 +41,7 @@ test('memory store implements core add list remove reinforce and config APIs', (
   assert.match(store, /getMeta\(agentId: string\): AgentMemoryMeta/)
   assert.match(store, /updateMeta\(agentId: string, patch: Partial<AgentMemoryMeta>\): void/)
   assert.match(store, /saveRawSignal\(signal: MemorySignal\): void/)
+  assert.match(store, /removeRawSignal\(signal: MemorySignal\): void/)
   assert.match(store, /popRawSignals\(\): MemorySignal\[\]/)
   assert.match(store, /getReflectionConfig\(\): ReflectionEngineConfig/)
   assert.match(store, /getReflectionCwd\(\): string/)

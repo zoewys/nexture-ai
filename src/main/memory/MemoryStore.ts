@@ -27,6 +27,18 @@ export function hashProjectPath(projectPath: string): string {
   return createHash('sha256').update(resolve(projectPath)).digest('hex').slice(0, 16)
 }
 
+function isSameSignal(a: MemorySignal, b: MemorySignal): boolean {
+  return (
+    a.type === b.type &&
+    a.source === b.source &&
+    a.runId === b.runId &&
+    a.workflowRunId === b.workflowRunId &&
+    a.stepIndex === b.stepIndex &&
+    a.agentId === b.agentId &&
+    a.timestamp === b.timestamp
+  )
+}
+
 export class MemoryStore {
   private readonly dir: string
   private readonly agentsDir: string
@@ -147,6 +159,26 @@ export class MemoryStore {
     const signals = this.readJson<MemorySignal[]>(path) ?? []
     signals.push(signal)
     this.writeJson(path, signals)
+  }
+
+  removeRawSignal(signal: MemorySignal): void {
+    const path = join(this.rawDir, `${signal.workflowRunId}.json`)
+    const signals = this.readJson<MemorySignal[]>(path)
+    if (!Array.isArray(signals)) return
+
+    const next = signals.filter((item) => !isSameSignal(item, signal))
+    if (next.length === signals.length) return
+
+    if (next.length === 0) {
+      try {
+        unlinkSync(path)
+      } catch {
+        // Persistence is best-effort.
+      }
+      return
+    }
+
+    this.writeJson(path, next)
   }
 
   popRawSignals(): MemorySignal[] {

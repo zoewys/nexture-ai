@@ -3,6 +3,7 @@ import type {
   AgentDefinition,
   AgentEvent,
   HandoffArtifact,
+  MemorySignal,
   RunConfig,
   WorkflowEventEnvelope,
   WorkflowRun,
@@ -17,6 +18,8 @@ import type { RunManager } from './RunManager'
 import type { TranscriptStore } from './TranscriptStore'
 import type { WorkflowStore } from './WorkflowStore'
 import { inspectWorkflowGitSafety } from './gitSafety'
+import type { SignalCollector } from './memory/SignalCollector'
+import { summarizeTranscript } from './memory/transcriptSummarizer'
 
 type EmitWorkflow = (envelope: WorkflowEventEnvelope) => void
 
@@ -48,7 +51,8 @@ export class WorkflowManager {
     private readonly workflowStore: WorkflowStore,
     private readonly runManager: RunManager,
     private readonly transcripts: TranscriptStore,
-    private readonly emit: EmitWorkflow
+    private readonly emit: EmitWorkflow,
+    private readonly signalCollector?: SignalCollector
   ) {
     for (const run of this.markInterruptedRunsOnStartup(workflowStore.listRuns())) {
       this.runs.set(run.id, run)
@@ -127,6 +131,7 @@ export class WorkflowManager {
     execution.status = 'done'
     execution.finishedAt = execution.finishedAt ?? Date.now()
     step.status = 'done'
+    this.collectMemorySignal('positive', 'user-confirmed', run, run.currentStepIndex, execution)
 
     const nextIndex = run.currentStepIndex + 1
     if (nextIndex >= run.steps.length) {
@@ -149,6 +154,11 @@ export class WorkflowManager {
 
     const live = this.liveByRunId.get(run.id)
     if (live) this.runManager.abort(live.childRunId)
+
+    const previous = latestExecution(run.steps[stepIndex])
+    if (previous) {
+      this.collectMemorySignal('negative', 'user-rerun', run, stepIndex, previous)
+    }
 
     markDownstreamStale(run, stepIndex)
 
@@ -356,6 +366,14 @@ export class WorkflowManager {
   ): void {
     const handoff = parseHandoff(execution.events)
     if (!handoff) {
+      this.collectMemorySignal(
+        'format-error',
+        'handoff-failed',
+        run,
+        stepIndex,
+        execution,
+        { error: 'Could not parse handoff JSON' }
+      )
       this.finishStepWithError(run, stepIndex, execution, 'Could not parse handoff JSON')
       return
     }
@@ -364,6 +382,9 @@ export class WorkflowManager {
     execution.finishedAt = Date.now()
     run.steps[stepIndex].status = 'awaiting-confirm'
     run.status = 'awaiting-confirm'
+    if (stepIndex === run.steps.length - 1) {
+      this.collectMemorySignal('completion', 'workflow-done', run, stepIndex, execution, { handoff })
+    }
     this.persistAndEmit(run)
   }
 
@@ -487,6 +508,31 @@ export class WorkflowManager {
 
   private emitUpdate(run: WorkflowRun): void {
     this.emit({ runId: run.id, event: { kind: 'run-updated', run } })
+  }
+
+  private collectMemorySignal(
+    type: MemorySignal['type'],
+    source: MemorySignal['source'],
+    run: WorkflowRun,
+    stepIndex: number,
+    execution: WorkflowStepExecution,
+    patch: Partial<Pick<MemorySignal, 'error' | 'handoff' | 'userAction'>> = {}
+  ): void {
+    if (!this.signalCollector) return
+    this.signalCollector.collect({
+      type,
+      source,
+      runId: execution.runId ?? execution.sessionId ?? execution.id,
+      workflowRunId: run.id,
+      stepIndex,
+      agentId: execution.agentId,
+      projectPath: run.projectPath,
+      timestamp: Date.now(),
+      transcript: summarizeTranscript(execution.events),
+      handoff: patch.handoff ?? execution.handoff,
+      error: patch.error ?? execution.error,
+      userAction: patch.userAction
+    })
   }
 }
 
