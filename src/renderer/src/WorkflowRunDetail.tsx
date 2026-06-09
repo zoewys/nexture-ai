@@ -9,9 +9,9 @@
  *  - 底部 Composer（向运行中的 step 插话，或对已完成的 step 继续对话）
  */
 
-import { useCallback, useEffect, useRef, useState } from 'react'
+import { useState, useRef } from 'react'
 import type { AgentDefinition, WorkflowRun } from '@shared/types'
-import { Panel, Group as PanelGroup, Separator as PanelResizeHandle } from 'react-resizable-panels'
+import { Panel, Group as PanelGroup, Separator as PanelResizeHandle, type PanelImperativeHandle } from 'react-resizable-panels'
 import { CheckCircle, ChevronLeft } from './Icons'
 import { HandoffPanel } from './HandoffPanel'
 import { TranscriptViewer } from './TranscriptViewer'
@@ -61,6 +61,16 @@ export function WorkflowRunDetail({
   onComposerSend
 }: WorkflowRunDetailProps): JSX.Element {
   const [handoffOpen, setHandoffOpen] = useState(true)
+  const handoffPanelRef = useRef<PanelImperativeHandle>(null)
+
+  const collapseHandoff = () => {
+    handoffPanelRef.current?.collapse()
+    setHandoffOpen(false)
+  }
+  const expandHandoff = () => {
+    handoffPanelRef.current?.expand()
+    setHandoffOpen(true)
+  }
 
   if (!run) {
     return (
@@ -141,37 +151,28 @@ export function WorkflowRunDetail({
           <>
             <PanelResizeHandle className="panel-resize-handle" />
             <Panel
+              panelRef={handoffPanelRef}
               defaultSize={35}
               minSize={15}
               maxSize={50}
               collapsible
-              collapsedSize={3}
-              onResize={(size) => {
-                if (size.inPixels <= 44 && handoffOpen) setHandoffOpen(false)
-                else if (size.inPixels > 44 && !handoffOpen) setHandoffOpen(true)
-              }}
+              collapsedSize={0}
             >
-              {handoffOpen ? (
-                <aside className="handoff-dock" aria-label="结构化交接物">
-                  <HandoffPanel handoff={handoff} onCollapse={() => setHandoffOpen(false)} />
-                </aside>
-              ) : (
-                <aside className="handoff-dock-collapsed" aria-label="已收起的交接物面板">
-                  <button
-                    type="button"
-                    className="handoff-toggle-collapsed"
-                    title="展开交接物"
-                    aria-label="展开交接物"
-                    onClick={() => setHandoffOpen(true)}
-                  >
-                    <span className="handoff-toggle-label">交接物</span>
-                  </button>
-                </aside>
-              )}
+              <aside className="handoff-dock" aria-label="结构化交接物">
+                <HandoffPanel handoff={handoff} onCollapse={collapseHandoff} />
+              </aside>
             </Panel>
           </>
         )}
       </PanelGroup>
+
+      {handoff && !handoffOpen && (
+        <div className="handoff-expand-bar">
+          <button type="button" onClick={expandHandoff}>
+            <ChevronLeft size={14} /> 展开交接物
+          </button>
+        </div>
+      )}
 
       <div className="workflow-cli-composer">
         <div className="workflow-cli-prompt">›</div>
