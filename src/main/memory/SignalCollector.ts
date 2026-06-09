@@ -17,6 +17,7 @@ type SignalMemoryStore = Pick<
   | 'list'
   | 'popRawSignals'
   | 'removeRawSignal'
+  | 'reinforce'
   | 'saveRawSignal'
   | 'updateMeta'
 >
@@ -38,6 +39,7 @@ export class SignalCollector {
    * the background. Successful reflection removes the raw signal.
    */
   collect(signal: MemorySignal): void {
+    this.reinforceInjectedMemories(signal)
     if (!this.memoryStore.getReflectionConfig().enabled) return
     this.memoryStore.saveRawSignal(signal)
     void this.runReflection(signal, { rawPersisted: true })
@@ -90,6 +92,13 @@ export class SignalCollector {
       totalRuns: meta.totalRuns + 1,
       lastReflectionAt: Date.now()
     })
+  }
+
+  private reinforceInjectedMemories(signal: MemorySignal): void {
+    if (signal.type !== 'positive') return
+    for (const memoryId of signal.injectedMemoryIds ?? []) {
+      this.memoryStore.reinforce(memoryId)
+    }
   }
 }
 

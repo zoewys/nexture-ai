@@ -186,6 +186,7 @@ export interface WorkflowStepExecution {
   startedAt?: number
   finishedAt?: number
   handoff?: HandoffArtifact
+  injectedMemoryIds?: string[]
   events: AgentEvent[]
   error?: string
 }
@@ -296,6 +297,7 @@ export interface MemorySignal {
   projectPath: string
   timestamp: number
   transcript: string
+  injectedMemoryIds?: string[]
   handoff?: HandoffArtifact
   error?: string
   userAction?: string

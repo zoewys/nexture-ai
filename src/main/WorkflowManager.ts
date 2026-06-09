@@ -18,6 +18,7 @@ import type { RunManager } from './RunManager'
 import type { TranscriptStore } from './TranscriptStore'
 import type { WorkflowStore } from './WorkflowStore'
 import { inspectWorkflowGitSafety } from './gitSafety'
+import type { MemoryInjector } from './memory/MemoryInjector'
 import type { SignalCollector } from './memory/SignalCollector'
 import { summarizeTranscript } from './memory/transcriptSummarizer'
 
@@ -52,7 +53,8 @@ export class WorkflowManager {
     private readonly runManager: RunManager,
     private readonly transcripts: TranscriptStore,
     private readonly emit: EmitWorkflow,
-    private readonly signalCollector?: SignalCollector
+    private readonly signalCollector?: SignalCollector,
+    private readonly memoryInjector?: MemoryInjector
   ) {
     for (const run of this.markInterruptedRunsOnStartup(workflowStore.listRuns())) {
       this.runs.set(run.id, run)
@@ -221,18 +223,20 @@ export class WorkflowManager {
     const agent = this.agentStore.list().find((candidate) => candidate.id === step.agentId)
     if (!agent) throw new Error(`Agent not found: ${step.agentId}`)
 
-    const prompt = [
+    const mainPrompt = [
       clean,
       '',
       '# Handoff requirement',
       HANDOFF_SCHEMA_TEXT
     ].join('\n')
+    const { prompt, injectedMemoryIds } = this.withMemoryContext(agent, run.projectPath, mainPrompt)
     const execution: WorkflowStepExecution = {
       id: randomUUID(),
       stepIndex,
       agentId: agent.id,
       status: 'running',
       startedAt: Date.now(),
+      injectedMemoryIds,
       events: [{ kind: 'system', text: `↳ ${clean}` }]
     }
     step.executions.push(execution)
@@ -288,13 +292,14 @@ export class WorkflowManager {
       return
     }
 
-    const prompt = this.buildPrompt(run, stepIndex, agent)
+    const { prompt, injectedMemoryIds } = this.buildPrompt(run, stepIndex, agent)
     const execution: WorkflowStepExecution = {
       id: randomUUID(),
       stepIndex,
       agentId: agent.id,
       status: 'running',
       startedAt: Date.now(),
+      injectedMemoryIds,
       events: []
     }
     step.executions.push(execution)
@@ -422,20 +427,25 @@ export class WorkflowManager {
     this.persistAndEmit(run)
   }
 
-  private buildPrompt(run: WorkflowRun, stepIndex: number, _agent: AgentDefinition): string {
+  private buildPrompt(run: WorkflowRun, stepIndex: number, agent: AgentDefinition): {
+    prompt: string
+    injectedMemoryIds: string[]
+  } {
+    let mainPrompt: string
     if (stepIndex === 0) {
-      return [
+      mainPrompt = [
         '# User request',
         run.initialPrompt,
         '',
         '# Handoff requirement',
         HANDOFF_SCHEMA_TEXT
       ].join('\n')
+      return this.withMemoryContext(agent, run.projectPath, mainPrompt)
     }
 
     const previous = latestCompletedHandoff(run, stepIndex - 1)
     if (!previous) {
-      return [
+      mainPrompt = [
         '# User request',
         run.initialPrompt,
         '',
@@ -445,9 +455,10 @@ export class WorkflowManager {
         '# Handoff requirement',
         HANDOFF_SCHEMA_TEXT
       ].join('\n')
+      return this.withMemoryContext(agent, run.projectPath, mainPrompt)
     }
 
-    return [
+    mainPrompt = [
       '# Upstream handoff',
       previous.summary,
       '',
@@ -461,6 +472,7 @@ export class WorkflowManager {
       '# Handoff requirement',
       HANDOFF_SCHEMA_TEXT
     ].join('\n')
+    return this.withMemoryContext(agent, run.projectPath, mainPrompt)
   }
 
   private markInterruptedRunsOnStartup(runs: WorkflowRun[]): WorkflowRun[] {
@@ -529,10 +541,24 @@ export class WorkflowManager {
       projectPath: run.projectPath,
       timestamp: Date.now(),
       transcript: summarizeTranscript(execution.events),
+      injectedMemoryIds: execution.injectedMemoryIds,
       handoff: patch.handoff ?? execution.handoff,
       error: patch.error ?? execution.error,
       userAction: patch.userAction
     })
+  }
+
+  private withMemoryContext(
+    agent: AgentDefinition,
+    projectPath: string,
+    mainPrompt: string
+  ): { prompt: string; injectedMemoryIds: string[] } {
+    if (!this.memoryInjector) return { prompt: mainPrompt, injectedMemoryIds: [] }
+    const { text, injectedMemoryIds } = this.memoryInjector.build(agent.id, projectPath)
+    return {
+      prompt: text ? `${text}\n${mainPrompt}` : mainPrompt,
+      injectedMemoryIds
+    }
   }
 }
 

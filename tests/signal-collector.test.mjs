@@ -36,6 +36,7 @@ const signal = {
   agentId: 'agent-product',
   projectPath: '/tmp/agent-studio',
   timestamp: 123,
+  injectedMemoryIds: ['memory-injected-1', 'memory-injected-2'],
   transcript: '[Agent 输出]\n完成需求分析'
 }
 
@@ -65,6 +66,7 @@ test('collect persists raw signal, reflects asynchronously, stores memories, and
   await flushAsync()
 
   assert.deepEqual(memoryStore.savedRawSignals, [signal])
+  assert.deepEqual(memoryStore.reinforcedIds, ['memory-injected-1', 'memory-injected-2'])
   assert.deepEqual(memoryStore.removedRawSignals, [signal])
   assert.equal(reflectionAgent.calls.length, 1)
   assert.equal(reflectionAgent.calls[0].agent.id, agent.id)
@@ -87,6 +89,7 @@ test('collect keeps persisted raw signal when reflection fails', async () => {
   await flushAsync()
 
   assert.deepEqual(memoryStore.savedRawSignals, [signal])
+  assert.deepEqual(memoryStore.reinforcedIds, ['memory-injected-1', 'memory-injected-2'])
   assert.deepEqual(memoryStore.removedRawSignals, [])
   assert.deepEqual(memoryStore.added, [])
 })
@@ -113,13 +116,16 @@ test('disabled reflection does not persist, drain, or run signals', async () => 
   await flushAsync()
 
   assert.deepEqual(memoryStore.savedRawSignals, [])
+  assert.deepEqual(memoryStore.reinforcedIds, ['memory-injected-1', 'memory-injected-2'])
   assert.equal(memoryStore.popRawSignalsCalled, 0)
   assert.equal(reflectionAgent.calls.length, 0)
 })
 
 test('workflow manager and ipc wire memory signals into workflow lifecycle', () => {
   assert.match(workflowManager, /private readonly signalCollector\?: SignalCollector/)
+  assert.match(workflowManager, /private readonly memoryInjector\?: MemoryInjector/)
   assert.match(workflowManager, /summarizeTranscript\(execution\.events\)/)
+  assert.match(workflowManager, /injectedMemoryIds: execution\.injectedMemoryIds/)
   assert.match(workflowManager, /collectMemorySignal\('positive', 'user-confirmed'/)
   assert.match(workflowManager, /collectMemorySignal\('negative', 'user-rerun'/)
   assert.match(workflowManager, /collectMemorySignal\(\s*'format-error',\s*'handoff-failed'/)
@@ -127,6 +133,7 @@ test('workflow manager and ipc wire memory signals into workflow lifecycle', () 
   assert.match(ipc, /new MemoryStore\(\)/)
   assert.match(ipc, /new ReflectionAgent\(runManager, memoryStore\)/)
   assert.match(ipc, /new SignalCollector\(reflectionAgent, memoryStore, agentStore\)/)
+  assert.match(ipc, /new MemoryInjector\(memoryStore\)/)
   assert.match(ipc, /void signalCollector\.drainRawSignals\(\)/)
 })
 
@@ -144,6 +151,7 @@ function createReflectionAgent(results, error = null) {
 function createMemoryStore({ enabled = true, rawSignals = [] } = {}) {
   return {
     added: [],
+    reinforcedIds: [],
     savedRawSignals: [],
     removedRawSignals: [],
     metaPatch: null,
@@ -168,6 +176,9 @@ function createMemoryStore({ enabled = true, rawSignals = [] } = {}) {
     },
     removeRawSignal(signalToRemove) {
       this.removedRawSignals.push(signalToRemove)
+    },
+    reinforce(memoryId) {
+      this.reinforcedIds.push(memoryId)
     },
     saveRawSignal(signalToSave) {
       this.savedRawSignals.push(signalToSave)

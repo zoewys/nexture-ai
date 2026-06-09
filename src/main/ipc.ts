@@ -23,6 +23,7 @@ import { checkClis } from './cliCheck'
 import { installClaudeCode, installCodexCli } from './cliInstall'
 import { listCliModels } from './cliModels'
 import { MemoryStore } from './memory/MemoryStore'
+import { MemoryInjector } from './memory/MemoryInjector'
 import { ReflectionAgent } from './memory/ReflectionAgent'
 import { SignalCollector } from './memory/SignalCollector'
 
@@ -42,6 +43,7 @@ export function registerIpc(getWindow: () => BrowserWindow | null): AppManagers 
   const memoryStore = new MemoryStore()
   const reflectionAgent = new ReflectionAgent(runManager, memoryStore)
   const signalCollector = new SignalCollector(reflectionAgent, memoryStore, agentStore)
+  const memoryInjector = new MemoryInjector(memoryStore)
 
   // ── message-delta batching ───────────────────────────────────────────
   // Token streaming produces 50-100 message-delta events per second. Sending
@@ -116,7 +118,8 @@ export function registerIpc(getWindow: () => BrowserWindow | null): AppManagers 
     runManager,
     transcriptStore,
     emitWorkflow,
-    signalCollector
+    signalCollector,
+    memoryInjector
   )
   void signalCollector.drainRawSignals()
 
