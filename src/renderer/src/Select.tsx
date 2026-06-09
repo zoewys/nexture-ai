@@ -7,6 +7,8 @@
 
 import * as SelectPrimitive from '@radix-ui/react-select'
 
+const EMPTY_SENTINEL = '__select_empty__'
+
 interface SelectProps {
   value: string
   onChange: (value: string) => void
@@ -22,8 +24,11 @@ interface SelectItemProps {
 }
 
 export function Select({ value, onChange, placeholder, disabled, children }: SelectProps) {
+  const internalValue = value === '' ? EMPTY_SENTINEL : value
+  const handleChange = (v: string) => onChange(v === EMPTY_SENTINEL ? '' : v)
+
   return (
-    <SelectPrimitive.Root value={value} onValueChange={onChange} disabled={disabled}>
+    <SelectPrimitive.Root value={internalValue} onValueChange={handleChange} disabled={disabled}>
       <SelectPrimitive.Trigger className="select-trigger">
         <SelectPrimitive.Value placeholder={placeholder} />
         <SelectPrimitive.Icon className="select-icon">
@@ -48,8 +53,9 @@ export function Select({ value, onChange, placeholder, disabled, children }: Sel
 }
 
 function Item({ value, children, disabled }: SelectItemProps) {
+  const internalValue = value === '' ? EMPTY_SENTINEL : value
   return (
-    <SelectPrimitive.Item className="select-item" value={value} disabled={disabled}>
+    <SelectPrimitive.Item className="select-item" value={internalValue} disabled={disabled}>
       <SelectPrimitive.ItemText>{children}</SelectPrimitive.ItemText>
       <SelectPrimitive.ItemIndicator className="select-item-check">
         <CheckIcon />
