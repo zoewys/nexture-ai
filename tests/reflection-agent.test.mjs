@@ -55,14 +55,14 @@ const existingMemory = {
   reinforceCount: 0
 }
 
-test('builds reflection prompt with agent, signal, transcript, and existing memories', () => {
-  const prompt = buildReflectionPrompt(signal, agent, [existingMemory])
+test('builds reflection prompt with agent, signals, transcript, and existing memories', () => {
+  const prompt = buildReflectionPrompt([signal], agent, [existingMemory])
 
   assert.match(prompt, /你是一个 agent 经验提取器/)
   assert.match(prompt, /名称: Product Agent/)
   assert.match(prompt, /角色: product/)
   assert.match(prompt, /You write concise requirements\./)
-  assert.match(prompt, /信号类型: negative \(来源: user-rerun\)/)
+  assert.match(prompt, /negative \(来源: user-rerun\)/)
   assert.match(prompt, /用户的修复指令: 补上验收标准/)
   assert.match(prompt, /\[用户输入\]/)
   assert.match(prompt, /- \[method\] 需求分析时先列验收标准。/)
@@ -110,13 +110,13 @@ test('reflect runs through RunManager with safe config and returns parsed memori
   const memoryStore = createMemoryStore()
   const reflectionAgent = new ReflectionAgent(runManager, memoryStore)
 
-  const results = await reflectionAgent.reflect(signal, agent, [existingMemory])
+  const results = await reflectionAgent.reflect([signal], agent, [existingMemory])
 
   assert.equal(runManager.calls.length, 1)
   assert.equal(runManager.calls[0].vendor, 'claude')
   assert.equal(runManager.calls[0].model, 'claude-haiku-test')
   assert.equal(runManager.calls[0].cwd, '/tmp/agent-studio-memories')
-  assert.equal(runManager.calls[0].permissionMode, 'default')
+  assert.equal(runManager.calls[0].permissionMode, 'bypassPermissions')
   assert.match(runManager.calls[0].prompt, /补上验收标准/)
   assert.deepEqual(results, [
     {
@@ -145,7 +145,7 @@ test('reflect retries one parse failure before succeeding', async () => {
   ])
   const reflectionAgent = new ReflectionAgent(runManager, createMemoryStore())
 
-  const results = await reflectionAgent.reflect(signal, agent, [])
+  const results = await reflectionAgent.reflect([signal], agent, [])
 
   assert.equal(runManager.calls.length, 2)
   assert.equal(results[0].content, '不要输出 markdown 包裹 JSON。')
@@ -165,7 +165,7 @@ test('reflect rethrows after repeated parse failure so callers can persist the s
   const reflectionAgent = new ReflectionAgent(runManager, createMemoryStore())
 
   await assert.rejects(
-    () => reflectionAgent.reflect(signal, agent, []),
+    () => reflectionAgent.reflect([signal], agent, []),
     (err) => err instanceof ReflectionParseError
   )
   assert.equal(runManager.calls.length, 2)
@@ -176,7 +176,7 @@ test('reflect returns no memories when reflection is disabled', async () => {
   const memoryStore = createMemoryStore({ enabled: false })
   const reflectionAgent = new ReflectionAgent(runManager, memoryStore)
 
-  const results = await reflectionAgent.reflect(signal, agent, [])
+  const results = await reflectionAgent.reflect([signal], agent, [])
 
   assert.deepEqual(results, [])
   assert.equal(runManager.calls.length, 0)

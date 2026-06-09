@@ -325,7 +325,7 @@ export interface ReflectionEngineConfig {
 
 export const DEFAULT_REFLECTION_CONFIG: ReflectionEngineConfig = {
   vendor: 'claude',
-  model: 'claude-haiku-4-5-20251001',
+  model: 'haiku',
   enabled: true
 }
 

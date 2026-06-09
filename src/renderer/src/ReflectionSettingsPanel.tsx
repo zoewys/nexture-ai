@@ -45,61 +45,63 @@ export function ReflectionSettingsPanel({ modelCatalog }: ReflectionSettingsPane
   }
 
   return (
-    <section className="reflection-settings-panel" aria-label="Memory reflection settings">
-      <div className="reflection-settings-header">
-        <div>
-          <h2>记忆 / 反思设置</h2>
-          <span className={`reflection-settings-pill ${draft.enabled ? 'is-on' : 'is-off'}`}>
-            {draft.enabled ? '启用' : '关闭'}
-          </span>
-        </div>
-        <button
-          className="primary"
-          type="button"
-          disabled={loading || saving || !dirty || !draft.model.trim()}
-          onClick={() => void handleSave()}
-        >
-          {saving ? '保存中' : dirty ? '保存' : '已保存'}
-        </button>
-      </div>
+    <details className="reflection-settings-panel" aria-label="Memory reflection settings">
+      <summary className="reflection-settings-summary">
+        <span>记忆 / 反思设置</span>
+        <span className={`reflection-settings-pill ${draft.enabled ? 'is-on' : 'is-off'}`}>
+          {draft.enabled ? '启用' : '关闭'}
+        </span>
+      </summary>
 
-      <label className="reflection-settings-toggle">
-        <input
-          type="checkbox"
-          checked={draft.enabled}
-          disabled={loading || saving}
-          onChange={(e) => setDraft((current) => ({ ...current, enabled: e.target.checked }))}
-        />
-        <span>启用记忆系统</span>
-      </label>
-
-      <div className="reflection-settings-grid">
-        <label className="field">
-          <span>Vendor</span>
-          <Select
-            value={draft.vendor}
-            disabled={loading || saving}
-            onChange={handleVendorChange}
+      <div className="reflection-settings-body">
+        <div className="reflection-settings-header">
+          <label className="reflection-settings-toggle">
+            <input
+              type="checkbox"
+              checked={draft.enabled}
+              disabled={loading || saving}
+              onChange={(e) => setDraft((current) => ({ ...current, enabled: e.target.checked }))}
+            />
+            <span>启用记忆系统</span>
+          </label>
+          <button
+            className="primary"
+            type="button"
+            disabled={loading || saving || !dirty || !draft.model.trim()}
+            onClick={() => void handleSave()}
           >
-            {ALL_VENDORS.map((vendor) => (
-              <Select.Item key={vendor} value={vendor}>
-                {vendor}
-              </Select.Item>
-            ))}
-          </Select>
-        </label>
+            {saving ? '保存中' : dirty ? '保存' : '已保存'}
+          </button>
+        </div>
 
-        <label className="field">
-          <span>Model</span>
-          <ModelSelect
-            value={draft.model}
-            loading={loading || saving}
-            modelInfo={modelInfo}
-            onChange={(model) => setDraft((current) => ({ ...current, model }))}
-          />
-        </label>
+        <div className="reflection-settings-grid">
+          <label className="field">
+            <span>Vendor</span>
+            <Select
+              value={draft.vendor}
+              disabled={loading || saving}
+              onChange={handleVendorChange}
+            >
+              {ALL_VENDORS.map((vendor) => (
+                <Select.Item key={vendor} value={vendor}>
+                  {vendor}
+                </Select.Item>
+              ))}
+            </Select>
+          </label>
+
+          <label className="field">
+            <span>Model</span>
+            <ModelSelect
+              value={draft.model}
+              loading={loading || saving}
+              modelInfo={modelInfo}
+              onChange={(model) => setDraft((current) => ({ ...current, model }))}
+            />
+          </label>
+        </div>
       </div>
-    </section>
+    </details>
   )
 }
 

@@ -42,19 +42,19 @@ export class ReflectionAgent {
   ) {}
 
   /**
-   * Reflect on one learning signal and return high-confidence memories.
-   * Parse failures are retried once; repeated parse failures are rethrown so
-   * callers can keep the source signal for a later retry.
+   * Reflect on a batch of signals (typically from the same workflow run) and
+   * return high-confidence memories. A single LLM call processes all signals.
+   * Parse failures are retried once.
    */
   async reflect(
-    signal: MemorySignal,
+    signals: MemorySignal[],
     agentDefinition: AgentDefinition,
     existingMemories: MemoryEntry[]
   ): Promise<ReflectionResult[]> {
     const reflectionConfig = this.memoryStore.getReflectionConfig()
     if (!reflectionConfig.enabled) return []
 
-    const prompt = buildReflectionPrompt(signal, agentDefinition, existingMemories)
+    const prompt = buildReflectionPrompt(signals, agentDefinition, existingMemories)
     let lastParseError: ReflectionParseError | null = null
 
     for (let attempt = 0; attempt < 2; attempt++) {
@@ -63,7 +63,7 @@ export class ReflectionAgent {
         model: reflectionConfig.model,
         cwd: this.memoryStore.getReflectionCwd(),
         prompt,
-        permissionMode: 'default'
+        permissionMode: 'bypassPermissions'
       })
 
       try {
@@ -113,35 +113,39 @@ export class ReflectionAgent {
 }
 
 export function buildReflectionPrompt(
-  signal: MemorySignal,
+  signals: MemorySignal[],
   agent: AgentDefinition,
   existingMemories: MemoryEntry[]
 ): string {
+  const signalSections = signals.map((signal, i) => [
+    `### 信号 ${i + 1}: ${signal.type} (来源: ${signal.source})`,
+    signalGuidance(signal),
+    '',
+    '项目路径: ' + signal.projectPath,
+    '',
+    'Transcript (已精简):',
+    signal.transcript
+  ].join('\n'))
+
   return [
     '你是一个 agent 经验提取器。分析以下 agent 运行记录，提取值得记住的经验，帮助这个 agent 在未来类似任务中表现更好。',
     '',
     '## Agent 角色定义',
     `名称: ${agent.name}`,
     `角色: ${agent.role}`,
-    'System Prompt:',
-    agent.systemPrompt || '（无）',
+    'System Prompt (摘要):',
+    truncate(agent.systemPrompt || '（无）', 200),
     '',
     '## 本次运行信号',
-    `信号类型: ${signal.type} (来源: ${signal.source})`,
-    signalGuidance(signal),
     '',
-    '## 项目路径',
-    signal.projectPath,
-    '',
-    '## 运行 Transcript (已精简)',
-    signal.transcript,
+    signalSections.join('\n\n'),
     '',
     '## 已有记忆（避免重复提取相同经验）',
     formatExistingMemories(existingMemories),
     '',
     '## 输出要求',
     '',
-    '请提取 0-3 条值得记住的经验。宁缺毋滥——只提取真正有指导价值、且尚未被已有记忆覆盖的内容。',
+    '综合所有信号，提取 0-5 条值得记住的经验。宁缺毋滥——只提取真正有指导价值、且尚未被已有记忆覆盖的内容。',
     '',
     '每条经验必须包含:',
     '- category: 必须是以下之一',
@@ -197,7 +201,7 @@ export function parseReflectionResults(events: AgentEvent[]): ReflectionResult[]
         .filter((result): result is ReflectionResult => {
           return result !== null && result.confidence >= MIN_CONFIDENCE
         })
-        .slice(0, 3)
+        .slice(0, 5)
     } catch {
       // Try the next candidate.
     }
@@ -259,4 +263,8 @@ function extractJsonArray(text: string): string | null {
   const start = trimmed.indexOf('[')
   const end = trimmed.lastIndexOf(']')
   return start >= 0 && end > start ? trimmed.slice(start, end + 1) : null
+}
+
+function truncate(text: string, max: number): string {
+  return text.length <= max ? text : text.slice(0, max) + '…'
 }

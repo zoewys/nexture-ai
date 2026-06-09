@@ -85,7 +85,13 @@ export class TranscriptStore {
         }
       }
     }
-    const history = lines.join('\n\n')
+    const MAX_RESUME_TURNS = 10
+    const truncated = lines.length > MAX_RESUME_TURNS
+    const recent = truncated ? lines.slice(-MAX_RESUME_TURNS) : lines
+    const history = [
+      ...(truncated ? [`[...earlier conversation omitted (${lines.length - MAX_RESUME_TURNS} turns)...]`] : []),
+      ...recent
+    ].join('\n\n')
     return [
       'Continue our earlier conversation. Here is the transcript so far:',
       '',

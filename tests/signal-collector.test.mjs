@@ -53,21 +53,31 @@ const existingMemory = {
   reinforceCount: 0
 }
 
-test('collect persists raw signal, reflects asynchronously, stores memories, and clears raw signal', async () => {
+test('collect persists raw signal and reinforces injected memories immediately', () => {
+  const reflectionAgent = createReflectionAgent([])
+  const memoryStore = createMemoryStore()
+  const collector = new SignalCollector(reflectionAgent, memoryStore, createAgentStore())
+
+  collector.collect(signal)
+
+  assert.deepEqual(memoryStore.savedRawSignals, [signal])
+  assert.deepEqual(memoryStore.reinforcedIds, ['memory-injected-1', 'memory-injected-2'])
+  // Reflection is debounced — not fired synchronously
+  assert.equal(reflectionAgent.calls.length, 0)
+})
+
+test('drainRawSignals batches signals by agent and stores memories', async () => {
   const reflectionAgent = createReflectionAgent([
     { category: 'method', scope: 'project', content: '需求分析要补充验收标准。', confidence: 0.9 },
     { category: 'preference', scope: 'global', content: '用户偏好直接给待办清单。', confidence: 0.8 }
   ])
-  const memoryStore = createMemoryStore()
+  const memoryStore = createMemoryStore({ rawSignals: [signal] })
   const agentStore = createAgentStore()
   const collector = new SignalCollector(reflectionAgent, memoryStore, agentStore)
 
-  collector.collect(signal)
-  await flushAsync()
+  await collector.drainRawSignals()
 
-  assert.deepEqual(memoryStore.savedRawSignals, [signal])
-  assert.deepEqual(memoryStore.reinforcedIds, ['memory-injected-1', 'memory-injected-2'])
-  assert.deepEqual(memoryStore.removedRawSignals, [signal])
+  // One batch call for the single agent
   assert.equal(reflectionAgent.calls.length, 1)
   assert.equal(reflectionAgent.calls[0].agent.id, agent.id)
   assert.deepEqual(reflectionAgent.calls[0].existingMemories, [existingMemory])
@@ -78,23 +88,11 @@ test('collect persists raw signal, reflects asynchronously, stores memories, and
   assert.match(memoryStore.added[0].evidence, /workflow=workflow-run-1/)
   assert.equal(memoryStore.metaPatch.totalRuns, 4)
   assert.equal(typeof memoryStore.metaPatch.lastReflectionAt, 'number')
+  // Raw signal is removed after successful reflection
+  assert.deepEqual(memoryStore.removedRawSignals, [signal])
 })
 
-test('collect keeps persisted raw signal when reflection fails', async () => {
-  const reflectionAgent = createReflectionAgent(null, new Error('reflection failed'))
-  const memoryStore = createMemoryStore()
-  const collector = new SignalCollector(reflectionAgent, memoryStore, createAgentStore())
-
-  collector.collect(signal)
-  await flushAsync()
-
-  assert.deepEqual(memoryStore.savedRawSignals, [signal])
-  assert.deepEqual(memoryStore.reinforcedIds, ['memory-injected-1', 'memory-injected-2'])
-  assert.deepEqual(memoryStore.removedRawSignals, [])
-  assert.deepEqual(memoryStore.added, [])
-})
-
-test('drainRawSignals retries pending raw signals and re-saves failures', async () => {
+test('drainRawSignals re-saves raw signals when reflection fails', async () => {
   const reflectionAgent = createReflectionAgent(null, new Error('still failing'))
   const memoryStore = createMemoryStore({ rawSignals: [signal] })
   const collector = new SignalCollector(reflectionAgent, memoryStore, createAgentStore())
@@ -113,7 +111,6 @@ test('disabled reflection does not persist, drain, or run signals', async () => 
 
   collector.collect(signal)
   await collector.drainRawSignals()
-  await flushAsync()
 
   assert.deepEqual(memoryStore.savedRawSignals, [])
   assert.deepEqual(memoryStore.reinforcedIds, ['memory-injected-1', 'memory-injected-2'])
@@ -140,8 +137,8 @@ test('workflow manager and ipc wire memory signals into workflow lifecycle', () 
 function createReflectionAgent(results, error = null) {
   return {
     calls: [],
-    async reflect(signalArg, agentArg, existingMemories) {
-      this.calls.push({ signal: signalArg, agent: agentArg, existingMemories })
+    async reflect(signals, agentArg, existingMemories) {
+      this.calls.push({ signals, agent: agentArg, existingMemories })
       if (error) throw error
       return results
     }
@@ -196,8 +193,4 @@ function createAgentStore() {
       return [agent]
     }
   }
-}
-
-function flushAsync() {
-  return new Promise((resolve) => setImmediate(resolve))
 }

@@ -412,7 +412,7 @@ button:disabled {
 .workflow-new-run-header button,
 .workflow-new-run-actions button,
 .agent-list-header button,
-.agent-editor .actions button {
+.agent-editor-actions button {
   font-weight: 750;
 }
 
@@ -2871,25 +2871,77 @@ button.icon-only {
 .agent-editor {
   flex: 1;
   background: #191c23;
-  padding: 14px 14px 126px;
+  padding: 14px 14px 40px;
   display: flex;
   flex-direction: column;
   gap: 12px;
   overflow-y: auto;
-  scroll-padding-bottom: 126px;
+}
+
+.agent-editor-actions {
+  position: sticky;
+  top: -14px;
+  z-index: 2;
+  display: flex;
+  gap: 8px;
+  justify-content: flex-end;
+  background: #191c23;
+  padding: 14px 0 10px;
+  margin: -14px -14px 0;
+  padding-left: 14px;
+  padding-right: 14px;
+  flex-shrink: 0;
+}
+
+.agent-editor textarea {
+  min-height: 280px;
 }
 
 .reflection-settings-panel {
   border: 1px solid var(--border);
   border-radius: 8px;
   background: var(--bg-card, #161b22);
-  padding: 12px;
+  overflow: hidden;
+  flex-shrink: 0;
+}
+
+.reflection-settings-summary {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  padding: 10px 12px;
+  cursor: pointer;
+  color: var(--text-strong);
+  font-size: 13px;
+  font-weight: 600;
+  list-style: none;
+}
+
+.reflection-settings-summary::-webkit-details-marker {
+  display: none;
+}
+
+.reflection-settings-summary::before {
+  content: '›';
+  color: var(--text-dim);
+  font-size: 16px;
+  transform: rotate(0deg);
+  transition: transform 0.15s ease;
+}
+
+.reflection-settings-panel[open] .reflection-settings-summary::before {
+  transform: rotate(90deg);
+}
+
+.reflection-settings-body {
   display: grid;
   gap: 12px;
+  padding: 0 12px 12px;
+  border-top: 1px solid var(--border);
+  padding-top: 12px;
 }
 
 .reflection-settings-header,
-.reflection-settings-header > div,
 .reflection-settings-toggle {
   display: flex;
   align-items: center;
@@ -2899,13 +2951,6 @@ button.icon-only {
 
 .reflection-settings-header {
   justify-content: space-between;
-}
-
-.reflection-settings-header h2 {
-  margin: 0;
-  color: var(--text-strong);
-  font-size: 14px;
-  line-height: 1.2;
 }
 
 .reflection-settings-pill {
@@ -2962,6 +3007,7 @@ button.icon-only {
   border-radius: 8px;
   background: var(--bg-card, #161b22);
   overflow: hidden;
+  flex-shrink: 0;
 }
 
 .agent-memory-summary {

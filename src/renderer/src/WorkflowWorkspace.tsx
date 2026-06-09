@@ -45,7 +45,15 @@ export function WorkflowWorkspace({
   const [selectedStepByRunId, setSelectedStepByRunId] = useState<Record<string, number>>({})
   const [workflowInput, setWorkflowInput] = useState('')
   const [workflowInputError, setWorkflowInputError] = useState<string | null>(null)
-  const playedNotificationKeys = useRef(new Set<string>())
+  const playedNotificationKeys = useRef<Set<string> | null>(null)
+  if (playedNotificationKeys.current === null) {
+    const initial = new Set<string>()
+    for (const run of workflows.runs) {
+      const n = workflowNotificationForRun(run)
+      if (n) initial.add(n.key)
+    }
+    playedNotificationKeys.current = initial
+  }
   const selectedRun = workflows.selectedRun
   const selectedStepIndex = selectedRun
     ? selectedStepByRunId[selectedRun.id] ?? selectedRun.currentStepIndex
@@ -100,10 +108,11 @@ export function WorkflowWorkspace({
 
   useEffect(() => {
     if (!soundEnabled) return
+    const played = playedNotificationKeys.current!
     for (const run of workflows.runs) {
       const notification = workflowNotificationForRun(run)
-      if (!notification || playedNotificationKeys.current.has(notification.key)) continue
-      playedNotificationKeys.current.add(notification.key)
+      if (!notification || played.has(notification.key)) continue
+      played.add(notification.key)
       playWorkflowNotificationSound(notification.sound)
     }
   }, [soundEnabled, workflows.runs])

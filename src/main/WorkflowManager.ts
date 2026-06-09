@@ -360,7 +360,8 @@ export class WorkflowManager {
         this.finishStepWithError(run, stepIndex, execution, `Step ${event.reason}`)
       }
     } else {
-      this.persistAndEmit(run)
+      this.persist(run)
+      this.emitAgentEvent(run.id, stepIndex, executionId, event)
     }
   }
 
@@ -466,9 +467,6 @@ export class WorkflowManager {
       previous.artifacts.map((artifact) => `- ${artifact.path}: ${artifact.description}`).join('\n') || '(none)',
       previous.nextStepGuidance ? `\n# Next-step guidance\n${previous.nextStepGuidance}` : '',
       '',
-      '# Original user request',
-      run.initialPrompt,
-      '',
       '# Handoff requirement',
       HANDOFF_SCHEMA_TEXT
     ].join('\n')
@@ -518,8 +516,16 @@ export class WorkflowManager {
     this.emitUpdate(run)
   }
 
+  private persist(run: WorkflowRun): void {
+    this.workflowStore.saveRun(run)
+  }
+
   private emitUpdate(run: WorkflowRun): void {
     this.emit({ runId: run.id, event: { kind: 'run-updated', run } })
+  }
+
+  private emitAgentEvent(runId: string, stepIndex: number, executionId: string, event: AgentEvent): void {
+    this.emit({ runId, event: { kind: 'agent-event', runId, stepIndex, executionId, event } })
   }
 
   private collectMemorySignal(

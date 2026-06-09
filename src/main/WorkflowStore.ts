@@ -1,5 +1,5 @@
 import { app } from 'electron'
-import { existsSync, mkdirSync, readFileSync, writeFileSync } from 'node:fs'
+import { existsSync, mkdirSync, readdirSync, readFileSync, unlinkSync, writeFileSync } from 'node:fs'
 import { join } from 'node:path'
 import { randomUUID } from 'node:crypto'
 import type { WorkflowRun, WorkflowTemplate } from '@shared/types'
@@ -8,13 +8,15 @@ type SaveTemplateInput = Omit<WorkflowTemplate, 'id'> & { id?: string }
 
 export class WorkflowStore {
   private readonly templatesPath: string
-  private readonly runsPath: string
+  private readonly runsDir: string
 
   constructor() {
     const dir = app.getPath('userData')
     mkdirSync(dir, { recursive: true })
     this.templatesPath = join(dir, 'workflows.json')
-    this.runsPath = join(dir, 'workflow-runs.json')
+    this.runsDir = join(dir, 'workflow-runs')
+    mkdirSync(this.runsDir, { recursive: true })
+    this.migrateFromLegacy(dir)
   }
 
   listTemplates(): WorkflowTemplate[] {
@@ -44,22 +46,54 @@ export class WorkflowStore {
   }
 
   listRuns(): WorkflowRun[] {
-    return readArray<WorkflowRun>(this.runsPath)
+    try {
+      const files = readdirSync(this.runsDir).filter((f) => f.endsWith('.json'))
+      const runs: WorkflowRun[] = []
+      for (const file of files) {
+        try {
+          const data = readFileSync(join(this.runsDir, file), 'utf8')
+          runs.push(JSON.parse(data) as WorkflowRun)
+        } catch {
+          // Skip corrupted files
+        }
+      }
+      return runs
+    } catch {
+      return []
+    }
   }
 
   saveRun(run: WorkflowRun): void {
-    const list = this.listRuns()
-    const idx = list.findIndex((item) => item.id === run.id)
-    if (idx >= 0) list[idx] = run
-    else list.unshift(run)
-    writeArray(this.runsPath, list)
+    try {
+      writeFileSync(join(this.runsDir, `${run.id}.json`), JSON.stringify(run))
+    } catch {
+      // Persistence is best-effort.
+    }
   }
 
   deleteRun(id: string): void {
-    writeArray(
-      this.runsPath,
-      this.listRuns().filter((run) => run.id !== id)
-    )
+    try {
+      unlinkSync(join(this.runsDir, `${id}.json`))
+    } catch {
+      // Already gone or never existed.
+    }
+  }
+
+  private migrateFromLegacy(dir: string): void {
+    const legacyPath = join(dir, 'workflow-runs.json')
+    if (!existsSync(legacyPath)) return
+    try {
+      const runs = readArray<WorkflowRun>(legacyPath)
+      for (const run of runs) {
+        const dest = join(this.runsDir, `${run.id}.json`)
+        if (!existsSync(dest)) {
+          writeFileSync(dest, JSON.stringify(run))
+        }
+      }
+      unlinkSync(legacyPath)
+    } catch {
+      // Migration is best-effort; legacy file stays.
+    }
   }
 }
 

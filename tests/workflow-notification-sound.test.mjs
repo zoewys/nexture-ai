@@ -14,7 +14,7 @@ test('workflow transitions trigger deduped notification sounds from every run', 
   assert.match(runView, /run\.status === 'awaiting-confirm'/)
   assert.match(runView, /interrupted/)
   assert.match(workspace, /for \(const run of workflows\.runs\)/)
-  assert.match(workspace, /playedNotificationKeys\.current\.has\(notification\.key\)/)
+  assert.match(workspace, /played\.has\(notification\.key\)/)
   assert.match(workspace, /playWorkflowNotificationSound\(notification\.sound\)/)
   assert.match(workspace, /prepareWorkflowNotificationSound\(\)/)
 })

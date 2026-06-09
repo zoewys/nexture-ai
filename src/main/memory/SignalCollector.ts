@@ -23,11 +23,11 @@ type SignalMemoryStore = Pick<
 >
 type SignalAgentStore = Pick<AgentStore, 'list'>
 
-interface ReflectionOptions {
-  rawPersisted: boolean
-}
+const DEBOUNCE_MS = 8_000
 
 export class SignalCollector {
+  private pendingFlush: ReturnType<typeof setTimeout> | null = null
+
   constructor(
     private readonly reflectionAgent: SignalReflectionAgent,
     private readonly memoryStore: SignalMemoryStore,
@@ -35,38 +35,70 @@ export class SignalCollector {
   ) {}
 
   /**
-   * Persist the signal first so app shutdown cannot lose it, then reflect in
-   * the background. Successful reflection removes the raw signal.
+   * Persist the signal immediately (crash-safe), then schedule a debounced
+   * batch reflection. Multiple signals arriving within DEBOUNCE_MS are
+   * combined into a single LLM call per agent.
    */
   collect(signal: MemorySignal): void {
     this.reinforceInjectedMemories(signal)
     if (!this.memoryStore.getReflectionConfig().enabled) return
     this.memoryStore.saveRawSignal(signal)
-    void this.runReflection(signal, { rawPersisted: true })
+    this.scheduleFlush()
   }
 
   async drainRawSignals(): Promise<void> {
     if (!this.memoryStore.getReflectionConfig().enabled) return
     const signals = this.memoryStore.popRawSignals()
-    for (const signal of signals) {
-      await this.runReflection(signal, { rawPersisted: false })
-    }
+    if (signals.length === 0) return
+    await this.reflectBatch(signals, false)
   }
 
-  private async runReflection(signal: MemorySignal, options: ReflectionOptions): Promise<void> {
-    const agent = this.findAgent(signal.agentId)
-    if (!agent) {
-      if (!options.rawPersisted) this.memoryStore.saveRawSignal(signal)
-      return
+  private scheduleFlush(): void {
+    if (this.pendingFlush) clearTimeout(this.pendingFlush)
+    this.pendingFlush = setTimeout(() => {
+      this.pendingFlush = null
+      void this.flush()
+    }, DEBOUNCE_MS)
+  }
+
+  private async flush(): Promise<void> {
+    const signals = this.memoryStore.popRawSignals()
+    if (signals.length === 0) return
+    await this.reflectBatch(signals, false)
+  }
+
+  /**
+   * Group signals by agentId and run one reflection call per agent.
+   */
+  private async reflectBatch(signals: MemorySignal[], rawPersisted: boolean): Promise<void> {
+    const byAgent = new Map<string, MemorySignal[]>()
+    for (const signal of signals) {
+      const group = byAgent.get(signal.agentId) ?? []
+      group.push(signal)
+      byAgent.set(signal.agentId, group)
     }
 
-    try {
-      const existingMemories = this.memoryStore.list(signal.agentId, signal.projectPath)
-      const results = await this.reflectionAgent.reflect(signal, agent, existingMemories)
-      this.persistResults(signal, results)
-      if (options.rawPersisted) this.memoryStore.removeRawSignal(signal)
-    } catch {
-      if (!options.rawPersisted) this.memoryStore.saveRawSignal(signal)
+    for (const [agentId, agentSignals] of byAgent) {
+      const agent = this.findAgent(agentId)
+      if (!agent) {
+        if (!rawPersisted) {
+          for (const s of agentSignals) this.memoryStore.saveRawSignal(s)
+        }
+        continue
+      }
+
+      try {
+        const projectPath = agentSignals[0].projectPath
+        const existingMemories = this.memoryStore.list(agentId, projectPath)
+        const results = await this.reflectionAgent.reflect(agentSignals, agent, existingMemories)
+        this.persistResults(agentSignals, results)
+        for (const s of agentSignals) this.memoryStore.removeRawSignal(s)
+      } catch (err) {
+        console.error('[reflection] failed for agent', agentId, err)
+        if (!rawPersisted) {
+          for (const s of agentSignals) this.memoryStore.saveRawSignal(s)
+        }
+      }
     }
   }
 
@@ -74,21 +106,22 @@ export class SignalCollector {
     return this.agentStore.list().find((agent) => agent.id === agentId) ?? null
   }
 
-  private persistResults(signal: MemorySignal, results: ReflectionResult[]): void {
+  private persistResults(signals: MemorySignal[], results: ReflectionResult[]): void {
+    const primary = signals[0]
     for (const result of results) {
       this.memoryStore.add({
-        agentId: signal.agentId,
+        agentId: primary.agentId,
         scope: result.scope,
-        projectPath: result.scope === 'project' ? signal.projectPath : undefined,
+        projectPath: result.scope === 'project' ? primary.projectPath : undefined,
         category: result.category,
         content: result.content,
-        evidence: reflectionEvidence(signal),
+        evidence: signals.map(reflectionEvidence).join(' | '),
         strength: 1
       })
     }
 
-    const meta = this.memoryStore.getMeta(signal.agentId)
-    this.memoryStore.updateMeta(signal.agentId, {
+    const meta = this.memoryStore.getMeta(primary.agentId)
+    this.memoryStore.updateMeta(primary.agentId, {
       totalRuns: meta.totalRuns + 1,
       lastReflectionAt: Date.now()
     })

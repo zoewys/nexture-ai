@@ -198,7 +198,7 @@ test('ui review chrome matches v4 mockup navigation and composer', () => {
   assert.match(drawer, /uiReviewEnabled \? selectedTemplate\?\.name/)
   assert.doesNotMatch(css, /\.app-ui-review button\s*\{/)
   assert.match(css, /\.workflow-new-run-drawer input,\s*\n\.workflow-new-run-drawer select,\s*\n\.workflow-new-run-drawer textarea\s*\{[\s\S]*font-size:\s*16px;/)
-  assert.match(css, /\.workflow-runs-actions button,\s*\n\.workflow-run-detail-actions button,\s*\n\.workflow-cli-composer button,\s*\n\.workflow-new-run-header button,\s*\n\.workflow-new-run-actions button,\s*\n\.agent-list-header button,\s*\n\.agent-editor \.actions button\s*\{[\s\S]*font-weight:\s*750;/)
+  assert.match(css, /\.workflow-runs-actions button,\s*\n\.workflow-run-detail-actions button,\s*\n\.workflow-cli-composer button,\s*\n\.workflow-new-run-header button,\s*\n\.workflow-new-run-actions button,\s*\n\.agent-list-header button,\s*\n\.agent-editor-actions button\s*\{[\s\S]*font-weight:\s*750;/)
   assert.match(css, /\.workflow-cli-composer\s*\{[\s\S]*grid-template-columns:\s*24px minmax\(0,\s*1fr\) 76px;[\s\S]*align-items:\s*center;[\s\S]*padding:\s*10px 12px;/)
   assert.match(css, /\.workflow-cli-composer input\s*\{[\s\S]*min-height:\s*34px;/)
   assert.match(css, /\.workflow-run-card\s*\{[\s\S]*justify-content:\s*stretch;[\s\S]*justify-items:\s*stretch;/)

@@ -104,6 +104,17 @@ export function AgentManager({ agents, clis, modelCatalog, onSave, onDelete, onC
           <div className="transcript-empty">Select an agent or create one.</div>
         ) : (
           <>
+            <div className="agent-editor-actions">
+              <button className="primary" onClick={handleSave} disabled={!draft.name.trim()} type="button">
+                {isNew ? 'Create' : 'Save'}
+              </button>
+              {!isNew && (
+                <button onClick={handleDelete} type="button" className="danger">
+                  Delete
+                </button>
+              )}
+            </div>
+
             <label className="field">
               <span>Name</span>
               <input
@@ -187,17 +198,6 @@ export function AgentManager({ agents, clis, modelCatalog, onSave, onDelete, onC
             <ReflectionSettingsPanel modelCatalog={modelCatalog} />
 
             <AgentMemoryPanel agentId={editingId} />
-
-            <div className="actions">
-              <button className="primary" onClick={handleSave} disabled={!draft.name.trim()} type="button">
-                {isNew ? 'Create' : 'Save'}
-              </button>
-              {!isNew && (
-                <button onClick={handleDelete} type="button" className="danger">
-                  Delete
-                </button>
-              )}
-            </div>
           </>
         )}
       </div>
