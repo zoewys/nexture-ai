@@ -100,8 +100,6 @@ export function AgentManager({ agents, clis, modelCatalog, onSave, onDelete, onC
       </aside>
 
       <div className="agent-editor">
-        <ReflectionSettingsPanel modelCatalog={modelCatalog} />
-
         {editingId === null && !isNew ? (
           <div className="transcript-empty">Select an agent or create one.</div>
         ) : (
@@ -185,6 +183,8 @@ export function AgentManager({ agents, clis, modelCatalog, onSave, onDelete, onC
                 onChange={(e) => setDraft((d) => ({ ...d, systemPrompt: e.target.value }))}
               />
             </label>
+
+            <ReflectionSettingsPanel modelCatalog={modelCatalog} />
 
             <AgentMemoryPanel agentId={editingId} />
 

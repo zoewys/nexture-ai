@@ -10,9 +10,17 @@ const panel = readFileSync(join(root, 'src/renderer/src/ReflectionSettingsPanel.
 const hook = readFileSync(join(root, 'src/renderer/src/useReflectionConfig.ts'), 'utf8')
 const styles = readFileSync(join(root, 'src/renderer/src/styles.css'), 'utf8')
 
-test('agent manager renders reflection settings above the agent editor form', () => {
+test('agent manager renders reflection settings below the system prompt field', () => {
   assert.match(agentManager, /import \{ ReflectionSettingsPanel \}/)
   assert.match(agentManager, /<ReflectionSettingsPanel modelCatalog=\{modelCatalog\} \/>/)
+
+  const systemPromptIndex = agentManager.indexOf('<span>System Prompt</span>')
+  const settingsIndex = agentManager.indexOf('<ReflectionSettingsPanel modelCatalog={modelCatalog} />')
+  const memoriesIndex = agentManager.indexOf('<AgentMemoryPanel agentId={editingId} />')
+
+  assert.ok(systemPromptIndex > -1)
+  assert.ok(settingsIndex > systemPromptIndex)
+  assert.ok(memoriesIndex > settingsIndex)
 })
 
 test('useReflectionConfig loads and saves typed reflection config through preload', () => {
