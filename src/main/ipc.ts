@@ -172,7 +172,10 @@ export function registerIpc(getWindow: () => BrowserWindow | null): AppManagers 
 
   ipcMain.handle(IPC.agentsSave, (_e, input): AgentDefinition => agentStore.save(input))
 
-  ipcMain.handle(IPC.agentsDelete, (_e, id: string): void => agentStore.remove(id))
+  ipcMain.handle(IPC.agentsDelete, (_e, id: string): void => {
+    agentStore.remove(id)
+    memoryStore.removeByAgent(id)
+  })
 
   // ── Workflow orchestration ─────────────────────────────────────────────
 
@@ -212,6 +215,10 @@ export function registerIpc(getWindow: () => BrowserWindow | null): AppManagers 
 
   ipcMain.handle(IPC.workflowPush, (_e, runId: string, stepIndex: number, text: string) =>
     workflowManager.pushInput(runId, stepIndex, text)
+  )
+
+  ipcMain.handle(IPC.workflowUpdatePrompt, (_e, runId: string, newPrompt: string): WorkflowRun =>
+    workflowManager.updatePrompt(runId, newPrompt)
   )
 
   // ── Agent memory ─────────────────────────────────────────────────────

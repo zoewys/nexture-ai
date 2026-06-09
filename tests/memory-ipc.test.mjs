@@ -30,6 +30,8 @@ test('main process exposes memory and reflection config ipc handlers', () => {
   assert.match(ipc, /memoryStore\.getReflectionConfig\(\)/)
   assert.match(ipc, /ipcMain\.handle\(IPC\.reflectionConfigSave/)
   assert.match(ipc, /memoryStore\.saveReflectionConfig\(config\)/)
+  assert.match(ipc, /IPC\.agentsDelete/)
+  assert.match(ipc, /memoryStore\.removeByAgent\(id\)/)
 })
 
 test('preload exposes typed memory and reflection config api methods', () => {

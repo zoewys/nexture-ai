@@ -152,6 +152,7 @@ export function WorkflowWorkspace({
           setWorkflowInputError(null)
         }}
         onComposerSend={sendWorkflowInput}
+        onUpdatePrompt={workflows.updatePrompt}
       />
       {newRunDrawerOpen && (
         <NewWorkflowRunDrawer

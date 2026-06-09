@@ -32,6 +32,7 @@ export interface WorkflowRunDetailProps {
   onConfirm: () => Promise<void>
   onRerun: (stepIndex: number) => Promise<void>
   onAbort: () => Promise<void>
+  onUpdatePrompt: (runId: string, newPrompt: string) => Promise<void>
   composerValue: string
   composerEditable: boolean
   composerEnabled: boolean
@@ -51,6 +52,7 @@ export function WorkflowRunDetail({
   onConfirm,
   onRerun,
   onAbort,
+  onUpdatePrompt,
   composerValue,
   composerEditable,
   composerEnabled,
@@ -61,6 +63,8 @@ export function WorkflowRunDetail({
 }: WorkflowRunDetailProps): JSX.Element {
   const [handoffOpen, setHandoffOpen] = useState(true)
   const [handoffWidth, setHandoffWidth] = useState(340)
+  const [editingPrompt, setEditingPrompt] = useState(false)
+  const [promptDraft, setPromptDraft] = useState('')
   const resizing = useRef(false)
   const bodyRef = useRef<HTMLDivElement>(null)
 
@@ -119,6 +123,25 @@ export function WorkflowRunDetail({
           <span className={`workflow-run-status workflow-run-status-${run.status}`}>
             {workflowRunStatusLabel(run.status)}
           </span>
+          {(() => {
+            // Run totals cover completed steps; add current execution if still running
+            const currentTokens = selectedExecution?.status === 'running'
+              ? (selectedExecution.totalInputTokens ?? 0) + (selectedExecution.totalOutputTokens ?? 0)
+              : 0
+            const currentCost = selectedExecution?.status === 'running'
+              ? (selectedExecution.totalCostUsd ?? 0)
+              : 0
+            const totalTokens = run.totalInputTokens + run.totalOutputTokens + currentTokens
+            const totalCost = run.totalCostUsd + currentCost
+            if (totalTokens <= 0 && totalCost <= 0) return null
+            return (
+              <span className="workflow-run-cost">
+                {formatTokens(totalTokens)} tokens
+                {totalCost > 0 ? ` · $${totalCost.toFixed(2)}` : ''}
+                {run.budgetUsd !== undefined ? ` / $${run.budgetUsd.toFixed(2)}` : ''}
+              </span>
+            )
+          })()}
         </div>
         <div className="workflow-run-detail-actions">
           {awaitingConfirm && (
@@ -135,16 +158,51 @@ export function WorkflowRunDetail({
         </div>
       </div>
 
+      {/* ── initial prompt ── */}
+      <div className="workflow-prompt-section">
+        {editingPrompt ? (
+          <div className="workflow-prompt-edit">
+            <textarea
+              value={promptDraft}
+              onChange={(e) => setPromptDraft(e.target.value)}
+              rows={3}
+              autoFocus
+            />
+            <div className="workflow-prompt-edit-actions">
+              <button type="button" className="primary" onClick={() => {
+                void onUpdatePrompt(run.id, promptDraft.trim()).then(() => setEditingPrompt(false))
+              }}>
+                保存
+              </button>
+              <button type="button" onClick={() => setEditingPrompt(false)}>取消</button>
+            </div>
+          </div>
+        ) : (
+          <div className="workflow-prompt-display" onClick={() => {
+            setPromptDraft(run.initialPrompt)
+            setEditingPrompt(true)
+          }}>
+            <span className="workflow-prompt-label">任务描述</span>
+            <span className="workflow-prompt-text">{run.initialPrompt}</span>
+            <span className="workflow-prompt-edit-hint">点击编辑</span>
+          </div>
+        )}
+      </div>
+
       {/* ── step navigation: compact inline bar ── */}
       <div className="workflow-step-nav">
         {run.steps.map((step, index) => {
           const agent = agents.find((candidate) => candidate.id === step.agentId)
+          const stepTokens = step.executions.reduce((sum, ex) => sum + (ex.totalInputTokens ?? 0) + (ex.totalOutputTokens ?? 0), 0)
+          const stepCost = step.executions.reduce((sum, ex) => sum + (ex.totalCostUsd ?? 0), 0)
+          const costTitle = stepTokens > 0 ? `${formatTokens(stepTokens)} tokens${stepCost > 0 ? ` · $${stepCost.toFixed(2)}` : ''}` : undefined
           return (
             <button
               type="button"
               key={`${run.id}-step-${index}`}
               className={`workflow-step-chip ${selectedStepIndex === index ? 'workflow-step-chip-active' : ''} workflow-step-chip-${step.status}`}
               onClick={() => onSelectStep(index)}
+              title={costTitle}
             >
               <span className="workflow-step-chip-num">{index + 1}</span>
               <span className="workflow-step-chip-name">{step.role || step.displayName || agent?.name || agent?.role || `Step ${index + 1}`}</span>
@@ -158,7 +216,13 @@ export function WorkflowRunDetail({
       )}
 
       {selectedExecution?.error && (
-        <div className="workflow-detail-error">{selectedExecution.error}</div>
+        <div className={`workflow-detail-error${selectedExecution.error.startsWith('Budget exceeded') ? ' workflow-budget-exceeded' : ''}`}>
+          {selectedExecution.error.startsWith('Budget exceeded') ? (
+            <>⚠️ 已达到预算上限，运行已自动停止。{selectedExecution.error.slice(15)}</>
+          ) : (
+            selectedExecution.error
+          )}
+        </div>
       )}
 
       {/* ── body: transcript | resize handle | handoff ── */}
@@ -222,5 +286,11 @@ export function WorkflowRunDetail({
       {composerError && <div className="workflow-input-error">{composerError}</div>}
     </main>
   )
+}
+
+function formatTokens(n: number): string {
+  if (n >= 1_000_000) return `${(n / 1_000_000).toFixed(1)}M`
+  if (n >= 1_000) return `${(n / 1_000).toFixed(0)}k`
+  return String(n)
 }
 

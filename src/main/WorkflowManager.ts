@@ -32,7 +32,23 @@ interface LiveStep {
   executionId: string
 }
 
-const HANDOFF_HINT = 'When this step is complete, output a handoff JSON with your summary, artifacts, and optional nextStepGuidance. The output format is enforced automatically.'
+const HANDOFF_HINT = [
+  'When this step is complete, output a single JSON object (NOT markdown, NOT a code block) with this exact structure:',
+  '',
+  '{',
+  '  "summary": "<one-paragraph summary of what you did and key decisions>",',
+  '  "artifacts": [',
+  '    {',
+  '      "path": "<relative file path>",',
+  '      "description": "<what this file contains and why it matters>",',
+  '      "type": "requirement|design|code|test|other"',
+  '    }',
+  '  ],',
+  '  "nextStepGuidance": "<optional: what the next agent should focus on>"',
+  '}',
+  '',
+  'Output ONLY the JSON object. Do not wrap it in ``` fences. Do not add any other text before or after.'
+].join('\n')
 
 const HANDOFF_OUTPUT_SCHEMA: JSONSchema = {
   type: 'object',
@@ -98,6 +114,10 @@ export class WorkflowManager {
       status: 'running',
       currentStepIndex: 0,
       startedAt: now,
+      totalInputTokens: 0,
+      totalOutputTokens: 0,
+      totalCostUsd: 0,
+      budgetUsd: template.budgetUsd,
       steps: template.steps.map((step) => {
         const agent = this.agentStore.list().find((a) => a.id === step.agentId)
         return {
@@ -185,6 +205,13 @@ export class WorkflowManager {
     return run
   }
 
+  updatePrompt(runId: string, newPrompt: string): WorkflowRun {
+    const run = this.getRun(runId)
+    run.initialPrompt = newPrompt
+    this.persistAndEmit(run)
+    return run
+  }
+
   abort(runId: string): WorkflowRun {
     const run = this.getRun(runId)
     const live = this.liveByRunId.get(run.id)
@@ -251,7 +278,10 @@ export class WorkflowManager {
       status: 'running',
       startedAt: Date.now(),
       injectedMemoryIds,
-      events: [{ kind: 'system', text: `↳ ${clean}` }]
+      events: [{ kind: 'system', text: `↳ ${clean}` }],
+      totalInputTokens: 0,
+      totalOutputTokens: 0,
+      totalCostUsd: 0
     }
     step.executions.push(execution)
     step.status = 'running'
@@ -260,6 +290,17 @@ export class WorkflowManager {
     run.status = 'running'
     run.finishedAt = undefined
     this.persistAndEmit(run)
+
+    // Budget check: stop before launching if cap exceeded
+    if (run.budgetUsd !== undefined && run.totalCostUsd >= run.budgetUsd) {
+      this.finishStepWithError(
+        run,
+        stepIndex,
+        execution,
+        `Budget exceeded: $${run.totalCostUsd.toFixed(2)} / $${run.budgetUsd.toFixed(2)}`
+      )
+      return run
+    }
 
     const config: RunConfig = {
       vendor: agent.vendor,
@@ -315,13 +356,27 @@ export class WorkflowManager {
       status: 'running',
       startedAt: Date.now(),
       injectedMemoryIds,
-      events: []
+      events: [],
+      totalInputTokens: 0,
+      totalOutputTokens: 0,
+      totalCostUsd: 0
     }
     step.executions.push(execution)
     step.status = 'running'
     run.currentStepIndex = stepIndex
     run.status = 'running'
     this.persistAndEmit(run)
+
+    // Budget check before rerunning
+    if (run.budgetUsd !== undefined && run.totalCostUsd >= run.budgetUsd) {
+      this.finishStepWithError(
+        run,
+        stepIndex,
+        execution,
+        `Budget exceeded: $${run.totalCostUsd.toFixed(2)} / $${run.budgetUsd.toFixed(2)}`
+      )
+      return
+    }
 
     const config: RunConfig = {
       vendor: agent.vendor,
@@ -362,6 +417,11 @@ export class WorkflowManager {
 
     execution.events.push(event)
     if (event.kind === 'session-started') execution.sessionId = event.sessionId
+    if (event.kind === 'usage') {
+      execution.totalInputTokens += event.inputTokens
+      execution.totalOutputTokens += event.outputTokens
+      execution.totalCostUsd += event.costUsd ?? 0
+    }
 
     if (event.kind === 'error' && !event.recoverable) {
       this.finishStepWithError(run, stepIndex, execution, event.message)
@@ -387,6 +447,8 @@ export class WorkflowManager {
     execution: WorkflowStepExecution
   ): void {
     const handoff = parseHandoff(execution.events)
+    this.aggregateStepCost(run, execution)
+
     if (!handoff) {
       this.collectMemorySignal(
         'format-error',
@@ -416,6 +478,7 @@ export class WorkflowManager {
     execution: WorkflowStepExecution,
     message: string
   ): void {
+    this.aggregateStepCost(run, execution)
     execution.status = 'error'
     execution.error = message
     execution.finishedAt = Date.now()
@@ -424,6 +487,13 @@ export class WorkflowManager {
     run.finishedAt = Date.now()
     this.liveByRunId.delete(run.id)
     this.persistAndEmit(run)
+  }
+
+  /** Aggregate a completed execution's cost into the parent run totals. */
+  private aggregateStepCost(run: WorkflowRun, execution: WorkflowStepExecution): void {
+    run.totalInputTokens += execution.totalInputTokens
+    run.totalOutputTokens += execution.totalOutputTokens
+    run.totalCostUsd += execution.totalCostUsd
   }
 
   private failStep(run: WorkflowRun, stepIndex: number, message: string): void {
@@ -435,7 +505,10 @@ export class WorkflowManager {
       startedAt: Date.now(),
       finishedAt: Date.now(),
       events: [{ kind: 'error', recoverable: false, message }],
-      error: message
+      error: message,
+      totalInputTokens: 0,
+      totalOutputTokens: 0,
+      totalCostUsd: 0
     }
     run.steps[stepIndex].executions.push(execution)
     run.steps[stepIndex].status = 'error'

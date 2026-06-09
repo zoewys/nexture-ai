@@ -36,6 +36,7 @@ export function TemplatesView({
 }: TemplatesViewProps): JSX.Element {
   const [selectedId, setSelectedId] = useState<string | null>(null)
   const [name, setName] = useState('')
+  const [budgetUsd, setBudgetUsd] = useState('')
   const [description, setDescription] = useState('')
   const [steps, setSteps] = useState<StepDraft[]>([])
   const [promptTemplate, setPromptTemplate] = useState('')
@@ -64,6 +65,7 @@ export function TemplatesView({
     (template: WorkflowTemplate | null) => {
       if (!template) {
         setName('')
+        setBudgetUsd('')
         setDescription('')
         setSteps([])
         setPromptTemplate('')
@@ -71,6 +73,7 @@ export function TemplatesView({
         return
       }
       setName(template.name)
+      setBudgetUsd(template.budgetUsd !== undefined ? String(template.budgetUsd) : '')
       setDescription(template.description ?? '')
       setSteps(
         template.steps.map((s) => ({
@@ -126,7 +129,8 @@ export function TemplatesView({
         name: name.trim(),
         description: description.trim() || undefined,
         steps: steps.map((s) => ({ agentId: s.agentId, role: s.role } as StepDraft & { agentId: string })),
-        promptTemplate: promptTemplate.trim() || undefined
+        promptTemplate: promptTemplate.trim() || undefined,
+        budgetUsd: budgetUsd.trim() ? Number(budgetUsd.trim()) : undefined
       }
       const saved = await onSave(draft)
       setSelectedId(saved.id)
@@ -409,6 +413,22 @@ export function TemplatesView({
                     markDirty()
                   }}
                   rows={2}
+                />
+              </div>
+
+              {/* Budget (optional) */}
+              <div className="templates-field">
+                <span className="templates-section-label">Budget (USD, optional)</span>
+                <input
+                  type="number"
+                  min="0"
+                  step="0.01"
+                  value={budgetUsd}
+                  placeholder="e.g. 2.00"
+                  onChange={(e) => {
+                    setBudgetUsd(e.target.value)
+                    markDirty()
+                  }}
                 />
               </div>
 

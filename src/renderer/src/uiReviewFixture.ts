@@ -163,6 +163,7 @@ export function useUiReviewFixture(): UiReviewFixture {
       rerunStep: async () => {},
       abort: async () => {},
       pushInput: async () => {},
+      updatePrompt: async () => {},
       deleteRun: async (runId: string) => {
         setRuns((current) => current.filter((run) => run.id !== runId))
         setSelectedRunId((current) => (current === runId ? runs[0]?.id ?? null : current))
@@ -365,6 +366,9 @@ function createRun({
     currentStepIndex,
     startedAt,
     finishedAt,
+    totalInputTokens: stepStatuses.reduce((sum, _, i) => sum + (i <= currentStepIndex ? (i + 1) * 5000 : 0), 0),
+    totalOutputTokens: stepStatuses.reduce((sum, _, i) => sum + (i <= currentStepIndex ? (i + 1) * 1200 : 0), 0),
+    totalCostUsd: stepStatuses.reduce((sum, _, i) => sum + (i <= currentStepIndex ? (i + 1) * 0.15 : 0), 0),
     steps: template.steps.map((step, index) => {
       const stepStatus = stepStatuses[index] ?? 'pending'
       return {
@@ -386,7 +390,10 @@ function createRun({
                   finishedAt: stepStatus === 'running' ? undefined : startedAt + (index + 1) * 60_000,
                   handoff: index === currentStepIndex ? handoff : undefined,
                   events: index === currentStepIndex ? tailEvents : completedStepEvents(index),
-                  error: stepStatus === 'error' ? 'screenshot mismatch' : undefined
+                  error: stepStatus === 'error' ? 'screenshot mismatch' : undefined,
+                  totalInputTokens: index <= currentStepIndex ? (index + 1) * 5000 : 0,
+                  totalOutputTokens: index <= currentStepIndex ? (index + 1) * 1200 : 0,
+                  totalCostUsd: index <= currentStepIndex ? (index + 1) * 0.15 : 0
                 }
               ]
       }

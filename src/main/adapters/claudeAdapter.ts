@@ -16,7 +16,7 @@ export class ClaudeAdapter implements CliAdapter {
   readonly vendor = 'claude' as const
   readonly capabilities: AdapterCapabilities = {
     bidirectionalStdin: true,
-    structuredOutputSchema: true,
+    structuredOutputSchema: false,
     partialTokenStream: true
   }
 
@@ -37,7 +37,10 @@ export class ClaudeAdapter implements CliAdapter {
     if (input.model) args.push('--model', input.model)
     if (input.appendSystemPrompt) args.push('--append-system-prompt', input.appendSystemPrompt)
     for (const dir of input.addDirs ?? []) args.push('--add-dir', dir)
-    if (input.outputSchema) args.push('--json-schema', JSON.stringify(input.outputSchema))
+    // --json-schema is intentionally NOT passed here.
+    // Claude Code ≥2.1.169 forces the StructuredOutput tool when --json-schema is used,
+    // which conflicts with -p (print) mode. Instead the handoff JSON format is described
+    // in the prompt via HANDOFF_HINT, and parseHandoff() does robust extraction.
     if (input.resumeFrom?.sessionId) args.push('--resume', input.resumeFrom.sessionId)
     args.push('--permission-mode', input.permissionMode ?? 'bypassPermissions')
 

@@ -21,9 +21,24 @@ test('workflow handoff steps provide a structured output schema', () => {
   )
 })
 
-test('claude adapter passes json schema to the cli', () => {
-  assert.match(claudeAdapter, /--json-schema/)
-  assert.match(claudeAdapter, /JSON\.stringify\(input\.outputSchema\)/)
+test('workflow handoff hint describes the expected JSON structure in the prompt', () => {
+  assert.match(workflowManager, /const HANDOFF_HINT = \[/)
+  assert.match(workflowManager, /"summary":/)
+  assert.match(workflowManager, /"artifacts":/)
+  assert.match(workflowManager, /"path":/)
+  assert.match(workflowManager, /"description":/)
+  assert.match(workflowManager, /"type":/)
+  assert.match(workflowManager, /"nextStepGuidance":/)
+  assert.match(workflowManager, /Output ONLY the JSON object/)
+})
+
+test('claude adapter omits --json-schema to avoid StructuredOutput tool conflict with -p mode', () => {
+  // Only the comment mentions --json-schema; the actual code must NOT pass it as a CLI arg.
+  assert.doesNotMatch(claudeAdapter, /args\.push\('--json-schema'/)
+  // The comment should explain why.
+  assert.match(claudeAdapter, /--json-schema is intentionally NOT passed/)
+  assert.match(claudeAdapter, /StructuredOutput tool when --json-schema is used/)
+  assert.match(claudeAdapter, /HANDOFF_HINT/)
 })
 
 test('codex adapter writes a temporary schema file for exec mode', () => {

@@ -154,6 +154,8 @@ export interface WorkflowTemplate {
   name: string
   description?: string
   steps: WorkflowTemplateStep[]
+  /** Optional per-run budget cap in USD applied to runs started from this template. */
+  budgetUsd?: number
 }
 
 export type StepStatus =
@@ -189,6 +191,11 @@ export interface WorkflowStepExecution {
   injectedMemoryIds?: string[]
   events: AgentEvent[]
   error?: string
+  /** Accumulated token usage for this step (includes reruns). */
+  totalInputTokens: number
+  totalOutputTokens: number
+  /** Accumulated cost in USD for this step (includes reruns). */
+  totalCostUsd: number
 }
 
 export interface WorkflowRunStep {
@@ -220,6 +227,13 @@ export interface WorkflowRun {
   steps: WorkflowRunStep[]
   startedAt: number
   finishedAt?: number
+  /** Aggregated token usage across all steps. */
+  totalInputTokens: number
+  totalOutputTokens: number
+  /** Aggregated cost in USD across all steps. */
+  totalCostUsd: number
+  /** Optional budget cap for this run. When totalCostUsd reaches this, the run stops. */
+  budgetUsd?: number
 }
 
 export interface WorkflowStartInput {
@@ -379,6 +393,8 @@ export const IPC = {
   workflowAbort: 'workflow:abort',
   /** renderer → main: send input to the active workflow step. */
   workflowPush: 'workflow:push',
+  /** renderer → main: update a workflow run's initial prompt. */
+  workflowUpdatePrompt: 'workflow:update-prompt',
   /** main → renderer: workflow run updates and nested agent events. */
   workflowEvent: 'workflow:event',
   /** renderer → main: list memories for one agent. */

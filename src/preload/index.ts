@@ -73,6 +73,9 @@ const api = {
   pushWorkflowInput: (runId: string, stepIndex: number, text: string) =>
     ipcRenderer.invoke(IPC.workflowPush, runId, stepIndex, text),
 
+  updateWorkflowPrompt: (runId: string, newPrompt: string): Promise<WorkflowRun> =>
+    ipcRenderer.invoke(IPC.workflowUpdatePrompt, runId, newPrompt),
+
   memoryList: (agentId: string, projectPath?: string): Promise<MemoryEntry[]> =>
     ipcRenderer.invoke(IPC.memoryList, agentId, projectPath),
 

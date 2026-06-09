@@ -106,6 +106,14 @@ export function useWorkflows() {
     [selectedRun]
   )
 
+  const updatePrompt = useCallback(
+    async (runId: string, newPrompt: string) => {
+      const run = await window.api.updateWorkflowPrompt(runId, newPrompt)
+      setRuns((prev) => applyRunUpdate(prev, run))
+    },
+    []
+  )
+
   const deleteRun = useCallback(async (runId: string) => {
     await window.api.deleteWorkflowRun(runId)
     setRuns((prev) => {
@@ -151,6 +159,7 @@ export function useWorkflows() {
     rerunStep,
     abort,
     pushInput,
+    updatePrompt,
     deleteRun,
     inspectGitSafety,
     clearRun
