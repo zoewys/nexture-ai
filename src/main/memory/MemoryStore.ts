@@ -55,10 +55,10 @@ export class MemoryStore {
   }
 
   list(agentId: string, projectPath?: string): MemoryEntry[] {
+    if (!projectPath) return this.listAll(agentId)
+
     const entries = [...this.readMemoryFile(this.globalPath(agentId))]
-    if (projectPath) {
-      entries.push(...this.readMemoryFile(this.projectPath(agentId, projectPath)))
-    }
+    entries.push(...this.readMemoryFile(this.projectPath(agentId, projectPath)))
     return entries
   }
 

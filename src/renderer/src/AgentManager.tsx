@@ -19,6 +19,7 @@ import type {
 } from '@shared/types'
 import { ALL_VENDORS, PERMISSION_MODES } from '@shared/types'
 import type { AgentDraft } from './useAgents'
+import { AgentMemoryPanel } from './AgentMemoryPanel'
 import { CodexOptions } from './CodexOptions'
 import { ModelSelect } from './ModelSelect'
 import { Select } from './Select'
@@ -181,6 +182,8 @@ export function AgentManager({ agents, clis, modelCatalog, onSave, onDelete, onC
                 onChange={(e) => setDraft((d) => ({ ...d, systemPrompt: e.target.value }))}
               />
             </label>
+
+            <AgentMemoryPanel agentId={editingId} />
 
             <div className="actions">
               <button className="primary" onClick={handleSave} disabled={!draft.name.trim()} type="button">
