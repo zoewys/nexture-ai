@@ -12,7 +12,10 @@ import {
   type WorkflowRunGitSafety,
   type WorkflowStartInput,
   type WorkflowStartResult,
-  type WorkflowTemplate
+  type WorkflowTemplate,
+  type AgentMemoryMeta,
+  type MemoryEntry,
+  type ReflectionEngineConfig
 } from '@shared/types'
 import { RunManager } from './RunManager'
 import { TranscriptStore } from './TranscriptStore'
@@ -209,6 +212,28 @@ export function registerIpc(getWindow: () => BrowserWindow | null): AppManagers 
 
   ipcMain.handle(IPC.workflowPush, (_e, runId: string, stepIndex: number, text: string) =>
     workflowManager.pushInput(runId, stepIndex, text)
+  )
+
+  // ── Agent memory ─────────────────────────────────────────────────────
+
+  ipcMain.handle(IPC.memoryList, (_e, agentId: string, projectPath?: string): MemoryEntry[] =>
+    memoryStore.list(agentId, projectPath)
+  )
+
+  ipcMain.handle(IPC.memoryDelete, (_e, memoryId: string): void =>
+    memoryStore.remove(memoryId)
+  )
+
+  ipcMain.handle(IPC.memoryMeta, (_e, agentId: string): AgentMemoryMeta =>
+    memoryStore.getMeta(agentId)
+  )
+
+  ipcMain.handle(IPC.reflectionConfigGet, (): ReflectionEngineConfig =>
+    memoryStore.getReflectionConfig()
+  )
+
+  ipcMain.handle(IPC.reflectionConfigSave, (_e, config: ReflectionEngineConfig): void =>
+    memoryStore.saveReflectionConfig(config)
   )
 
   return {

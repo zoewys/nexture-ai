@@ -12,7 +12,10 @@ import {
   type WorkflowRunGitSafety,
   type WorkflowStartInput,
   type WorkflowStartResult,
-  type WorkflowTemplate
+  type WorkflowTemplate,
+  type AgentMemoryMeta,
+  type MemoryEntry,
+  type ReflectionEngineConfig
 } from '@shared/types'
 
 /**
@@ -69,6 +72,20 @@ const api = {
 
   pushWorkflowInput: (runId: string, stepIndex: number, text: string) =>
     ipcRenderer.invoke(IPC.workflowPush, runId, stepIndex, text),
+
+  memoryList: (agentId: string, projectPath?: string): Promise<MemoryEntry[]> =>
+    ipcRenderer.invoke(IPC.memoryList, agentId, projectPath),
+
+  memoryDelete: (id: string): Promise<void> => ipcRenderer.invoke(IPC.memoryDelete, id),
+
+  memoryMeta: (agentId: string): Promise<AgentMemoryMeta> =>
+    ipcRenderer.invoke(IPC.memoryMeta, agentId),
+
+  reflectionConfigGet: (): Promise<ReflectionEngineConfig> =>
+    ipcRenderer.invoke(IPC.reflectionConfigGet),
+
+  reflectionConfigSave: (config: ReflectionEngineConfig): Promise<void> =>
+    ipcRenderer.invoke(IPC.reflectionConfigSave, config),
 
   pickDir: (): Promise<string | null> => ipcRenderer.invoke(IPC.pickDir),
 
