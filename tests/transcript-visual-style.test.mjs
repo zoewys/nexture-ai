@@ -35,22 +35,22 @@ test('assistant messages are the primary transcript reading surface', () => {
   const marker = block('.cli-msg::before')
 
   assert.match(message, /color:\s*var\(--text-strong\);/)
-  assert.match(message, /font-size:\s*15px;/)
-  assert.match(message, /line-height:\s*1\.72;/)
+  assert.match(message, /font-size:\s*13px;/)
+  assert.match(message, /line-height:\s*1\.65;/)
   assert.match(message, /white-space:\s*normal;/)
   assert.match(marker, /background:\s*var\(--text-strong\);/)
 })
 
-test('multi workflow layout keeps runs, detail, and steps readable', () => {
+test('multi workflow layout keeps runs, detail, and step chips readable', () => {
   const workspace = block('.workflow-workspace')
   const runTail = block('.workflow-run-card-tail')
   const runTailLine = block('.workflow-run-card-tail span')
-  const steps = block('.workflow-steps-panel')
+  const stepNav = block('.workflow-step-nav')
 
-  assert.match(workspace, /grid-template-columns:\s*400px minmax\(0,\s*1fr\) 250px;/)
+  assert.match(workspace, /grid-template-columns:\s*400px minmax\(0,\s*1fr\);/)
   assert.match(runsList, /workflowRunTailLines\(run,\s*2\)/)
-  assert.doesNotMatch(runTail, /max-height:/)
+  assert.match(runTail, /max-height:\s*4\.5em;/)
   assert.match(runTailLine, /white-space:\s*nowrap;/)
   assert.match(runTailLine, /text-overflow:\s*ellipsis;/)
-  assert.match(steps, /border-left:\s*1px solid var\(--border\);/)
+  assert.match(stepNav, /overflow-x:\s*auto;/)
 })
