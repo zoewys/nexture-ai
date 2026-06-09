@@ -1,3 +1,14 @@
+/**
+ * NewWorkflowRunDrawer.tsx — 新建工作流运行抽屉
+ *
+ * 从右侧滑出的抽屉面板，用于启动一次新的 workflow run：
+ *  - 选择 workflow 模板
+ *  - 填写项目路径（带 Browse 按钮）
+ *  - 输入初始 prompt
+ *  - Git 安全检测提示（同 worktree 冲突警告）
+ *  - 启动按钮
+ */
+
 import { useEffect, useMemo, useState } from 'react'
 import type {
   AgentDefinition,
@@ -7,8 +18,8 @@ import type {
 } from '@shared/types'
 import { FolderOpen } from './Icons'
 import { readLastProjectPath, rememberProjectPath } from './projectPathMemory'
+import { Select } from './Select'
 
-const stepPreviewLabels = ['需求', 'IA', 'UI', '技术方案', '开发']
 
 export interface NewWorkflowRunDefaults {
   initialRunName?: string
@@ -121,11 +132,11 @@ export function NewWorkflowRunDrawer({
       <div className="workflow-new-run-body">
         <label className="field">
           <span>Template</span>
-          <select value={templateId} onChange={(event) => setTemplateId(event.target.value)}>
+          <Select value={templateId} onChange={setTemplateId}>
             {templates.map((template) => (
-              <option key={template.id} value={template.id}>{formatTemplateOption(template)}</option>
+              <Select.Item key={template.id} value={template.id}>{formatTemplateOption(template)}</Select.Item>
             ))}
-          </select>
+          </Select>
         </label>
 
         <label className="field">
@@ -199,7 +210,7 @@ export function NewWorkflowRunDrawer({
 
         <div className="workflow-template-preview">
           <div className="field-row field-row-between">
-            <strong>Template Preview</strong>
+            <strong>Workflow Template</strong>
             <span>
               {uiReviewEnabled ? selectedTemplate?.name : `${selectedTemplate?.steps.length ?? 0} steps`}
             </span>
@@ -207,7 +218,7 @@ export function NewWorkflowRunDrawer({
           <div className="workflow-template-preview-pills">
             {previewSteps.map((step, index) => (
               <span className="pill-small" key={`${step.agentId}-${index}`}>
-                {index + 1} {stepPreviewLabels[index] ?? agentPreviewName(step.agentId, agents)}
+                {index + 1} {step.role || agentPreviewName(step.agentId, agents)}
               </span>
             ))}
             {(selectedTemplate?.steps.length ?? 0) > previewSteps.length && (

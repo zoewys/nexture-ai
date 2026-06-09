@@ -1,3 +1,10 @@
+/**
+ * transcriptScroll.ts — Transcript 自动滚动控制逻辑
+ *
+ * 提供判断函数：是否接近底部（用于决定新事件到来时是否自动滚动）、
+ * 以及特定事件类型是否应触发自动跟随（避免 thinking/stderr 等次要事件打断用户浏览）。
+ */
+
 export interface TranscriptScrollState {
   scrollTop: number
   clientHeight: number

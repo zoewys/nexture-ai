@@ -1,3 +1,14 @@
+/**
+ * AgentManager.tsx — Agent 定义管理页
+ *
+ * 对应 "Agents" 模式，提供 Agent 定义的完整 CRUD 界面：
+ *  - 左侧列表：所有已保存的 Agent（名称 + vendor 标签）
+ *  - 右侧编辑表单：名称、角色、vendor、model、system prompt、permission mode
+ *  - 支持新建、编辑、删除 Agent 定义
+ *
+ * Agent 定义被 workflow 模板的步骤引用，也可在 SingleRunPanel 中手动选择使用。
+ */
+
 import { useState } from 'react'
 import type {
   AgentDefinition,
@@ -10,6 +21,7 @@ import { ALL_VENDORS, PERMISSION_MODES } from '@shared/types'
 import type { AgentDraft } from './useAgents'
 import { CodexOptions } from './CodexOptions'
 import { ModelSelect } from './ModelSelect'
+import { Select } from './Select'
 
 export interface AgentManagerProps {
   agents: AgentDefinition[]
@@ -111,17 +123,17 @@ export function AgentManager({ agents, clis, modelCatalog, onSave, onDelete, onC
             <div className="field-row">
               <label className="field field-grow">
                 <span>CLI</span>
-                <select
+                <Select
                   value={draft.vendor}
-                  onChange={(e) => setDraft((d) => ({ ...d, vendor: e.target.value as AgentVendor }))}
+                  onChange={(v) => setDraft((d) => ({ ...d, vendor: v as AgentVendor }))}
                 >
                   {ALL_VENDORS.map((v) => (
-                    <option key={v} value={v}>
+                    <Select.Item key={v} value={v}>
                       {v}
                       {!cliAvailable(v) ? ' (not installed)' : ''}
-                    </option>
+                    </Select.Item>
                   ))}
-                </select>
+                </Select>
               </label>
 
               <label className="field field-grow">
@@ -151,14 +163,14 @@ export function AgentManager({ agents, clis, modelCatalog, onSave, onDelete, onC
 
             <label className="field">
               <span>Permission Mode</span>
-              <select
+              <Select
                 value={draft.permissionMode ?? 'bypassPermissions'}
-                onChange={(e) => setDraft((d) => ({ ...d, permissionMode: e.target.value as PermissionMode }))}
+                onChange={(v) => setDraft((d) => ({ ...d, permissionMode: v as PermissionMode }))}
               >
                 {PERMISSION_MODES.map((m) => (
-                  <option key={m} value={m}>{permissionModeLabel(m)}</option>
+                  <Select.Item key={m} value={m}>{permissionModeLabel(m)}</Select.Item>
                 ))}
-              </select>
+              </Select>
             </label>
 
             <label className="field field-grow">

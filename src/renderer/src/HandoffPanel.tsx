@@ -1,19 +1,44 @@
+/**
+ * HandoffPanel.tsx — 结构化交接物展示面板
+ *
+ * 渲染一个 workflow step 完成后产出的 HandoffArtifact：
+ *  - Summary：步骤完成摘要
+ *  - Artifacts 表格：产出物列表（类型 / 路径 / 描述）
+ *  - Next-step Guidance：给下游 agent 的建议
+ *
+ * 支持折叠收起。在 WorkflowRunDetail 中作为右侧可拖拽面板使用。
+ */
+
 import type { WorkflowRun } from '@shared/types'
 import { formatHandoffDisplay } from './handoffDisplay'
-import { ClipboardCheck } from './Icons'
+import { ChevronRight, ClipboardCheck } from './Icons'
 
 interface HandoffPanelProps {
   handoff: NonNullable<WorkflowRun['steps'][number]['executions'][number]['handoff']>
+  onCollapse?: () => void
 }
 
-export function HandoffPanel({ handoff }: HandoffPanelProps): JSX.Element {
+export function HandoffPanel({ handoff, onCollapse }: HandoffPanelProps): JSX.Element {
   const display = formatHandoffDisplay(handoff)
 
   return (
     <div className="handoff-panel">
       <div className="handoff-panel-header">
         <div className="section-title"><ClipboardCheck size={14} /> 结构化交接物</div>
-        <span className="handoff-panel-status">Parsed</span>
+        <div className="handoff-panel-header-actions">
+          <span className="handoff-panel-status">等待确认</span>
+          {onCollapse && (
+            <button
+              type="button"
+              className="icon-only handoff-toggle"
+              title="收起交接物"
+              aria-label="收起交接物"
+              onClick={onCollapse}
+            >
+              <ChevronRight size={15} />
+            </button>
+          )}
+        </div>
       </div>
 
       <section className="handoff-section">

@@ -1,4 +1,5 @@
 import type { AgentEvent } from '@shared/types'
+import { num } from './parseUtils'
 
 /**
  * Parses one line of Claude Code's `--output-format stream-json` into zero or
@@ -109,8 +110,4 @@ function parseToolResults(content: unknown): AgentEvent[] {
     }
   }
   return events
-}
-
-function num(v: unknown): number {
-  return typeof v === 'number' && Number.isFinite(v) ? v : 0
 }

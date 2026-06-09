@@ -1,5 +1,13 @@
+/**
+ * ModelSelect.tsx — 模型选择下拉框
+ *
+ * 根据当前 vendor 的模型目录渲染 <select>，支持自由输入模式（当目录为空时）。
+ * 显示 loading 状态和 "unavailable" 提示。
+ */
+
 import { useState } from 'react'
 import type { ModelOption, VendorModelCatalog } from '@shared/types'
+import { Select } from './Select'
 
 const CUSTOM_VALUE = '__custom_model__'
 
@@ -33,19 +41,22 @@ export function ModelSelect({
 
   return (
     <>
-      <select
+      <Select
         value={selectValue}
         disabled={loading}
-        onChange={(e) => handleSelect(e.target.value)}
+        onChange={handleSelect}
+        placeholder={loading ? 'Loading models...' : 'CLI default'}
       >
-        <option value="">{loading ? 'Loading models...' : 'CLI default'}</option>
+        <Select.Item value="">
+          {loading ? 'Loading models...' : 'CLI default'}
+        </Select.Item>
         {options.map((option) => (
-          <option key={option.id} value={option.id}>
+          <Select.Item key={option.id} value={option.id}>
             {formatModelLabel(option)}
-          </option>
+          </Select.Item>
         ))}
-        <option value={CUSTOM_VALUE}>Custom model...</option>
-      </select>
+        <Select.Item value={CUSTOM_VALUE}>Custom model...</Select.Item>
+      </Select>
 
       {showCustomInput && (
         <input

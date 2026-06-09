@@ -1,4 +1,5 @@
 import type { AgentEvent } from '@shared/types'
+import { num } from './parseUtils'
 
 type CodexItem = Record<string, unknown> & { id?: unknown; type?: unknown }
 
@@ -78,8 +79,6 @@ export function createCodexParser(): (line: string) => AgentEvent[] {
     }
   }
 }
-
-export const parseCodexLine = createCodexParser()
 
 function parseItemStarted(item: CodexItem | null): AgentEvent[] {
   if (!item) return []
@@ -242,10 +241,6 @@ function itemValue(value: unknown): CodexItem | null {
 
 function stringValue(value: unknown): string | null {
   return typeof value === 'string' ? value : null
-}
-
-function num(value: unknown): number {
-  return typeof value === 'number' && Number.isFinite(value) ? value : 0
 }
 
 function safeStringify(value: unknown): string {

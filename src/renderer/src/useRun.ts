@@ -1,3 +1,11 @@
+/**
+ * useRun.ts — 单次 Agent 运行生命周期 hook
+ *
+ * 管理一个 agent run 的完整状态：启动、事件订阅、累积 transcript events、
+ * 跟踪 running/sessionId 状态、支持中途插话（push）、中止（abort）、重置（reset）。
+ * 通过 IPC 订阅主进程的 RunEventEnvelope 流，按 runId 过滤。
+ */
+
 import { useCallback, useEffect, useRef, useState } from 'react'
 import type { AgentEvent, RunConfig } from '@shared/types'
 

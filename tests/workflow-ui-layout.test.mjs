@@ -9,7 +9,6 @@ const css = readFileSync(join(root, 'src/renderer/src/styles.css'), 'utf8')
 const workspace = readFileSync(join(root, 'src/renderer/src/WorkflowWorkspace.tsx'), 'utf8')
 const runsList = readFileSync(join(root, 'src/renderer/src/WorkflowRunsList.tsx'), 'utf8')
 const detail = readFileSync(join(root, 'src/renderer/src/WorkflowRunDetail.tsx'), 'utf8')
-const steps = readFileSync(join(root, 'src/renderer/src/WorkflowStepsPanel.tsx'), 'utf8')
 const handoff = readFileSync(join(root, 'src/renderer/src/HandoffPanel.tsx'), 'utf8')
 const drawer = readFileSync(join(root, 'src/renderer/src/NewWorkflowRunDrawer.tsx'), 'utf8')
 const templatesView = readFileSync(join(root, 'src/renderer/src/TemplatesView.tsx'), 'utf8')
@@ -18,13 +17,12 @@ const mainIndex = readFileSync(join(root, 'src/main/index.ts'), 'utf8')
 const fixture = readFileSync(join(root, 'src/renderer/src/uiReviewFixture.ts'), 'utf8')
 const mockNav = readFileSync(join(root, 'src/renderer/src/UiReviewMockNav.tsx'), 'utf8')
 const sharedTypes = readFileSync(join(root, 'src/shared/types.ts'), 'utf8')
+const modeRail = readFileSync(join(root, 'src/renderer/src/ModeRail.tsx'), 'utf8')
 
-test('workflow workspace uses runs-detail-steps layout', () => {
+test('workflow workspace uses runs-detail layout', () => {
   assert.match(css, /\.workflow-workspace\s*\{/)
-  assert.match(css, /grid-template-columns:\s*400px minmax\(0,\s*1fr\) 250px;/)
   assert.match(workspace, /WorkflowRunsList/)
   assert.match(workspace, /WorkflowRunDetail/)
-  assert.match(workspace, /WorkflowStepsPanel/)
 })
 
 test('runs list contains realtime tail but no confirm button', () => {
@@ -39,15 +37,11 @@ test('runs list contains realtime tail but no confirm button', () => {
   assert.doesNotMatch(runsList, /确认详情|Confirm/)
 })
 
-test('steps panel lives on the right and supports long workflows', () => {
-  assert.match(steps, /workflow-steps-panel/)
-  assert.match(steps, /placeholder="搜索步骤 \/ agent"/)
-  assert.match(steps, /workflow-step-card-row/)
-  assert.match(steps, /workflow-step-status-dot/)
-  assert.match(steps, /workflow-step-status/)
-  assert.match(steps, /step\.displayName \?\? agent\?\.name \?\? 'Missing agent'/)
+test('step navigation lives inside run detail with chip bar', () => {
+  assert.match(detail, /workflow-step-nav/)
+  assert.match(detail, /workflow-step-chip/)
+  assert.match(detail, /step\.displayName/)
   assert.match(sharedTypes, /displayName\?: string/)
-  assert.match(steps, /overflow-y/)
 })
 
 test('run detail owns transcript, handoff, and composer', () => {
@@ -84,15 +78,13 @@ test('new workflow run starts from a drawer with git safety confirmation', () =>
 })
 
 test('main navigation is consolidated to workflow templates agents single', () => {
-  const nav = app.match(/<nav className="mode-rail"[\s\S]*?<\/nav>/)?.[0] ?? ''
-  assert.match(app, /type WorkspaceMode = 'workflow' \| 'templates' \| 'agents' \| 'single'/)
+  assert.match(modeRail, /type WorkspaceMode = 'workflow' \| 'templates' \| 'agents' \| 'single'/)
   assert.match(app, /TemplatesView/)
   assert.match(app, /case 'templates':\s*return 'Templates'/)
   assert.match(templatesView, /templates-title">Templates/)
-  assert.match(nav, /reviewModeIcon\('workflow'\)[\s\S]*reviewModeIcon\('templates'\)[\s\S]*reviewModeIcon\('agents'\)[\s\S]*reviewModeIcon\('single'\)/)
-  assert.doesNotMatch(nav, /uiReview\.enabled \? reviewModeIcon/)
-  assert.match(nav, /<span>Workflow<\/span>[\s\S]*<span>Templates<\/span>[\s\S]*<span>Agents<\/span>[\s\S]*<span>Single<\/span>/)
-  assert.doesNotMatch(nav, /Single Run/)
+  assert.match(modeRail, /modeIcon\('workflow'\)[\s\S]*modeIcon\('templates'\)[\s\S]*modeIcon\('agents'\)[\s\S]*modeIcon\('single'\)/)
+  assert.match(modeRail, /<span>Workflow<\/span>[\s\S]*<span>Templates<\/span>[\s\S]*<span>Agents<\/span>[\s\S]*<span>Single<\/span>/)
+  assert.doesNotMatch(modeRail, /Single Run/)
   assert.doesNotMatch(app, /New Workflow Run['"]\s*\)/)
 })
 
@@ -176,8 +168,8 @@ test('ui review chrome matches v4 mockup navigation and composer', () => {
   assert.match(css, /\.ui-review-mock-nav\s*\{[\s\S]*position:\s*fixed;[\s\S]*bottom:\s*12px;/)
   assert.match(css, /\.ui-review-mock-nav-item-active\s*\{/)
   assert.match(app, /UiReviewMockNav/)
-  assert.match(app, /reviewModeIcon/)
-  assert.match(app, /'⌘'[\s\S]*'▦'[\s\S]*'◎'[\s\S]*'▶'/)
+  assert.match(modeRail, /modeIcon/)
+  assert.match(modeRail, /'⌘'[\s\S]*'▦'[\s\S]*'◎'[\s\S]*'▶'/)
   assert.match(app, /type UiReviewWorkflowSurface = 'workflow' \| 'new-run'/)
   assert.match(app, /useState<UiReviewWorkflowSurface>\('workflow'\)/)
   assert.match(app, /uiReview\.enabled && uiReviewWorkflowSurface === 'new-run'[\s\S]*\? 'Workflow · New Run Drawer'[\s\S]*: 'Workflow'/)

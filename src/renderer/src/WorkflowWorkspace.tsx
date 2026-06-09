@@ -1,8 +1,19 @@
+/**
+ * WorkflowWorkspace.tsx — 工作流运行管理主工作区
+ *
+ * 对应 "Workflow" 模式的完整面板，组合了：
+ *  - WorkflowRunsList：左侧运行列表（历史 + 进行中）
+ *  - WorkflowRunDetail：中央运行详情（步骤导航、Transcript、Handoff、Composer）
+ *  - NewWorkflowRunDrawer：新建运行抽屉（选择模板、填写 prompt、启动）
+ *
+ * 管理选中 run/step 的状态，以及 workflow composer 的输入与发送逻辑。
+ */
+
 import { useEffect, useRef, useState } from 'react'
 import type { AgentDefinition, WorkflowRun } from '@shared/types'
 import { WorkflowRunsList } from './WorkflowRunsList'
 import { WorkflowRunDetail } from './WorkflowRunDetail'
-import { WorkflowStepsPanel } from './WorkflowStepsPanel'
+
 import { NewWorkflowRunDrawer } from './NewWorkflowRunDrawer'
 import type { NewWorkflowRunDefaults } from './NewWorkflowRunDrawer'
 import { UiReviewMockNav } from './UiReviewMockNav'
@@ -109,11 +120,13 @@ export function WorkflowWorkspace({
         selectedRunId={workflows.selectedRunId}
         onSelectRun={workflows.selectRun}
         onNewRun={() => setNewRunDrawerOpen(true)}
+        onDeleteRun={workflows.deleteRun}
       />
       <WorkflowRunDetail
         agents={agents}
         run={selectedRun}
         selectedStepIndex={selectedStepIndex}
+        onSelectStep={setSelectedStepIndex}
         selectedExecution={selectedExecution}
         handoff={handoff}
         uiReviewEnabled={uiReviewEnabled}
@@ -130,12 +143,6 @@ export function WorkflowWorkspace({
           setWorkflowInputError(null)
         }}
         onComposerSend={sendWorkflowInput}
-      />
-      <WorkflowStepsPanel
-        run={selectedRun}
-        agents={agents}
-        selectedStepIndex={selectedStepIndex}
-        onSelectStep={setSelectedStepIndex}
       />
       {newRunDrawerOpen && (
         <NewWorkflowRunDrawer

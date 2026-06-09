@@ -78,11 +78,16 @@ export class WorkflowManager {
       status: 'running',
       currentStepIndex: 0,
       startedAt: now,
-      steps: template.steps.map((step) => ({
-        agentId: step.agentId,
-        status: 'pending',
-        executions: []
-      }))
+      steps: template.steps.map((step) => {
+        const agent = this.agentStore.list().find((a) => a.id === step.agentId)
+        return {
+          agentId: step.agentId,
+          displayName: agent?.name,
+          role: step.role,
+          status: 'pending' as const,
+          executions: [] as WorkflowRun['steps'][number]['executions']
+        }
+      })
     }
     this.runs.set(run.id, run)
     this.workflowStore.saveRun(run)

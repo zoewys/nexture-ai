@@ -23,8 +23,8 @@ test('workflow notification sound is generated with Web Audio', () => {
   assert.match(sound, /new AudioContextImpl\(\)/)
   assert.match(sound, /createOscillator\(\)/)
   assert.match(sound, /createGain\(\)/)
-  assert.match(sound, /kind === 'confirm'/)
-  assert.match(sound, /finished/)
+  assert.match(sound, /case 'confirm'/)
+  assert.match(sound, /case 'finished'/)
 })
 
 test('workflow notification sound supports global on off preference', () => {

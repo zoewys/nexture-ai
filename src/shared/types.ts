@@ -146,6 +146,7 @@ export interface AgentDefinition {
 
 export interface WorkflowTemplateStep {
   agentId: string
+  role?: string
 }
 
 export interface WorkflowTemplate {
@@ -192,6 +193,7 @@ export interface WorkflowStepExecution {
 export interface WorkflowRunStep {
   agentId: string
   displayName?: string
+  role?: string
   status: StepStatus
   executions: WorkflowStepExecution[]
 }
@@ -274,6 +276,8 @@ export const IPC = {
   checkClis: 'cli:check',
   /** renderer → main: ask installed CLIs for their current model choices. */
   listModels: 'cli:models',
+  /** renderer → main: install a CLI tool. Returns InstallResult. */
+  cliInstall: 'cli:install',
   /** renderer → main: open a native folder picker, returns chosen path or null. */
   pickDir: 'dialog:pickDir',
   /** renderer → main: list all saved agent definitions. */

@@ -1,3 +1,10 @@
+/**
+ * useAgents.ts — Agent 定义管理 hook
+ *
+ * 从主进程加载 agent 定义列表，提供 save（创建/更新）和 remove（删除）操作。
+ * Agent 定义是 workflow 模板步骤和 SingleRunPanel 选择 agent 的数据源。
+ */
+
 import { useCallback, useEffect, useState } from 'react'
 import type { AgentDefinition } from '@shared/types'
 

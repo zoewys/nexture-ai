@@ -1,3 +1,15 @@
+/**
+ * useWorkflows.ts — 工作流运行管理 hook
+ *
+ * 统一管理 workflow 模板和运行实例的前端状态：
+ *  - templates: 从主进程加载的模板列表（CRUD）
+ *  - runs: 所有工作流运行实例（按 startedAt 倒序排列）
+ *  - selectedRun: 当前选中的运行
+ *  - 操作方法：start / confirmStep / rerunStep / abort / pushInput / deleteRun
+ *
+ * 订阅主进程的 WorkflowEventEnvelope 流，实时更新运行状态和步骤 events。
+ */
+
 import { useCallback, useEffect, useMemo, useState } from 'react'
 import type {
   WorkflowEventEnvelope,
