@@ -1,3 +1,7 @@
+import { randomUUID } from 'node:crypto'
+import { mkdirSync, rmSync, writeFileSync } from 'node:fs'
+import { tmpdir } from 'node:os'
+import { join } from 'node:path'
 import type { AdapterCapabilities, AgentEvent } from '@shared/types'
 import type { CliAdapter, RunTurnInput } from './types'
 import { AsyncQueue } from './AsyncQueue'
@@ -30,7 +34,9 @@ export class CodexAdapter implements CliAdapter {
     const prompt = input.appendSystemPrompt
       ? `# System\n${input.appendSystemPrompt}\n\n# Task\n${input.prompt}`
       : input.prompt
-    const args = buildCodexExecArgs(input, prompt)
+    const outputSchemaPath = input.outputSchema ? writeCodexOutputSchema(input.outputSchema) : undefined
+    const cleanupOutputSchema = createOutputSchemaCleanup(outputSchemaPath)
+    const args = buildCodexExecArgs({ ...input, outputSchemaPath }, prompt)
 
     const handle = spawnProcess(
       { cmd, args, cwd: input.cwd, abortSignal: input.abortSignal },
@@ -49,6 +55,7 @@ export class CodexAdapter implements CliAdapter {
           if (filtered) queue.push({ kind: 'stderr', text: filtered })
         },
         onSpawnError: (err) => {
+          cleanupOutputSchema()
           queue.push({
             kind: 'error',
             recoverable: false,
@@ -58,6 +65,7 @@ export class CodexAdapter implements CliAdapter {
           queue.close()
         },
         onExit: (code, signal) => {
+          cleanupOutputSchema()
           if (input.abortSignal.aborted) {
             queue.push({ kind: 'turn-done', sessionId: '', reason: 'aborted' })
           } else if (sawTerminalEvent) {
@@ -82,6 +90,27 @@ export class CodexAdapter implements CliAdapter {
     handle.endStdin()
 
     return queue
+  }
+}
+
+function writeCodexOutputSchema(schema: unknown): string {
+  const schemaDir = join(tmpdir(), 'agent-studio-codex-schemas')
+  mkdirSync(schemaDir, { recursive: true })
+  const schemaPath = join(schemaDir, `${randomUUID()}.json`)
+  writeFileSync(schemaPath, JSON.stringify(schema, null, 2), 'utf8')
+  return schemaPath
+}
+
+function createOutputSchemaCleanup(schemaPath: string | undefined): () => void {
+  let cleaned = false
+  return () => {
+    if (!schemaPath || cleaned) return
+    cleaned = true
+    try {
+      rmSync(schemaPath, { force: true })
+    } catch {
+      // Best-effort cleanup only; the schema file is generated under tmpdir().
+    }
   }
 }
 

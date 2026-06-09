@@ -6,6 +6,7 @@ export interface CodexExecArgsInput {
   resumeFrom?: ResumeHandle
   codexReasoningEffort?: CodexReasoningEffort
   codexServiceTier?: string
+  outputSchemaPath?: string
 }
 
 export function buildCodexExecArgs(input: CodexExecArgsInput, prompt: string): string[] {
@@ -14,6 +15,7 @@ export function buildCodexExecArgs(input: CodexExecArgsInput, prompt: string): s
   for (const dir of input.addDirs ?? []) args.push('--add-dir', dir)
   appendConfig(args, 'model_reasoning_effort', input.codexReasoningEffort)
   appendConfig(args, 'service_tier', input.codexServiceTier)
+  if (input.outputSchemaPath) args.push('--output-schema', input.outputSchemaPath)
   args.push('--json')
   if (input.resumeFrom?.sessionId) args.push('--resume', input.resumeFrom.sessionId)
   args.push('--dangerously-bypass-approvals-and-sandbox')

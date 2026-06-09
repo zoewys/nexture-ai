@@ -37,6 +37,7 @@ export class ClaudeAdapter implements CliAdapter {
     if (input.model) args.push('--model', input.model)
     if (input.appendSystemPrompt) args.push('--append-system-prompt', input.appendSystemPrompt)
     for (const dir of input.addDirs ?? []) args.push('--add-dir', dir)
+    if (input.outputSchema) args.push('--json-schema', JSON.stringify(input.outputSchema))
     if (input.resumeFrom?.sessionId) args.push('--resume', input.resumeFrom.sessionId)
     args.push('--permission-mode', input.permissionMode ?? 'bypassPermissions')
 
