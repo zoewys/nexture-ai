@@ -43,5 +43,6 @@ test('memory store implements core add list remove reinforce and config APIs', (
   assert.match(store, /saveRawSignal\(signal: MemorySignal\): void/)
   assert.match(store, /popRawSignals\(\): MemorySignal\[\]/)
   assert.match(store, /getReflectionConfig\(\): ReflectionEngineConfig/)
+  assert.match(store, /getReflectionCwd\(\): string/)
   assert.match(store, /saveReflectionConfig\(config: ReflectionEngineConfig\): void/)
 })

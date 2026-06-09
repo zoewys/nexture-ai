@@ -173,6 +173,10 @@ export class MemoryStore {
     return config
   }
 
+  getReflectionCwd(): string {
+    return this.dir
+  }
+
   saveReflectionConfig(config: ReflectionEngineConfig): void {
     this.writeJson(this.configPath, config)
   }
