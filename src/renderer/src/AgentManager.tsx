@@ -22,6 +22,7 @@ import type { AgentDraft } from './useAgents'
 import { AgentMemoryPanel } from './AgentMemoryPanel'
 import { CodexOptions } from './CodexOptions'
 import { ModelSelect } from './ModelSelect'
+import { ReflectionSettingsPanel } from './ReflectionSettingsPanel'
 import { Select } from './Select'
 
 export interface AgentManagerProps {
@@ -99,6 +100,8 @@ export function AgentManager({ agents, clis, modelCatalog, onSave, onDelete, onC
       </aside>
 
       <div className="agent-editor">
+        <ReflectionSettingsPanel modelCatalog={modelCatalog} />
+
         {editingId === null && !isNew ? (
           <div className="transcript-empty">Select an agent or create one.</div>
         ) : (
