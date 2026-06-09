@@ -3,6 +3,7 @@ import type {
   AgentDefinition,
   AgentEvent,
   HandoffArtifact,
+  JSONSchema,
   MemorySignal,
   RunConfig,
   WorkflowEventEnvelope,
@@ -42,6 +43,29 @@ When this step is complete, respond with only JSON matching this shape:
 }
 Do not wrap the JSON in markdown fences.
 `.trim()
+
+const HANDOFF_OUTPUT_SCHEMA: JSONSchema = {
+  type: 'object',
+  additionalProperties: false,
+  required: ['summary', 'artifacts'],
+  properties: {
+    summary: { type: 'string' },
+    artifacts: {
+      type: 'array',
+      items: {
+        type: 'object',
+        additionalProperties: false,
+        required: ['path', 'description'],
+        properties: {
+          path: { type: 'string' },
+          description: { type: 'string' },
+          type: { type: 'string', enum: ['requirement', 'design', 'code', 'test', 'other'] }
+        }
+      }
+    },
+    nextStepGuidance: { type: 'string' }
+  }
+}
 
 export class WorkflowManager {
   private runs = new Map<string, WorkflowRun>()
@@ -255,6 +279,7 @@ export class WorkflowManager {
       codexReasoningEffort: agent.codexReasoningEffort,
       codexServiceTier: agent.codexServiceTier?.trim() || undefined,
       appendSystemPrompt: agent.systemPrompt,
+      outputSchema: HANDOFF_OUTPUT_SCHEMA,
       permissionMode: agent.permissionMode,
       resumeFrom: {
         sessionId: previous.sessionId,
@@ -316,6 +341,7 @@ export class WorkflowManager {
       codexReasoningEffort: agent.codexReasoningEffort,
       codexServiceTier: agent.codexServiceTier?.trim() || undefined,
       appendSystemPrompt: agent.systemPrompt,
+      outputSchema: HANDOFF_OUTPUT_SCHEMA,
       permissionMode: agent.permissionMode
     }
 

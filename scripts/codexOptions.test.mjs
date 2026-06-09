@@ -22,7 +22,8 @@ const args = buildCodexExecArgs(
     addDirs: ['/tmp/agent-studio-extra'],
     resumeFrom: { sessionId: 'thread-123', vendor: 'codex' },
     codexReasoningEffort: 'high',
-    codexServiceTier: 'priority'
+    codexServiceTier: 'priority',
+    outputSchemaPath: '/tmp/agent-studio-schema.json'
   },
   'hello codex'
 )
@@ -37,6 +38,8 @@ assert.deepEqual(args, [
   'model_reasoning_effort="high"',
   '-c',
   'service_tier="priority"',
+  '--output-schema',
+  '/tmp/agent-studio-schema.json',
   '--json',
   '--resume',
   'thread-123',
@@ -48,3 +51,4 @@ assert.deepEqual(args, [
 const defaultArgs = buildCodexExecArgs({}, 'plain')
 assert.equal(defaultArgs.includes('model_reasoning_effort="high"'), false)
 assert.equal(defaultArgs.includes('service_tier="priority"'), false)
+assert.equal(defaultArgs.includes('--output-schema'), false)
