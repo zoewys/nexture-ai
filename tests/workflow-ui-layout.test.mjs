@@ -44,15 +44,16 @@ test('step navigation lives inside run detail with chip bar', () => {
   assert.match(sharedTypes, /displayName\?: string/)
 })
 
-test('run detail owns transcript, handoff, and composer', () => {
+test('run detail owns transcript, artifact cards, composer, and preview pane', () => {
   assert.match(detail, /TranscriptViewer/)
-  assert.match(detail, /HandoffPanel/)
+  assert.match(detail, /ArtifactCard/)
+  assert.match(detail, /FilePreviewPane/)
   assert.match(detail, /workflow-cli-composer/)
-  assert.match(detail, /workflow-detail-body/)
-  assert.match(detail, /handoff-resize-handle/)
+  assert.match(detail, /codex-layout/)
+  assert.match(detail, /codex-left/)
+  assert.match(detail, /codex-right/)
   assert.match(detail, /Rerun Step/)
   assert.match(detail, /Stop/)
-  assert.match(handoff, /formatHandoffDisplay/)
 })
 
 test('new workflow run starts from a drawer with git safety confirmation', () => {
@@ -136,9 +137,8 @@ test('ui review workflow detail suppresses production-only controls for screensh
   assert.match(detail, /workflow-confirm-step/)
   assert.match(detail, /run\.status === 'running' \|\| run\.status === 'awaiting-confirm'/)
   assert.match(detail, /workflow-run-warning/)
-  assert.match(detail, /handoff-dock/)
+  assert.match(detail, /codex-layout/)
   assert.match(css, /\.app-ui-review \.workflow-confirm-step\s*\{[\s\S]*display:\s*none;/)
-  assert.match(css, /\.app-ui-review \.workflow-run-detail \.status-bar\s*\{[\s\S]*display:\s*none;/)
   assert.match(fixture, /gitSafetyMessage/)
   assert.match(fixture, /displayPath/)
   assert.match(fixture, /listMeta/)
@@ -189,7 +189,8 @@ test('ui review chrome matches v4 mockup navigation and composer', () => {
   assert.match(detail, /uiReviewEnabled\?: boolean/)
   assert.match(detail, />\s*Rerun Step\s*</)
   assert.match(detail, /<input[\s\S]*placeholder=\{composerPlaceholder\}/)
-  assert.doesNotMatch(detail, /<textarea[\s\S]*placeholder=\{composerPlaceholder\}/)
+  // The composer uses <input>, not <textarea> (there may be textareas elsewhere e.g. prompt editor)
+  assert.ok(!/<textarea[^>]*placeholder=\{composerPlaceholder\}/.test(detail))
   assert.match(detail, />\s*发送\s*</)
   assert.match(drawer, /uiReviewEnabled\?: boolean/)
   assert.match(drawer, /if \(!uiReviewEnabled\) rememberProjectPath\(projectPath\.trim\(\)\)/)

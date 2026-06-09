@@ -1,3 +1,4 @@
+import { readFileSync, existsSync } from 'node:fs'
 import { ipcMain, dialog, type BrowserWindow } from 'electron'
 import {
   IPC,
@@ -164,6 +165,13 @@ export function registerIpc(getWindow: () => BrowserWindow | null): AppManagers 
     })
     if (result.canceled || result.filePaths.length === 0) return null
     return result.filePaths[0]
+  })
+
+  // ── File utilities ────────────────────────────────────────────────────
+
+  ipcMain.handle(IPC.fileRead, (_e, absPath: string) => {
+    if (!existsSync(absPath)) throw new Error(`File not found: ${absPath}`)
+    return readFileSync(absPath, 'utf8')
   })
 
   // ── Agent CRUD ─────────────────────────────────────────────────────────

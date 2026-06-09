@@ -391,6 +391,8 @@ export const IPC = {
   workflowRerunStep: 'workflow:rerun-step',
   /** renderer → main: abort a running workflow. */
   workflowAbort: 'workflow:abort',
+  /** renderer → main: read a file from disk (absolute path). */
+  fileRead: 'file:read',
   /** renderer → main: send input to the active workflow step. */
   workflowPush: 'workflow:push',
   /** renderer → main: update a workflow run's initial prompt. */

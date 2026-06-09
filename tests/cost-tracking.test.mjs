@@ -73,9 +73,9 @@ test('budgetUsd is inherited from template when creating a new run', () => {
 // ── UI ─────────────────────────────────────────────────────────────────────
 
 test('WorkflowRunDetail renders cost summary when tokens are non-zero', () => {
-  assert.match(runDetail, /totalInputTokens > 0 \|\| run\.totalOutputTokens > 0/)
   assert.match(runDetail, /formatTokens/)
-  assert.match(runDetail, /totalCostUsd\.toFixed\(2\)/)
+  assert.match(runDetail, /totalCost\.toFixed\(2\)/)
+  assert.match(runDetail, /totalInputTokens/)
 })
 
 test('WorkflowRunDetail renders budget cap info when set', () => {

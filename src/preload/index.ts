@@ -70,6 +70,9 @@ const api = {
 
   abortWorkflow: (runId: string) => ipcRenderer.invoke(IPC.workflowAbort, runId),
 
+  readFile: (absPath: string): Promise<string> =>
+    ipcRenderer.invoke(IPC.fileRead, absPath),
+
   pushWorkflowInput: (runId: string, stepIndex: number, text: string) =>
     ipcRenderer.invoke(IPC.workflowPush, runId, stepIndex, text),
 
