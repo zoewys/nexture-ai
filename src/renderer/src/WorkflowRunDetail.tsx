@@ -137,29 +137,39 @@ export function WorkflowRunDetail({
           <TranscriptViewer events={selectedExecution?.events ?? []} />
         </Panel>
 
-        {handoff && handoffOpen && (
+        {handoff && (
           <>
             <PanelResizeHandle className="panel-resize-handle" />
-            <Panel defaultSize={35} minSize={20} maxSize={50}>
-              <aside className="handoff-dock" aria-label="结构化交接物">
-                <HandoffPanel handoff={handoff} onCollapse={() => setHandoffOpen(false)} />
-              </aside>
+            <Panel
+              defaultSize={35}
+              minSize={15}
+              maxSize={50}
+              collapsible
+              collapsedSize={3}
+              onResize={(size) => {
+                if (size.inPixels <= 44 && handoffOpen) setHandoffOpen(false)
+                else if (size.inPixels > 44 && !handoffOpen) setHandoffOpen(true)
+              }}
+            >
+              {handoffOpen ? (
+                <aside className="handoff-dock" aria-label="结构化交接物">
+                  <HandoffPanel handoff={handoff} onCollapse={() => setHandoffOpen(false)} />
+                </aside>
+              ) : (
+                <aside className="handoff-dock-collapsed" aria-label="已收起的交接物面板">
+                  <button
+                    type="button"
+                    className="handoff-toggle-collapsed"
+                    title="展开交接物"
+                    aria-label="展开交接物"
+                    onClick={() => setHandoffOpen(true)}
+                  >
+                    <span className="handoff-toggle-label">交接物</span>
+                  </button>
+                </aside>
+              )}
             </Panel>
           </>
-        )}
-
-        {handoff && !handoffOpen && (
-          <aside className="handoff-dock-collapsed" aria-label="已收起的交接物面板">
-            <button
-              type="button"
-              className="handoff-toggle-collapsed"
-              title="展开交接物"
-              aria-label="展开交接物"
-              onClick={() => setHandoffOpen(true)}
-            >
-              <span className="handoff-toggle-label">交接物</span>
-            </button>
-          </aside>
         )}
       </PanelGroup>
 
