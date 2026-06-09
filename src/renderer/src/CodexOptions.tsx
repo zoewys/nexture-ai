@@ -12,6 +12,7 @@ import type {
   VendorModelCatalog
 } from '@shared/types'
 import { CODEX_REASONING_EFFORTS } from '@shared/types'
+import { Select } from './Select'
 
 const DEFAULT_SERVICE_TIERS: CodexServiceTierOption[] = [
   { id: 'priority', label: 'Fast', description: 'Use Codex priority service tier' }
@@ -45,37 +46,36 @@ export function CodexOptions({
     <div className="field-row codex-options">
       <label className="field field-grow">
         <span>Reasoning</span>
-        <select
+        <Select
           value={reasoningEffort ?? ''}
-          onChange={(e) => {
-            const value = e.target.value
-            onReasoningEffortChange(value ? (value as CodexReasoningEffort) : undefined)
-          }}
+          onChange={(v) => onReasoningEffortChange(v ? (v as CodexReasoningEffort) : undefined)}
+          placeholder={`CLI default${selectedModel?.codexDefaultReasoningEffort ? ` (${selectedModel.codexDefaultReasoningEffort})` : ''}`}
         >
-          <option value="">
+          <Select.Item value="">
             CLI default{selectedModel?.codexDefaultReasoningEffort ? ` (${selectedModel.codexDefaultReasoningEffort})` : ''}
-          </option>
+          </Select.Item>
           {reasoningEfforts.map((effort) => (
-            <option key={effort} value={effort}>
+            <Select.Item key={effort} value={effort}>
               {reasoningLabel(effort)}
-            </option>
+            </Select.Item>
           ))}
-        </select>
+        </Select>
       </label>
 
       <label className="field field-grow">
         <span>Speed</span>
-        <select
+        <Select
           value={serviceTier ?? ''}
-          onChange={(e) => onServiceTierChange(e.target.value || undefined)}
+          onChange={(v) => onServiceTierChange(v || undefined)}
+          placeholder="CLI default"
         >
-          <option value="">CLI default</option>
+          <Select.Item value="">CLI default</Select.Item>
           {serviceTiers.map((tier) => (
-            <option key={tier.id} value={tier.id}>
+            <Select.Item key={tier.id} value={tier.id}>
               {tier.label === tier.id ? tier.id : `${tier.label} (${tier.id})`}
-            </option>
+            </Select.Item>
           ))}
-        </select>
+        </Select>
       </label>
     </div>
   )

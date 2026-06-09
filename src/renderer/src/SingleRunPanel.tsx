@@ -20,6 +20,7 @@ import type {
 } from '@shared/types'
 import { ALL_VENDORS } from '@shared/types'
 import type { RunState } from './useRun'
+import { Select } from './Select'
 import { CodexOptions } from './CodexOptions'
 import { ModelSelect } from './ModelSelect'
 import { TranscriptViewer } from './TranscriptViewer'
@@ -167,17 +168,18 @@ export function SingleRunPanel({
               <label className="field">
                 <span>Agent</span>
                 <div className="field-row">
-                  <select
+                  <Select
                     value={selectedAgentId ?? ''}
-                    onChange={(e) => handleSelectAgent(e.target.value)}
+                    onChange={(v) => handleSelectAgent(v)}
+                    placeholder="None — manual config"
                   >
-                    <option value="">None — manual config</option>
+                    <Select.Item value="">None — manual config</Select.Item>
                     {agents.map((a) => (
-                      <option key={a.id} value={a.id}>
+                      <Select.Item key={a.id} value={a.id}>
                         {a.name || 'Unnamed'}
-                      </option>
+                      </Select.Item>
                     ))}
-                  </select>
+                  </Select>
                   <button onClick={onModeAgents} type="button">
                     Agent
                   </button>
@@ -186,17 +188,17 @@ export function SingleRunPanel({
 
               <label className="field">
                 <span>CLI</span>
-                <select
+                <Select
                   value={vendor}
-                  onChange={(e) => setVendor(e.target.value as AgentVendor)}
+                  onChange={(v) => setVendor(v as AgentVendor)}
                 >
                   {ALL_VENDORS.map((v) => (
-                    <option key={v} value={v}>
+                    <Select.Item key={v} value={v}>
                       {v}
                       {clis && !clis[v] ? ' (not installed)' : ''}
-                    </option>
+                    </Select.Item>
                   ))}
-                </select>
+                </Select>
               </label>
 
               <label className="field">

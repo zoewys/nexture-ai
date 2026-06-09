@@ -18,6 +18,7 @@ import type {
 } from '@shared/types'
 import { FolderOpen } from './Icons'
 import { readLastProjectPath, rememberProjectPath } from './projectPathMemory'
+import { Select } from './Select'
 
 
 export interface NewWorkflowRunDefaults {
@@ -131,11 +132,11 @@ export function NewWorkflowRunDrawer({
       <div className="workflow-new-run-body">
         <label className="field">
           <span>Template</span>
-          <select value={templateId} onChange={(event) => setTemplateId(event.target.value)}>
+          <Select value={templateId} onChange={setTemplateId}>
             {templates.map((template) => (
-              <option key={template.id} value={template.id}>{formatTemplateOption(template)}</option>
+              <Select.Item key={template.id} value={template.id}>{formatTemplateOption(template)}</Select.Item>
             ))}
-          </select>
+          </Select>
         </label>
 
         <label className="field">

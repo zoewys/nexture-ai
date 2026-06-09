@@ -2877,3 +2877,124 @@ button.icon-only {
   gap: 12px;
   overflow-y: auto;
 }
+
+/* ── Radix Select ──────────────────────────────────────────────────────────── */
+
+.select-trigger {
+  display: inline-flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 6px;
+  width: 100%;
+  background: var(--bg-input);
+  border: 1px solid var(--border);
+  color: var(--text);
+  border-radius: 6px;
+  padding: 8px 10px;
+  font-size: 13px;
+  font-family: inherit;
+  cursor: pointer;
+  line-height: 1.4;
+}
+
+.select-trigger:focus {
+  outline: none;
+  border-color: var(--accent);
+}
+
+.select-trigger[data-disabled] {
+  opacity: 0.5;
+  cursor: not-allowed;
+}
+
+.select-trigger[data-placeholder] > span:first-child {
+  color: var(--text-dim);
+}
+
+.select-icon {
+  flex-shrink: 0;
+  color: var(--text-dim);
+}
+
+.select-content {
+  background: var(--bg-panel);
+  border: 1px solid var(--border);
+  border-radius: 8px;
+  box-shadow: 0 12px 40px rgba(0, 0, 0, 0.5);
+  overflow: hidden;
+  z-index: 100;
+  min-width: var(--radix-select-trigger-width);
+  max-height: var(--radix-select-content-available-height);
+  animation: select-in 0.12s ease-out;
+}
+
+@keyframes select-in {
+  from { opacity: 0; transform: translateY(-4px); }
+  to { opacity: 1; transform: translateY(0); }
+}
+
+.select-viewport {
+  padding: 4px;
+}
+
+.select-item {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 7px 10px;
+  border-radius: 4px;
+  font-size: 13px;
+  color: var(--text);
+  cursor: pointer;
+  outline: none;
+  user-select: none;
+}
+
+.select-item[data-highlighted] {
+  background: var(--accent-dim);
+  color: var(--text-strong);
+}
+
+.select-item[data-disabled] {
+  color: var(--text-dim);
+  cursor: not-allowed;
+}
+
+.select-item-check {
+  margin-left: auto;
+  color: var(--accent);
+}
+
+.select-scroll-btn {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  height: 20px;
+  color: var(--text-dim);
+  cursor: default;
+}
+
+/* ── Vaul Drawer Overlay ───────────────────────────────────────────────────── */
+
+.drawer-overlay {
+  position: fixed;
+  inset: 0;
+  background: rgba(0, 0, 0, 0.5);
+  z-index: 4;
+}
+
+/* ── react-resizable-panels ────────────────────────────────────────────────── */
+
+.panel-resize-handle {
+  width: 6px;
+  cursor: col-resize;
+  background: transparent;
+  transition: background 0.15s;
+  flex-shrink: 0;
+}
+
+.panel-resize-handle:hover,
+.panel-resize-handle[data-resize-handle-active] {
+  background: var(--accent);
+  opacity: 0.5;
+}

@@ -20,7 +20,10 @@
     "test:codex-stderr-noise": "node tests/codex-stderr-noise.test.mjs"
   },
   "dependencies": {
-    "electron-updater": "^6.1.7"
+    "@radix-ui/react-select": "^2.3.0",
+    "electron-updater": "^6.1.7",
+    "react-resizable-panels": "^4.11.2",
+    "vaul": "^1.1.2"
   },
   "devDependencies": {
     "@types/node": "^20.11.0",

@@ -12,6 +12,7 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react'
 import type { AgentDefinition, WorkflowTemplate } from '@shared/types'
 import type { WorkflowDraft } from './useWorkflows'
+import { Select } from './Select'
 
 interface TemplatesViewProps {
   agents: AgentDefinition[]
@@ -462,16 +463,16 @@ export function TemplatesView({
                         ⋮⋮
                       </span>
                       <span className="templates-step-num">{index + 1}</span>
-                      <select
+                      <Select
                         value={step.agentId}
-                        onChange={(e) => handleStepAgentChange(index, e.target.value)}
+                        onChange={(v) => handleStepAgentChange(index, v)}
                       >
                         {agents.map((agent) => (
-                          <option key={agent.id} value={agent.id}>
+                          <Select.Item key={agent.id} value={agent.id}>
                             {agent.name || agent.role || 'Agent'} · {agent.vendor}
-                          </option>
+                          </Select.Item>
                         ))}
-                      </select>
+                      </Select>
                       <input
                         className="templates-step-role"
                         value={step.role}

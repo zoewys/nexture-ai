@@ -11,6 +11,7 @@
 
 import { useCallback, useEffect, useRef, useState } from 'react'
 import type { AgentDefinition, WorkflowRun } from '@shared/types'
+import { Panel, Group as PanelGroup, Separator as PanelResizeHandle } from 'react-resizable-panels'
 import { CheckCircle, ChevronLeft } from './Icons'
 import { HandoffPanel } from './HandoffPanel'
 import { TranscriptViewer } from './TranscriptViewer'
@@ -60,37 +61,6 @@ export function WorkflowRunDetail({
   onComposerSend
 }: WorkflowRunDetailProps): JSX.Element {
   const [handoffOpen, setHandoffOpen] = useState(true)
-  const [handoffWidth, setHandoffWidth] = useState(340)
-  const resizing = useRef(false)
-  const bodyRef = useRef<HTMLDivElement>(null)
-
-  const onResizeStart = useCallback((e: React.MouseEvent) => {
-    e.preventDefault()
-    resizing.current = true
-    document.body.style.cursor = 'col-resize'
-    document.body.style.userSelect = 'none'
-  }, [])
-
-  useEffect(() => {
-    const onMove = (e: MouseEvent) => {
-      if (!resizing.current || !bodyRef.current) return
-      const rect = bodyRef.current.getBoundingClientRect()
-      const w = rect.right - e.clientX
-      setHandoffWidth(Math.max(240, Math.min(600, w)))
-    }
-    const onUp = () => {
-      if (!resizing.current) return
-      resizing.current = false
-      document.body.style.cursor = ''
-      document.body.style.userSelect = ''
-    }
-    window.addEventListener('mousemove', onMove)
-    window.addEventListener('mouseup', onUp)
-    return () => {
-      window.removeEventListener('mousemove', onMove)
-      window.removeEventListener('mouseup', onUp)
-    }
-  }, [])
 
   if (!run) {
     return (
@@ -162,23 +132,19 @@ export function WorkflowRunDetail({
       )}
 
       {/* ── body: transcript | resize handle | handoff ── */}
-      <div
-        ref={bodyRef}
-        className={[
-          'workflow-detail-body',
-          handoff ? 'workflow-detail-body-with-handoff' : '',
-          handoff && !handoffOpen ? 'workflow-detail-body-handoff-collapsed' : ''
-        ].filter(Boolean).join(' ')}
-        style={handoff && handoffOpen ? { gridTemplateColumns: `minmax(0, 1fr) 6px ${handoffWidth}px` } : undefined}
-      >
-        <TranscriptViewer events={selectedExecution?.events ?? []} />
+      <PanelGroup orientation="horizontal" className="workflow-detail-body">
+        <Panel minSize={30}>
+          <TranscriptViewer events={selectedExecution?.events ?? []} />
+        </Panel>
 
         {handoff && handoffOpen && (
           <>
-            <div className="handoff-resize-handle" onMouseDown={onResizeStart} />
-            <aside className="handoff-dock" aria-label="结构化交接物">
-              <HandoffPanel handoff={handoff} onCollapse={() => setHandoffOpen(false)} />
-            </aside>
+            <PanelResizeHandle className="panel-resize-handle" />
+            <Panel defaultSize={35} minSize={20} maxSize={50}>
+              <aside className="handoff-dock" aria-label="结构化交接物">
+                <HandoffPanel handoff={handoff} onCollapse={() => setHandoffOpen(false)} />
+              </aside>
+            </Panel>
           </>
         )}
 
@@ -195,7 +161,7 @@ export function WorkflowRunDetail({
             </button>
           </aside>
         )}
-      </div>
+      </PanelGroup>
 
       <div className="workflow-cli-composer">
         <div className="workflow-cli-prompt">›</div>
