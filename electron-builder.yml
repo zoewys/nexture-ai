@@ -1,0 +1,31 @@
+appId: com.agentstudio.app
+productName: Agent Studio
+copyright: Copyright © 2026
+
+directories:
+  buildResources: resources
+  output: dist
+
+files:
+  - out/**/*
+  - package.json
+  - resources/**/*
+  - "!resources/icon.svg"
+
+mac:
+  target:
+    - dmg
+  icon: resources/icon.png
+
+win:
+  target:
+    - portable
+    - nsis
+  icon: resources/icon.png
+
+nsis:
+  oneClick: false
+  allowToChangeInstallationDirectory: true
+
+portable:
+  artifactName: ${productName}-${version}-portable.${ext}
