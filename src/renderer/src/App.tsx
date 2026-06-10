@@ -26,6 +26,8 @@ import { SingleRunPanel } from './SingleRunPanel'
 import { ModeRail, type WorkspaceMode } from './ModeRail'
 import { useUiReviewFixture } from './uiReviewFixture'
 import { prepareWorkflowNotificationSound } from './workflowNotificationSound'
+import { useAppSettings } from './useAppSettings'
+import { SettingsPanel } from './SettingsPanel'
 
 type UiReviewWorkflowSurface = 'workflow' | 'new-run'
 
@@ -34,6 +36,7 @@ export function App(): JSX.Element {
   const { agents: savedAgents, save: saveAgent, remove: removeAgent } = useAgents()
   const { models: modelCatalog, loading: modelsLoading } = useCliModels()
   const savedWorkflows = useWorkflows()
+  const appSettings = useAppSettings()
   const uiReview = useUiReviewFixture()
   const agents = uiReview.enabled ? uiReview.agents : savedAgents
   const workflows = uiReview.enabled ? uiReview.workflows : savedWorkflows
@@ -70,6 +73,7 @@ export function App(): JSX.Element {
   const isAgents = mode === 'agents'
   const isWorkflow = mode === 'workflow'
   const isTemplates = mode === 'templates'
+  const isSettings = mode === 'settings'
   const topbarChips = uiReview.enabled
     ? uiReview.topbarChips[mode]
     : buildTopbarChips(
@@ -92,6 +96,8 @@ export function App(): JSX.Element {
           : 'Workflow'
       case 'single':
         return 'Single Agent'
+      case 'settings':
+        return 'Settings'
     }
   }
 
@@ -112,9 +118,9 @@ export function App(): JSX.Element {
       <div
         className={[
           'app-body',
-          isAgents || isTemplates ? 'app-body-agents' : '',
+          isAgents || isTemplates || isSettings ? 'app-body-agents' : '',
           isWorkflow ? 'app-body-workflow' : '',
-          !isAgents && !isTemplates && !isWorkflow && !configOpen ? 'app-body-config-collapsed' : ''
+          !isAgents && !isTemplates && !isWorkflow && !isSettings && !configOpen ? 'app-body-config-collapsed' : ''
         ].filter(Boolean).join(' ')}
       >
         <ModeRail mode={mode} onModeChange={setMode} />
@@ -147,8 +153,17 @@ export function App(): JSX.Element {
               newRunDefaults={uiReview.enabled ? uiReview.newRunDefaults : undefined}
               uiReviewEnabled={uiReview.enabled}
               onUiReviewSurfaceChange={setUiReviewWorkflowSurface}
+              showMemoryReferences={appSettings.settings.showMemoryReferences}
             />
           </main>
+        ) : isSettings ? (
+          <div className="panel settings-page">
+            <SettingsPanel
+              settings={appSettings.settings}
+              loading={appSettings.loading}
+              onSave={appSettings.save}
+            />
+          </div>
         ) : (
           <SingleRunPanel
             agents={agents}
@@ -164,6 +179,7 @@ export function App(): JSX.Element {
             onAbort={run.abort}
             onReset={run.reset}
             onModeAgents={() => setMode('agents')}
+            showMemoryReferences={appSettings.settings.showMemoryReferences}
           />
         )}
       </div>
@@ -189,5 +205,7 @@ function buildTopbarChips(
       return [`${agentCount} agents`, '2 CLIs', 'templates linked']
     case 'single':
       return ['single run', 'follow-up', 'transcript']
+    case 'settings':
+      return []
   }
 }

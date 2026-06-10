@@ -47,6 +47,7 @@ interface SingleRunPanelProps {
   onAbort: () => Promise<void>
   onReset: () => void
   onModeAgents: () => void
+  showMemoryReferences?: boolean
 }
 
 export function SingleRunPanel({
@@ -62,7 +63,8 @@ export function SingleRunPanel({
   onPush,
   onAbort,
   onReset,
-  onModeAgents
+  onModeAgents,
+  showMemoryReferences = false
 }: SingleRunPanelProps): JSX.Element {
   const [vendor, setVendor] = useState<AgentVendor>('claude')
   const [cwd, setCwd] = useState(readLastProjectPath)
@@ -292,11 +294,13 @@ export function SingleRunPanel({
 
       <main className="panel panel-runtime">
         <TranscriptViewer events={state.events} />
-        <MemoryReferences
-          agentId={state.agentId}
-          projectPath={state.projectPath}
-          memoryIds={state.injectedMemoryIds}
-        />
+        {showMemoryReferences && (
+          <MemoryReferences
+            agentId={state.agentId}
+            projectPath={state.projectPath}
+            memoryIds={state.injectedMemoryIds}
+          />
+        )}
 
         {state.events.length > 0 && (
           <div className="interject">

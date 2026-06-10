@@ -5,7 +5,7 @@
  * 控制 App 当前显示哪个工作面板。纯展示组件，无内部状态。
  */
 
-export type WorkspaceMode = 'workflow' | 'templates' | 'agents' | 'single'
+export type WorkspaceMode = 'workflow' | 'templates' | 'agents' | 'single' | 'settings'
 
 interface ModeRailProps {
   mode: WorkspaceMode
@@ -22,6 +22,8 @@ function modeIcon(mode: WorkspaceMode): string {
       return '◎'
     case 'single':
       return '▶'
+    case 'settings':
+      return '⚙'
   }
 }
 
@@ -59,6 +61,17 @@ export function ModeRail({ mode, onModeChange }: ModeRailProps): JSX.Element {
       >
         <span className="mode-icon">{modeIcon('single')}</span>
         <span>Single</span>
+      </button>
+
+      <div className="mode-rail-spacer" />
+
+      <button
+        type="button"
+        className={`mode-item ${mode === 'settings' ? 'mode-item-active' : ''}`}
+        onClick={() => onModeChange('settings')}
+      >
+        <span className="mode-icon">{modeIcon('settings')}</span>
+        <span>Settings</span>
       </button>
     </nav>
   )

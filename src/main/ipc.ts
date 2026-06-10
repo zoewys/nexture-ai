@@ -16,7 +16,8 @@ import {
   type WorkflowTemplate,
   type AgentMemoryMeta,
   type MemoryEntry,
-  type ReflectionEngineConfig
+  type ReflectionEngineConfig,
+  type AppSettings
 } from '@shared/types'
 import { RunManager } from './RunManager'
 import { TranscriptStore } from './TranscriptStore'
@@ -30,6 +31,7 @@ import { MemoryStore } from './memory/MemoryStore'
 import { MemoryInjector } from './memory/MemoryInjector'
 import { ReflectionAgent } from './memory/ReflectionAgent'
 import { SignalCollector } from './memory/SignalCollector'
+import { AppSettingsStore } from './AppSettingsStore'
 
 export interface AppManagers {
   abortAll(): void
@@ -43,6 +45,7 @@ export function registerIpc(getWindow: () => BrowserWindow | null): AppManagers 
   const transcriptStore = new TranscriptStore()
   const agentStore = new AgentStore()
   const workflowStore = new WorkflowStore()
+  const appSettingsStore = new AppSettingsStore()
   const runManager = new RunManager(transcriptStore)
   const memoryStore = new MemoryStore()
   const reflectionAgent = new ReflectionAgent(runManager, memoryStore)
@@ -250,6 +253,14 @@ export function registerIpc(getWindow: () => BrowserWindow | null): AppManagers 
 
   ipcMain.handle(IPC.reflectionConfigSave, (_e, config: ReflectionEngineConfig): void =>
     memoryStore.saveReflectionConfig(config)
+  )
+
+  ipcMain.handle(IPC.appSettingsGet, (): AppSettings =>
+    appSettingsStore.get()
+  )
+
+  ipcMain.handle(IPC.appSettingsSave, (_e, settings: AppSettings): void =>
+    appSettingsStore.save(settings)
   )
 
   return {

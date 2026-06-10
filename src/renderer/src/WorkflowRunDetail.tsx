@@ -38,6 +38,7 @@ export interface WorkflowRunDetailProps {
   composerError: string | null
   onComposerChange: (value: string) => void
   onComposerSend: () => Promise<void>
+  showMemoryReferences?: boolean
 }
 
 interface OpenFile {
@@ -64,7 +65,8 @@ export function WorkflowRunDetail({
   composerPlaceholder,
   composerError,
   onComposerChange,
-  onComposerSend
+  onComposerSend,
+  showMemoryReferences = false
 }: WorkflowRunDetailProps): JSX.Element {
   const [openFiles, setOpenFiles] = useState<OpenFile[]>([])
   const [activeFile, setActiveFile] = useState<string | null>(null)
@@ -265,11 +267,13 @@ export function WorkflowRunDetail({
             </div>
           )}
 
-          <MemoryReferences
-            agentId={selectedExecution?.agentId}
-            projectPath={run.projectPath}
-            memoryIds={selectedExecution?.injectedMemoryIds}
-          />
+          {showMemoryReferences && (
+            <MemoryReferences
+              agentId={selectedExecution?.agentId}
+              projectPath={run.projectPath}
+              memoryIds={selectedExecution?.injectedMemoryIds}
+            />
+          )}
         </div>
 
         {/* composer */}

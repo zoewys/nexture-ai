@@ -345,6 +345,16 @@ export const DEFAULT_REFLECTION_CONFIG: ReflectionEngineConfig = {
   enabled: true
 }
 
+// ── App Settings ─────────────────────────────────────────────────────────────
+
+export interface AppSettings {
+  showMemoryReferences: boolean
+}
+
+export const DEFAULT_APP_SETTINGS: AppSettings = {
+  showMemoryReferences: false
+}
+
 // ── IPC channel names + payloads ─────────────────────────────────────────────
 // Single source of truth so main/preload/renderer never drift on strings.
 
@@ -410,7 +420,11 @@ export const IPC = {
   /** renderer → main: get reflection engine config. */
   reflectionConfigGet: 'reflection:config:get',
   /** renderer → main: save reflection engine config. */
-  reflectionConfigSave: 'reflection:config:save'
+  reflectionConfigSave: 'reflection:config:save',
+  /** renderer → main: get app settings. */
+  appSettingsGet: 'app:settings:get',
+  /** renderer → main: save app settings. */
+  appSettingsSave: 'app:settings:save'
 } as const
 
 export interface RunStartResult {

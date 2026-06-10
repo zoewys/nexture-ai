@@ -15,7 +15,8 @@ import {
   type WorkflowTemplate,
   type AgentMemoryMeta,
   type MemoryEntry,
-  type ReflectionEngineConfig
+  type ReflectionEngineConfig,
+  type AppSettings
 } from '@shared/types'
 
 /**
@@ -92,6 +93,12 @@ const api = {
 
   reflectionConfigSave: (config: ReflectionEngineConfig): Promise<void> =>
     ipcRenderer.invoke(IPC.reflectionConfigSave, config),
+
+  appSettingsGet: (): Promise<AppSettings> =>
+    ipcRenderer.invoke(IPC.appSettingsGet),
+
+  appSettingsSave: (settings: AppSettings): Promise<void> =>
+    ipcRenderer.invoke(IPC.appSettingsSave, settings),
 
   pickDir: (): Promise<string | null> => ipcRenderer.invoke(IPC.pickDir),
 

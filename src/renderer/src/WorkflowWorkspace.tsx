@@ -31,6 +31,7 @@ interface WorkflowWorkspaceProps {
   newRunDefaults?: NewWorkflowRunDefaults
   uiReviewEnabled?: boolean
   onUiReviewSurfaceChange?: (surface: 'workflow' | 'new-run') => void
+  showMemoryReferences?: boolean
 }
 
 export function WorkflowWorkspace({
@@ -38,7 +39,8 @@ export function WorkflowWorkspace({
   workflows,
   newRunDefaults,
   uiReviewEnabled = false,
-  onUiReviewSurfaceChange
+  onUiReviewSurfaceChange,
+  showMemoryReferences = false
 }: WorkflowWorkspaceProps): JSX.Element {
   const [newRunDrawerOpen, setNewRunDrawerOpen] = useState(false)
   const [soundEnabled] = useState(readWorkflowNotificationSoundEnabled)
@@ -153,6 +155,7 @@ export function WorkflowWorkspace({
         }}
         onComposerSend={sendWorkflowInput}
         onUpdatePrompt={workflows.updatePrompt}
+        showMemoryReferences={showMemoryReferences}
       />
       {newRunDrawerOpen && (
         <NewWorkflowRunDrawer
