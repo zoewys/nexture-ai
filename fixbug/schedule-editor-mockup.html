@@ -1,0 +1,213 @@
+<!DOCTYPE html>
+<html lang="zh">
+<head>
+<meta charset="UTF-8">
+<title>New Schedule — 编辑表单方案对比</title>
+<style>
+* { margin: 0; padding: 0; box-sizing: border-box; }
+body { font-family: -apple-system, BlinkMacSystemFont, 'SF Pro', system-ui, sans-serif; background: #0d1117; color: #c9d1d9; min-height: 100vh; padding: 24px; }
+h1 { font-size: 18px; color: #fff; margin-bottom: 24px; }
+h2 { font-size: 14px; color: #8b949e; margin-bottom: 12px; font-weight: 500; }
+.options { display: flex; gap: 32px; flex-wrap: wrap; margin-bottom: 40px; }
+.option { flex: 1; min-width: 500px; border: 1px solid #30363d; border-radius: 12px; overflow: hidden; }
+.option-label { background: #161b22; padding: 10px 16px; font-size: 13px; font-weight: 600; color: #58a6ff; border-bottom: 1px solid #30363d; }
+
+/* Layout */
+.mock-layout { display: flex; height: 420px; }
+.mock-rail { width: 60px; background: #161b22; border-right: 1px solid #30363d; display: flex; flex-direction: column; align-items: center; gap: 8px; padding: 10px 0; }
+.mock-rail-btn { width: 40px; height: 40px; border-radius: 8px; display: grid; place-items: center; font-size: 10px; color: #8b949e; border: none; background: transparent; }
+.mock-rail-btn.active { background: #21262d; color: #58a6ff; }
+.mock-sidebar { width: 220px; border-right: 1px solid #30363d; display: flex; flex-direction: column; }
+.mock-main { flex: 1; overflow-y: auto; }
+
+/* Tabs */
+.mock-tabs { display: flex; border-bottom: 1px solid #30363d; }
+.mock-tab { padding: 8px 16px; font-size: 12px; color: #8b949e; cursor: pointer; border-bottom: 2px solid transparent; }
+.mock-tab.active { color: #58a6ff; border-bottom-color: #58a6ff; }
+
+/* Schedule list */
+.sched-item { padding: 10px 12px; border-bottom: 1px solid #30363d; cursor: pointer; }
+.sched-item.active { background: #21262d; border-left: 2px solid #58a6ff; }
+.sched-item .name { font-size: 12px; color: #c9d1d9; font-weight: 500; }
+.sched-item .detail { font-size: 10px; color: #8b949e; margin-top: 2px; }
+.sched-item.new-active { background: #1a2332; border-left: 2px solid #f0883e; }
+
+/* Form */
+.form { padding: 20px 24px; }
+.form-title { font-size: 15px; color: #fff; font-weight: 600; margin-bottom: 16px; }
+.field { margin-bottom: 14px; }
+.field label { display: block; font-size: 11px; color: #8b949e; margin-bottom: 4px; font-weight: 500; }
+.field input, .field select, .field textarea { width: 100%; background: #0d1117; border: 1px solid #30363d; border-radius: 6px; padding: 8px 10px; font-size: 12px; color: #c9d1d9; font-family: inherit; }
+.field textarea { resize: vertical; min-height: 60px; }
+.field input:focus, .field textarea:focus { outline: none; border-color: #58a6ff; }
+.field .hint { font-size: 10px; color: #8b949e; margin-top: 4px; }
+.field .hint.valid { color: #3fb950; }
+.field .cron-input { font-family: 'SF Mono', monospace; }
+.form-actions { display: flex; gap: 8px; margin-top: 20px; }
+.btn-primary { background: #238636; color: #fff; border: none; padding: 8px 16px; border-radius: 6px; font-size: 12px; cursor: pointer; font-weight: 500; }
+.btn-cancel { background: transparent; border: 1px solid #30363d; color: #c9d1d9; padding: 8px 16px; border-radius: 6px; font-size: 12px; cursor: pointer; }
+.btn-bottom { padding: 8px 12px; border-top: 1px solid #30363d; }
+.btn-new { width: 100%; background: #238636; color: #fff; border: none; padding: 6px 12px; border-radius: 6px; font-size: 11px; cursor: pointer; }
+
+/* Drawer */
+.drawer-overlay { position: absolute; inset: 0; background: rgba(0,0,0,0.4); }
+.drawer { position: absolute; top: 0; right: 0; bottom: 0; width: 380px; background: #161b22; border-left: 1px solid #30363d; padding: 20px; overflow-y: auto; box-shadow: -4px 0 20px rgba(0,0,0,0.5); }
+</style>
+</head>
+<body>
+
+<h1>New Schedule — 编辑表单方案</h1>
+
+<div class="options">
+
+<!-- 方案 1: 主内容区编辑 -->
+<div class="option">
+<div class="option-label">方案 1：右侧主内容区编辑（点击 + New Schedule 后直接在右侧填表单）</div>
+<div class="mock-layout">
+  <div class="mock-rail">
+    <div class="mock-rail-btn active">⌘</div>
+  </div>
+  <div class="mock-sidebar">
+    <div class="mock-tabs">
+      <div class="mock-tab">Runs</div>
+      <div class="mock-tab active">Schedules</div>
+    </div>
+    <div style="flex:1; overflow-y:auto;">
+      <div class="sched-item">
+        <div class="name">每日回归测试</div>
+        <div class="detail">0 9 * * 1-5 · 启用</div>
+      </div>
+      <div class="sched-item">
+        <div class="name">周报审查</div>
+        <div class="detail">0 18 * * 5 · 启用</div>
+      </div>
+      <div class="sched-item new-active">
+        <div class="name" style="color:#f0883e;">+ 新建计划...</div>
+      </div>
+    </div>
+    <div class="btn-bottom">
+      <button class="btn-new">+ New Schedule</button>
+    </div>
+  </div>
+  <div class="mock-main">
+    <div class="form">
+      <div class="form-title">新建定时计划</div>
+      <div class="field">
+        <label>计划名称</label>
+        <input type="text" placeholder="如：每日回归测试" value="Nightly 构建验证">
+      </div>
+      <div class="field">
+        <label>Workflow 模板</label>
+        <select>
+          <option>需求→开发→测试</option>
+          <option selected>构建→测试→部署</option>
+        </select>
+      </div>
+      <div class="field">
+        <label>项目目录</label>
+        <div style="display:flex; gap:6px;">
+          <input type="text" value="~/projects/my-app" style="flex:1;">
+          <button style="background:#21262d; border:1px solid #30363d; color:#c9d1d9; border-radius:6px; padding:0 10px; font-size:11px; cursor:pointer;">选择</button>
+        </div>
+      </div>
+      <div class="field">
+        <label>Cron 表达式</label>
+        <input type="text" class="cron-input" placeholder="分 时 日 月 周" value="0 2 * * *">
+        <div class="hint valid">✓ 下次触发：明天 02:00:00（每天凌晨 2 点）</div>
+      </div>
+      <div class="field">
+        <label>初始 Prompt</label>
+        <textarea placeholder="每次触发时传给 workflow 的任务描述...">运行完整的构建和测试流程，确保所有测试通过。如果有失败，输出失败原因和建议修复方案。</textarea>
+      </div>
+      <div class="form-actions">
+        <button class="btn-primary">保存计划</button>
+        <button class="btn-cancel">取消</button>
+      </div>
+    </div>
+  </div>
+</div>
+</div>
+
+</div>
+
+<div class="options">
+
+<!-- 方案 2: Drawer 弹出 -->
+<div class="option">
+<div class="option-label">方案 2：右侧 Drawer 弹出（类似现有 New Run 的交互）</div>
+<div class="mock-layout" style="position:relative;">
+  <div class="mock-rail">
+    <div class="mock-rail-btn active">⌘</div>
+  </div>
+  <div class="mock-sidebar">
+    <div class="mock-tabs">
+      <div class="mock-tab">Runs</div>
+      <div class="mock-tab active">Schedules</div>
+    </div>
+    <div style="flex:1; overflow-y:auto;">
+      <div class="sched-item">
+        <div class="name">每日回归测试</div>
+        <div class="detail">0 9 * * 1-5 · 启用</div>
+      </div>
+      <div class="sched-item">
+        <div class="name">周报审查</div>
+        <div class="detail">0 18 * * 5 · 启用</div>
+      </div>
+    </div>
+    <div class="btn-bottom">
+      <button class="btn-new">+ New Schedule</button>
+    </div>
+  </div>
+  <div class="mock-main" style="position:relative; background:#1b1e25;">
+    <div style="color:#8b949e; font-size:12px; text-align:center; padding-top:80px; opacity:0.3;">Schedule 详情</div>
+    <!-- Drawer overlay -->
+    <div class="drawer-overlay"></div>
+    <div class="drawer">
+      <div class="form-title">新建定时计划</div>
+      <div class="field">
+        <label>计划名称</label>
+        <input type="text" placeholder="如：每日回归测试" value="">
+      </div>
+      <div class="field">
+        <label>Workflow 模板</label>
+        <select>
+          <option value="">选择模板...</option>
+          <option>需求→开发→测试</option>
+          <option>构建→测试→部署</option>
+        </select>
+      </div>
+      <div class="field">
+        <label>项目目录</label>
+        <div style="display:flex; gap:6px;">
+          <input type="text" placeholder="~/path/to/project" style="flex:1;">
+          <button style="background:#21262d; border:1px solid #30363d; color:#c9d1d9; border-radius:6px; padding:0 10px; font-size:11px; cursor:pointer;">选择</button>
+        </div>
+      </div>
+      <div class="field">
+        <label>Cron 表达式</label>
+        <input type="text" class="cron-input" placeholder="分 时 日 月 周" value="">
+        <div class="hint">格式：分 时 日 月 周。例：0 9 * * 1-5 = 工作日 9:00</div>
+      </div>
+      <div class="field">
+        <label>初始 Prompt</label>
+        <textarea placeholder="每次触发时传给 workflow 的任务描述..."></textarea>
+      </div>
+      <div class="form-actions">
+        <button class="btn-primary">创建</button>
+        <button class="btn-cancel">取消</button>
+      </div>
+    </div>
+  </div>
+</div>
+</div>
+
+</div>
+
+<div style="margin-top:32px; font-size:13px; color:#c9d1d9; line-height:1.8;">
+  <h2>对比</h2>
+  <p><strong>方案 1（主内容区编辑）</strong>：和查看 schedule 详情共用同一区域，新建/编辑/查看是统一的，不遮挡。适合 schedule 数量多、需要频繁编辑的场景。</p>
+  <p style="margin-top:8px;"><strong>方案 2（Drawer 弹出）</strong>：和现有 New Run 交互一致，用户已经习惯。但 drawer 遮挡了背景内容。</p>
+</div>
+
+</body>
+</html>

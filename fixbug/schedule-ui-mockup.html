@@ -1,0 +1,370 @@
+<!DOCTYPE html>
+<html lang="zh">
+<head>
+<meta charset="UTF-8">
+<title>Scheduled Workflow — UI 方案对比</title>
+<style>
+* { margin: 0; padding: 0; box-sizing: border-box; }
+body { font-family: -apple-system, BlinkMacSystemFont, 'SF Pro', system-ui, sans-serif; background: #0d1117; color: #c9d1d9; min-height: 100vh; padding: 24px; }
+h1 { font-size: 18px; color: #fff; margin-bottom: 24px; }
+h2 { font-size: 14px; color: #8b949e; margin-bottom: 12px; font-weight: 500; }
+.options { display: flex; gap: 32px; flex-wrap: wrap; }
+.option { flex: 1; min-width: 400px; border: 1px solid #30363d; border-radius: 12px; overflow: hidden; }
+.option-label { background: #161b22; padding: 10px 16px; font-size: 13px; font-weight: 600; color: #58a6ff; border-bottom: 1px solid #30363d; }
+.mockup { background: #1b1e25; padding: 0; }
+
+/* 共用元素 */
+.mock-header { background: #161b22; padding: 8px 16px; border-bottom: 1px solid #30363d; display: flex; align-items: center; gap: 12px; }
+.mock-header h3 { font-size: 14px; color: #fff; font-weight: 600; }
+.mock-header .subtitle { font-size: 12px; color: #8b949e; }
+
+/* ModeRail */
+.mock-rail { width: 60px; background: #161b22; border-right: 1px solid #30363d; display: flex; flex-direction: column; align-items: center; gap: 8px; padding: 10px 0; }
+.mock-rail-btn { width: 40px; height: 40px; border-radius: 8px; display: grid; place-items: center; font-size: 10px; color: #8b949e; cursor: pointer; border: none; background: transparent; }
+.mock-rail-btn.active { background: #21262d; color: #58a6ff; }
+
+/* Layout */
+.mock-layout { display: flex; height: 360px; }
+.mock-sidebar { width: 220px; border-right: 1px solid #30363d; display: flex; flex-direction: column; }
+.mock-main { flex: 1; padding: 16px; overflow-y: auto; }
+
+/* Tabs */
+.mock-tabs { display: flex; border-bottom: 1px solid #30363d; }
+.mock-tab { padding: 8px 16px; font-size: 12px; color: #8b949e; cursor: pointer; border-bottom: 2px solid transparent; }
+.mock-tab.active { color: #58a6ff; border-bottom-color: #58a6ff; }
+
+/* Run cards */
+.mock-card { background: #21262d; border: 1px solid #30363d; border-radius: 8px; padding: 10px 12px; margin-bottom: 8px; }
+.mock-card-title { font-size: 12px; color: #c9d1d9; font-weight: 500; }
+.mock-card-meta { font-size: 11px; color: #8b949e; margin-top: 4px; }
+.mock-card-status { display: inline-block; padding: 2px 6px; border-radius: 4px; font-size: 10px; font-weight: 500; }
+.status-running { background: #1f3d2a; color: #3fb950; }
+.status-scheduled { background: #2d1f1f; color: #f0883e; }
+.status-done { background: #1f2d3d; color: #58a6ff; }
+
+/* Schedule items */
+.sched-item { background: #21262d; border: 1px solid #30363d; border-radius: 8px; padding: 12px; margin-bottom: 8px; display: flex; align-items: center; gap: 12px; }
+.sched-info { flex: 1; }
+.sched-name { font-size: 12px; color: #c9d1d9; font-weight: 500; }
+.sched-detail { font-size: 11px; color: #8b949e; margin-top: 2px; }
+.sched-toggle { width: 32px; height: 18px; border-radius: 9px; background: #30363d; position: relative; cursor: pointer; }
+.sched-toggle.on { background: #238636; }
+.sched-toggle::after { content: ''; position: absolute; top: 2px; left: 2px; width: 14px; height: 14px; border-radius: 50%; background: #fff; transition: left .15s; }
+.sched-toggle.on::after { left: 16px; }
+.sched-cron { font-family: 'SF Mono', monospace; font-size: 11px; color: #f0883e; background: #2d1f1f; padding: 2px 6px; border-radius: 4px; }
+
+/* Buttons */
+.mock-btn { background: #238636; color: #fff; border: none; padding: 6px 12px; border-radius: 6px; font-size: 11px; cursor: pointer; }
+.mock-btn-outline { background: transparent; border: 1px solid #30363d; color: #c9d1d9; padding: 6px 12px; border-radius: 6px; font-size: 11px; cursor: pointer; }
+
+/* Section divider */
+.section-divider { margin: 40px 0 24px; border-top: 1px solid #30363d; padding-top: 16px; }
+
+/* 方案 B 折叠 */
+.collapse-header { display: flex; align-items: center; gap: 8px; padding: 8px 12px; background: #161b22; border-bottom: 1px solid #30363d; cursor: pointer; font-size: 12px; color: #8b949e; }
+.collapse-header .chevron { font-size: 10px; }
+.collapse-body { padding: 8px 12px; }
+</style>
+</head>
+<body>
+
+<h1>Scheduled Workflow — UI 方案对比</h1>
+
+<div class="options">
+
+<!-- 方案 A: Tab 切换 -->
+<div class="option">
+<div class="option-label">方案 A：Tab 切换（Runs / Schedules 平级）</div>
+<div class="mockup">
+  <div class="mock-layout">
+    <div class="mock-rail">
+      <div class="mock-rail-btn active">⌘<br><span style="font-size:9px">Work</span></div>
+      <div class="mock-rail-btn">▦<br><span style="font-size:9px">Tmpl</span></div>
+      <div class="mock-rail-btn">◎<br><span style="font-size:9px">Agent</span></div>
+      <div class="mock-rail-btn">▶<br><span style="font-size:9px">Single</span></div>
+    </div>
+    <div class="mock-sidebar">
+      <div class="mock-tabs">
+        <div class="mock-tab active">Runs</div>
+        <div class="mock-tab">Schedules</div>
+      </div>
+      <div style="padding: 8px; flex:1; overflow-y:auto;">
+        <div class="mock-card">
+          <div style="display:flex; justify-content:space-between; align-items:center;">
+            <span class="mock-card-title">Todo App 全流程</span>
+            <span class="mock-card-status status-running">running</span>
+          </div>
+          <div class="mock-card-meta">3 步 · 2/3 完成 · 5 min ago</div>
+        </div>
+        <div class="mock-card">
+          <div style="display:flex; justify-content:space-between; align-items:center;">
+            <span class="mock-card-title">[scheduled] 每日回归测试</span>
+            <span class="mock-card-status status-done">done</span>
+          </div>
+          <div class="mock-card-meta">3 步 · 今天 09:00 · 自动</div>
+        </div>
+        <div class="mock-card">
+          <div style="display:flex; justify-content:space-between; align-items:center;">
+            <span class="mock-card-title">API 重构</span>
+            <span class="mock-card-status status-done">done</span>
+          </div>
+          <div class="mock-card-meta">4 步 · 昨天 14:32</div>
+        </div>
+      </div>
+      <div style="padding: 8px; border-top: 1px solid #30363d;">
+        <button class="mock-btn" style="width:100%;">+ New Run</button>
+      </div>
+    </div>
+    <div class="mock-main">
+      <div style="color:#8b949e; font-size:12px; text-align:center; padding-top:100px;">← 选择一个 Run 查看详情</div>
+    </div>
+  </div>
+</div>
+</div>
+
+<!-- 方案 A: Schedules tab 展开 -->
+<div class="option">
+<div class="option-label">方案 A（切到 Schedules tab 后）</div>
+<div class="mockup">
+  <div class="mock-layout">
+    <div class="mock-rail">
+      <div class="mock-rail-btn active">⌘<br><span style="font-size:9px">Work</span></div>
+      <div class="mock-rail-btn">▦<br><span style="font-size:9px">Tmpl</span></div>
+      <div class="mock-rail-btn">◎<br><span style="font-size:9px">Agent</span></div>
+      <div class="mock-rail-btn">▶<br><span style="font-size:9px">Single</span></div>
+    </div>
+    <div class="mock-sidebar">
+      <div class="mock-tabs">
+        <div class="mock-tab">Runs</div>
+        <div class="mock-tab active">Schedules</div>
+      </div>
+      <div style="padding: 8px; flex:1; overflow-y:auto;">
+        <div class="sched-item">
+          <div class="sched-info">
+            <div class="sched-name">每日回归测试</div>
+            <div class="sched-detail">
+              <span class="sched-cron">0 9 * * 1-5</span>
+              · 下次：明天 09:00
+            </div>
+          </div>
+          <div class="sched-toggle on"></div>
+        </div>
+        <div class="sched-item">
+          <div class="sched-info">
+            <div class="sched-name">周报代码审查</div>
+            <div class="sched-detail">
+              <span class="sched-cron">0 18 * * 5</span>
+              · 下次：周五 18:00
+            </div>
+          </div>
+          <div class="sched-toggle on"></div>
+        </div>
+        <div class="sched-item">
+          <div class="sched-info">
+            <div class="sched-name">Nightly Build 验证</div>
+            <div class="sched-detail">
+              <span class="sched-cron">0 2 * * *</span>
+              · 已禁用
+            </div>
+          </div>
+          <div class="sched-toggle"></div>
+        </div>
+      </div>
+      <div style="padding: 8px; border-top: 1px solid #30363d;">
+        <button class="mock-btn" style="width:100%;">+ New Schedule</button>
+      </div>
+    </div>
+    <div class="mock-main">
+      <div style="padding: 0;">
+        <div style="border-bottom: 1px solid #30363d; padding: 16px;">
+          <h3 style="font-size:14px; color:#fff; margin-bottom:8px;">每日回归测试</h3>
+          <div style="display: flex; gap: 16px; flex-wrap:wrap;">
+            <div style="font-size:11px; color:#8b949e;">
+              <div style="margin-bottom:4px; color:#58a6ff;">模板</div>
+              需求→开发→测试
+            </div>
+            <div style="font-size:11px; color:#8b949e;">
+              <div style="margin-bottom:4px; color:#58a6ff;">项目</div>
+              ~/projects/my-app
+            </div>
+            <div style="font-size:11px; color:#8b949e;">
+              <div style="margin-bottom:4px; color:#58a6ff;">Cron</div>
+              <span class="sched-cron">0 9 * * 1-5</span>
+            </div>
+            <div style="font-size:11px; color:#8b949e;">
+              <div style="margin-bottom:4px; color:#58a6ff;">上次触发</div>
+              今天 09:00 · <span style="color:#3fb950">成功</span>
+            </div>
+          </div>
+        </div>
+        <div style="padding: 16px;">
+          <div style="font-size:12px; color:#8b949e; margin-bottom:8px;">最近运行记录</div>
+          <div class="mock-card">
+            <div style="display:flex; justify-content:space-between; align-items:center;">
+              <span class="mock-card-title">06-10 09:00</span>
+              <span class="mock-card-status status-done">done</span>
+            </div>
+            <div class="mock-card-meta">3 步全部完成 · 耗时 4m32s · $0.12</div>
+          </div>
+          <div class="mock-card">
+            <div style="display:flex; justify-content:space-between; align-items:center;">
+              <span class="mock-card-title">06-09 09:00</span>
+              <span class="mock-card-status status-done">done</span>
+            </div>
+            <div class="mock-card-meta">3 步全部完成 · 耗时 5m10s · $0.14</div>
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+</div>
+</div>
+
+</div>
+
+<div class="section-divider"></div>
+
+<div class="options">
+
+<!-- 方案 B: 折叠面板 -->
+<div class="option">
+<div class="option-label">方案 B：折叠面板（Schedules 在 Run 列表上方）</div>
+<div class="mockup">
+  <div class="mock-layout">
+    <div class="mock-rail">
+      <div class="mock-rail-btn active">⌘<br><span style="font-size:9px">Work</span></div>
+      <div class="mock-rail-btn">▦<br><span style="font-size:9px">Tmpl</span></div>
+      <div class="mock-rail-btn">◎<br><span style="font-size:9px">Agent</span></div>
+      <div class="mock-rail-btn">▶<br><span style="font-size:9px">Single</span></div>
+    </div>
+    <div class="mock-sidebar">
+      <div class="collapse-header">
+        <span class="chevron">▾</span>
+        <span>Schedules (2 active)</span>
+        <button class="mock-btn" style="margin-left:auto; padding:3px 8px; font-size:10px;">+ Add</button>
+      </div>
+      <div class="collapse-body">
+        <div class="sched-item" style="padding:8px; margin-bottom:4px;">
+          <div class="sched-info">
+            <div class="sched-name" style="font-size:11px;">每日回归测试</div>
+            <div class="sched-detail" style="font-size:10px;">下次 09:00</div>
+          </div>
+          <div class="sched-toggle on" style="width:28px; height:16px;"></div>
+        </div>
+        <div class="sched-item" style="padding:8px; margin-bottom:4px;">
+          <div class="sched-info">
+            <div class="sched-name" style="font-size:11px;">周报审查</div>
+            <div class="sched-detail" style="font-size:10px;">下次 周五 18:00</div>
+          </div>
+          <div class="sched-toggle on" style="width:28px; height:16px;"></div>
+        </div>
+      </div>
+      <div style="border-top:1px solid #30363d; padding:4px 0; margin: 0 8px;"></div>
+      <div style="padding: 8px; flex:1; overflow-y:auto;">
+        <div class="mock-card">
+          <div style="display:flex; justify-content:space-between; align-items:center;">
+            <span class="mock-card-title">Todo App 全流程</span>
+            <span class="mock-card-status status-running">running</span>
+          </div>
+          <div class="mock-card-meta">3 步 · 2/3 · 5 min ago</div>
+        </div>
+        <div class="mock-card">
+          <div style="display:flex; justify-content:space-between; align-items:center;">
+            <span class="mock-card-title">[sched] 每日回归测试</span>
+            <span class="mock-card-status status-done">done</span>
+          </div>
+          <div class="mock-card-meta">09:00 · 自动 · $0.12</div>
+        </div>
+      </div>
+      <div style="padding: 8px; border-top: 1px solid #30363d;">
+        <button class="mock-btn" style="width:100%;">+ New Run</button>
+      </div>
+    </div>
+    <div class="mock-main">
+      <div style="color:#8b949e; font-size:12px; text-align:center; padding-top:100px;">← 选择一个 Run 查看详情</div>
+    </div>
+  </div>
+</div>
+</div>
+
+<!-- 方案 C: 独立按钮 + Drawer -->
+<div class="option">
+<div class="option-label">方案 C：独立按钮 + Drawer（点击打开右侧面板）</div>
+<div class="mockup">
+  <div class="mock-layout">
+    <div class="mock-rail">
+      <div class="mock-rail-btn active">⌘<br><span style="font-size:9px">Work</span></div>
+      <div class="mock-rail-btn">▦<br><span style="font-size:9px">Tmpl</span></div>
+      <div class="mock-rail-btn">◎<br><span style="font-size:9px">Agent</span></div>
+      <div class="mock-rail-btn">▶<br><span style="font-size:9px">Single</span></div>
+    </div>
+    <div class="mock-sidebar">
+      <div style="padding: 8px; flex:1; overflow-y:auto;">
+        <div class="mock-card">
+          <div style="display:flex; justify-content:space-between; align-items:center;">
+            <span class="mock-card-title">Todo App 全流程</span>
+            <span class="mock-card-status status-running">running</span>
+          </div>
+          <div class="mock-card-meta">3 步 · 2/3 · 5 min ago</div>
+        </div>
+        <div class="mock-card">
+          <div style="display:flex; justify-content:space-between; align-items:center;">
+            <span class="mock-card-title">[sched] 每日回归测试</span>
+            <span class="mock-card-status status-done">done</span>
+          </div>
+          <div class="mock-card-meta">09:00 · 自动 · $0.12</div>
+        </div>
+      </div>
+      <div style="padding: 8px; border-top: 1px solid #30363d; display:flex; gap:6px;">
+        <button class="mock-btn" style="flex:1;">+ New Run</button>
+        <button class="mock-btn-outline" style="flex:0; white-space:nowrap;">⏱ Schedules</button>
+      </div>
+    </div>
+    <div class="mock-main" style="display:flex;">
+      <div style="flex:1; display:flex; align-items:center; justify-content:center;">
+        <div style="color:#8b949e; font-size:12px;">← 选择一个 Run</div>
+      </div>
+      <div style="width: 280px; border-left: 1px solid #30363d; background:#161b22; padding:12px; overflow-y:auto;">
+        <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:12px;">
+          <span style="font-size:13px; font-weight:600; color:#fff;">Schedules</span>
+          <button class="mock-btn" style="padding:3px 8px; font-size:10px;">+ Add</button>
+        </div>
+        <div class="sched-item">
+          <div class="sched-info">
+            <div class="sched-name">每日回归测试</div>
+            <div class="sched-detail"><span class="sched-cron">0 9 * * 1-5</span></div>
+          </div>
+          <div class="sched-toggle on"></div>
+        </div>
+        <div class="sched-item">
+          <div class="sched-info">
+            <div class="sched-name">周报审查</div>
+            <div class="sched-detail"><span class="sched-cron">0 18 * * 5</span></div>
+          </div>
+          <div class="sched-toggle on"></div>
+        </div>
+        <div class="sched-item">
+          <div class="sched-info">
+            <div class="sched-name">Nightly Build</div>
+            <div class="sched-detail"><span class="sched-cron">0 2 * * *</span> · 已禁用</div>
+          </div>
+          <div class="sched-toggle"></div>
+        </div>
+      </div>
+    </div>
+  </div>
+</div>
+</div>
+
+</div>
+
+<div class="section-divider"></div>
+<h2>总结</h2>
+<div style="font-size:13px; color:#c9d1d9; line-height:1.8;">
+  <p><strong>方案 A（Tab 切换）</strong>：最干净，Runs 和 Schedules 完全分开。Schedule 详情页可以展示历史触发记录。但切 tab 后看不到 runs。</p>
+  <p style="margin-top:8px;"><strong>方案 B（折叠面板）</strong>：Schedules 和 Runs 在同一视图，一览无余。但左侧栏会比较拥挤。</p>
+  <p style="margin-top:8px;"><strong>方案 C（Drawer）</strong>：最不侵入现有布局，Schedules 按需打开。但右侧 drawer 会占用 run 详情空间。</p>
+</div>
+
+</body>
+</html>
