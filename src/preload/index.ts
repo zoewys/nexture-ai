@@ -5,6 +5,7 @@ import {
   type RunStartResult,
   type RunEventEnvelope,
   type CliCheckResult,
+  type CliVersionResult,
   type AgentDefinition,
   type ModelCatalog,
   type WorkflowEventEnvelope,
@@ -34,8 +35,16 @@ const api = {
 
   checkClis: (): Promise<CliCheckResult> => ipcRenderer.invoke(IPC.checkClis),
 
+  getCliVersions: (): Promise<CliVersionResult> => ipcRenderer.invoke(IPC.cliVersions),
+
   installCli: (cli: 'claude' | 'codex'): Promise<{ ok: boolean; message: string }> =>
     ipcRenderer.invoke(IPC.cliInstall, cli),
+
+  onCliInstallProgress: (cb: (cli: 'claude' | 'codex', message: string) => void): (() => void) => {
+    const handler = (_e: Electron.IpcRendererEvent, cli: 'claude' | 'codex', message: string) => cb(cli, message)
+    ipcRenderer.on(IPC.cliInstallProgress, handler)
+    return () => ipcRenderer.removeListener(IPC.cliInstallProgress, handler)
+  },
 
   listModels: (): Promise<ModelCatalog> => ipcRenderer.invoke(IPC.listModels),
 
@@ -73,6 +82,9 @@ const api = {
 
   readFile: (absPath: string): Promise<string> =>
     ipcRenderer.invoke(IPC.fileRead, absPath),
+
+  pickFiles: (): Promise<string[] | null> =>
+    ipcRenderer.invoke(IPC.pickFiles),
 
   pushWorkflowInput: (runId: string, stepIndex: number, text: string) =>
     ipcRenderer.invoke(IPC.workflowPush, runId, stepIndex, text),

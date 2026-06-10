@@ -11,7 +11,7 @@
 
 import type { WorkflowRun } from '@shared/types'
 import { formatHandoffDisplay } from './handoffDisplay'
-import { ChevronRight, ClipboardCheck } from './Icons'
+import { ChevronRight, ClipboardCheck } from 'lucide-react'
 
 interface HandoffPanelProps {
   handoff: NonNullable<WorkflowRun['steps'][number]['executions'][number]['handoff']>

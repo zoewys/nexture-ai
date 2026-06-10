@@ -37,62 +37,31 @@ function run(
 }
 
 /** Install Claude Code globally via npm. */
-export async function installClaudeCode(): Promise<InstallResult> {
+export async function installClaudeCode(onProgress?: (msg: string) => void): Promise<InstallResult> {
+  onProgress?.('正在通过 npm 安装 Claude Code…')
   const result = await run('npm', ['install', '-g', '@anthropic-ai/claude-code'], 180_000)
   if (result.code === 0) {
+    onProgress?.('Claude Code 安装完成')
     return { ok: true, message: 'Claude Code installed successfully.' }
   }
+  onProgress?.(`安装失败: ${result.stderr.slice(-100) || 'unknown error'}`)
   return {
     ok: false,
     message: `Install failed (exit ${result.code}): ${result.stderr.slice(-300) || result.stdout.slice(-300) || 'unknown error'}`
   }
 }
 
-/** Install Codex CLI via the official curl installer. */
-export async function installCodexCli(): Promise<InstallResult> {
-  // codex's recommended install: curl -fsSL https://… | sh
-  const pipe = spawn('sh', [], {
-    env: withCliPath(),
-    stdio: ['pipe', 'pipe', 'pipe']
-  })
-  let stdout = ''
-  let stderr = ''
-  pipe.stdout.setEncoding('utf8')
-  pipe.stdout.on('data', (chunk: string) => { stdout += chunk })
-  pipe.stderr.setEncoding('utf8')
-  pipe.stderr.on('data', (chunk: string) => { stderr += chunk })
-
-  return new Promise((resolve) => {
-    const timer = setTimeout(() => {
-      try { pipe.kill('SIGKILL') } catch { /* noop */ }
-      resolve({ ok: false, message: 'Install timed out after 3 minutes.' })
-    }, 180_000)
-    timer.unref?.()
-
-    // Fetch the install script and pipe it to sh.
-    const curl = spawn('curl', ['-fsSL', 'https://codex.openai.com/install.sh'], {
-      env: withCliPath(),
-      stdio: ['pipe', pipe.stdin, 'ignore']
-    })
-    curl.on('error', (err) => {
-      clearTimeout(timer)
-      resolve({ ok: false, message: `Failed to fetch install script: ${err.message}` })
-    })
-
-    pipe.on('close', (code) => {
-      clearTimeout(timer)
-      if (code === 0) {
-        resolve({ ok: true, message: 'Codex CLI installed successfully.' })
-      } else {
-        resolve({
-          ok: false,
-          message: `Install failed (exit ${code}): ${stderr.slice(-300) || stdout.slice(-300) || 'unknown error'}`
-        })
-      }
-    })
-    pipe.on('error', (err) => {
-      clearTimeout(timer)
-      resolve({ ok: false, message: `Install failed: ${err.message}` })
-    })
-  })
+/** Install Codex CLI via npm (cross-platform: macOS / Windows / Linux). */
+export async function installCodexCli(onProgress?: (msg: string) => void): Promise<InstallResult> {
+  onProgress?.('正在通过 npm 安装 Codex CLI…')
+  const result = await run('npm', ['install', '-g', '@openai/codex'], 180_000)
+  if (result.code === 0) {
+    onProgress?.('Codex CLI 安装完成')
+    return { ok: true, message: 'Codex CLI installed successfully.' }
+  }
+  onProgress?.(`安装失败: ${result.stderr.slice(-100) || 'unknown error'}`)
+  return {
+    ok: false,
+    message: `Install failed (exit ${result.code}): ${result.stderr.slice(-300) || result.stdout.slice(-300) || 'unknown error'}`
+  }
 }

@@ -8,10 +8,11 @@
 
 import { useCallback, useEffect, useRef, useState } from 'react'
 import type { AgentDefinition, HandoffArtifactItem, WorkflowRun } from '@shared/types'
-import { CheckCircle } from './Icons'
+import { Check, CheckCircle, Code2, FileQuestion, PenTool } from 'lucide-react'
 import { TranscriptViewer } from './TranscriptViewer'
 import { MarkdownPreview } from './MarkdownPreview'
 import { MemoryReferences } from './MemoryReferences'
+import { ComposerBar } from './ComposerBar'
 import { workflowRunStatusLabel } from './workflowLabels'
 
 type WorkflowRunUiMeta = WorkflowRun & {
@@ -31,6 +32,9 @@ export interface WorkflowRunDetailProps {
   onRerun: (stepIndex: number) => Promise<void>
   onAbort: () => Promise<void>
   onUpdatePrompt: (runId: string, newPrompt: string) => Promise<void>
+  onPickFiles: () => Promise<void>
+  onRemoveFile: (file: string) => void
+  attachedFiles: string[]
   composerValue: string
   composerEditable: boolean
   composerEnabled: boolean
@@ -66,6 +70,9 @@ export function WorkflowRunDetail({
   composerError,
   onComposerChange,
   onComposerSend,
+  onPickFiles,
+  onRemoveFile,
+  attachedFiles = [],
   showMemoryReferences = false
 }: WorkflowRunDetailProps): JSX.Element {
   const [openFiles, setOpenFiles] = useState<OpenFile[]>([])
@@ -137,7 +144,7 @@ export function WorkflowRunDetail({
     return (
       <main className="workflow-run-detail workflow-run-detail-empty">
         <strong>暂无工作流运行</strong>
-        <span>点击左侧 New Run 从模板启动一个 workflow。</span>
+        <span>点击左侧 New Task 从模板启动一个 workflow。</span>
       </main>
     )
   }
@@ -277,21 +284,16 @@ export function WorkflowRunDetail({
         </div>
 
         {/* composer */}
-        <div className="workflow-cli-composer">
-          <div className="workflow-cli-prompt">›</div>
-          <input
-            value={composerValue}
-            disabled={!composerEditable}
-            placeholder={composerPlaceholder}
-            onChange={(e) => onComposerChange(e.target.value)}
-            onKeyDown={(e) => { if (e.key === 'Enter') { e.preventDefault(); void onComposerSend() } }}
-          />
-          <button
-            onClick={() => void onComposerSend()}
-            disabled={!composerEnabled || composerValue.trim() === ''}
-            type="button"
-          >发送</button>
-        </div>
+        <ComposerBar
+          value={composerValue}
+          onChange={onComposerChange}
+          onSend={onComposerSend}
+          disabled={!composerEditable}
+          placeholder={composerPlaceholder}
+          attachedFiles={attachedFiles}
+          onPickFiles={onPickFiles}
+          onRemoveFile={onRemoveFile}
+        />
         {composerError && <div className="workflow-input-error">{composerError}</div>}
       </div>
 
@@ -323,13 +325,13 @@ function ArtifactCard({
   isActive: boolean
   onClick: () => void
 }): JSX.Element {
-  const typeIcon = artifact.type === 'code' ? '{ }' : artifact.type === 'design' ? '◉' : artifact.type === 'test' ? '✓' : '?'
+  const TypeIcon = artifact.type === 'code' ? Code2 : artifact.type === 'design' ? PenTool : artifact.type === 'test' ? Check : FileQuestion
   const typeLabel = artifact.type === 'code' ? 'Code' : artifact.type === 'design' ? 'Design' : artifact.type === 'test' ? 'Test' : 'Other'
   const ext = artifact.path.split('.').pop()?.toLowerCase() ?? ''
 
   return (
     <div className={`artifact-card-row ${isActive ? 'artifact-card-row-active' : ''}`} onClick={onClick}>
-      <div className="artifact-card-icon">{typeIcon}</div>
+      <div className="artifact-card-icon"><TypeIcon size={14} /></div>
       <div className="artifact-card-info">
         <div className="artifact-card-name">{artifact.path}</div>
         <div className="artifact-card-meta">{typeLabel}{ext ? ` · ${ext.toUpperCase()}` : ''}</div>

@@ -15,7 +15,7 @@ const UI_REVIEW_QUERY = 'uiReview=v4'
 const REVIEW_PROJECT_PATH = '/Users/siyuan/work/app-a'
 export const canvasPreviewLabels = ['需求', '设计', '开发', '测试']
 
-type UiReviewMode = 'workflow' | 'templates' | 'agents' | 'single'
+type UiReviewMode = 'workflow' | 'templates' | 'agents' | 'single' | 'settings'
 
 export interface UiReviewFixture {
   enabled: boolean
@@ -98,7 +98,8 @@ const topbarChips: UiReviewFixture['topbarChips'] = {
   workflow: ['3 running', '2 waiting', 'sound per run'],
   templates: ['3 templates', 'node canvas later', 'linear V1'],
   agents: ['9 agents', '2 CLIs', 'templates linked'],
-  single: ['single run', 'follow-up', 'transcript']
+  single: ['single run', 'follow-up', 'transcript'],
+  settings: ['memory references', 'local storage']
 }
 
 const newRunDefaults: NewWorkflowRunDefaults = {

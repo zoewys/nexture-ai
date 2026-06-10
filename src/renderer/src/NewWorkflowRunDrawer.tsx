@@ -16,7 +16,7 @@ import type {
   WorkflowStartInput,
   WorkflowTemplate
 } from '@shared/types'
-import { FolderOpen } from './Icons'
+import { FolderOpen } from 'lucide-react'
 import { readLastProjectPath, rememberProjectPath } from './projectPathMemory'
 import { Select } from './Select'
 
@@ -118,10 +118,10 @@ export function NewWorkflowRunDrawer({
   }
 
   return (
-    <aside className="workflow-new-run-drawer" aria-label="New Workflow Run">
+    <aside className="workflow-new-run-drawer" aria-label="New Workflow Task">
       <div className="workflow-new-run-header">
         <div>
-          <strong>New Workflow Run</strong>
+          <strong>New Workflow Task</strong>
           <span>从模板启动一个新的任务实例</span>
         </div>
         <button type="button" onClick={onClose} aria-label="Close">

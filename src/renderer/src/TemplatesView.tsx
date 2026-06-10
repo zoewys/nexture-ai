@@ -437,21 +437,25 @@ export function TemplatesView({
                 <div className="templates-field">
                   <span className="templates-section-label">Pipeline</span>
                   <div style={{ height: 4 }} />
-                  <div className="templates-pipeline">
+                  <div className="pipeline-chain">
                     {steps.map((step, index) => (
-                      <button
-                        key={index}
-                        type="button"
-                        className={[
-                          'templates-pnode',
-                          highlightedStep === index ? 'active' : ''
-                        ].filter(Boolean).join(' ')}
-                        onClick={() => handlePipelineClick(index)}
-                      >
-                        <div className="templates-pnode-index">{index + 1}</div>
-                        <div className="templates-pnode-agent">{agentShortName(step.agentId)}</div>
-                        <div className="templates-pnode-role">{step.role || `Step ${index + 1}`}</div>
-                      </button>
+                      <div key={index} className="pipeline-node-wrapper">
+                        {index > 0 && <div className="pipeline-arrow" />}
+                        <button
+                          type="button"
+                          className={[
+                            'pipeline-node',
+                            highlightedStep === index ? 'pipeline-node-active' : ''
+                          ].filter(Boolean).join(' ')}
+                          onClick={() => handlePipelineClick(index)}
+                        >
+                          <div className="pipeline-node-num">{index + 1}</div>
+                          <div className="pipeline-node-info">
+                            <div className="pipeline-node-agent">{agentShortName(step.agentId)}</div>
+                            <div className="pipeline-node-role">{step.role || `Step ${index + 1}`}</div>
+                          </div>
+                        </button>
+                      </div>
                     ))}
                   </div>
                 </div>

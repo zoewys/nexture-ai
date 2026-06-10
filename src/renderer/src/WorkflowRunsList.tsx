@@ -7,7 +7,7 @@
 
 import { useState } from 'react'
 import type { WorkflowRun } from '@shared/types'
-import { Trash2 } from './Icons'
+import { Trash2 } from 'lucide-react'
 import {
   workflowRunDisplayName,
   workflowRunProgressSegments,
@@ -56,11 +56,11 @@ export function WorkflowRunsList({
     <aside className="workflow-runs-list">
       <div className="workflow-runs-header">
         <div>
-          <div className="workflow-runs-title">Workflow Runs</div>
+          <div className="workflow-runs-title">Workflow Tasks</div>
           <p>按开始时间倒序；点击 run 卡片进入详情和确认。</p>
         </div>
         <div className="workflow-runs-actions">
-          <button type="button" className="primary" onClick={onNewRun}>New Run</button>
+          <button type="button" className="primary" onClick={onNewRun}>New Task</button>
         </div>
       </div>
 

@@ -47,6 +47,18 @@ export function WorkflowWorkspace({
   const [selectedStepByRunId, setSelectedStepByRunId] = useState<Record<string, number>>({})
   const [workflowInput, setWorkflowInput] = useState('')
   const [workflowInputError, setWorkflowInputError] = useState<string | null>(null)
+  const [attachedFiles, setAttachedFiles] = useState<string[]>([])
+
+  const handlePickFiles = async () => {
+    const files = await window.api.pickFiles()
+    if (files && files.length > 0) {
+      setAttachedFiles(prev => [...prev, ...files])
+    }
+  }
+
+  const handleRemoveFile = (file: string) => {
+    setAttachedFiles(prev => prev.filter(f => f !== file))
+  }
   const playedNotificationKeys = useRef<Set<string> | null>(null)
   if (playedNotificationKeys.current === null) {
     const initial = new Set<string>()
@@ -94,11 +106,15 @@ export function WorkflowWorkspace({
 
   const sendWorkflowInput = async (): Promise<void> => {
     const text = workflowInput.trim()
-    if (!selectedRun || !text || !composerEnabled) return
+    if (!selectedRun || (!text && attachedFiles.length === 0) || !composerEnabled) return
+    const fullText = attachedFiles.length > 0
+      ? text + '\n\n[Attached files:\n' + attachedFiles.map(f => `  ${f}`).join('\n') + '\n]'
+      : text
     setWorkflowInput('')
+    setAttachedFiles([])
     setWorkflowInputError(null)
     try {
-      await workflows.pushInput(selectedStepIndex, text)
+      await workflows.pushInput(selectedStepIndex, fullText)
     } catch (err) {
       setWorkflowInputError(err instanceof Error ? err.message : String(err))
     }
@@ -155,6 +171,9 @@ export function WorkflowWorkspace({
         }}
         onComposerSend={sendWorkflowInput}
         onUpdatePrompt={workflows.updatePrompt}
+        onPickFiles={handlePickFiles}
+        onRemoveFile={handleRemoveFile}
+        attachedFiles={attachedFiles}
         showMemoryReferences={showMemoryReferences}
       />
       {newRunDrawerOpen && (

@@ -1,9 +1,8 @@
 /**
  * ModeRail.tsx — 左侧 workspace 模式导航栏
- *
- * 垂直排列四个模式按钮：Workflow / Templates / Agents / Single，
- * 控制 App 当前显示哪个工作面板。纯展示组件，无内部状态。
  */
+
+import { Bot, Layers, Play, Settings, Workflow } from 'lucide-react'
 
 export type WorkspaceMode = 'workflow' | 'templates' | 'agents' | 'single' | 'settings'
 
@@ -12,56 +11,37 @@ interface ModeRailProps {
   onModeChange: (mode: WorkspaceMode) => void
 }
 
-function modeIcon(mode: WorkspaceMode): string {
+function railIcon(mode: WorkspaceMode, size = 20) {
   switch (mode) {
-    case 'workflow':
-      return '⌘'
-    case 'templates':
-      return '▦'
-    case 'agents':
-      return '◎'
-    case 'single':
-      return '▶'
-    case 'settings':
-      return '⚙'
+    case 'workflow': return <Workflow size={size} />
+    case 'templates': return <Layers size={size} />
+    case 'agents': return <Bot size={size} />
+    case 'single': return <Play size={size} />
+    case 'settings': return <Settings size={size} />
   }
 }
 
 export function ModeRail({ mode, onModeChange }: ModeRailProps): JSX.Element {
+  const modes: { key: WorkspaceMode; label: string }[] = [
+    { key: 'workflow', label: 'Workflow' },
+    { key: 'templates', label: 'Templates' },
+    { key: 'agents', label: 'Agents' },
+    { key: 'single', label: 'Single' }
+  ]
+
   return (
     <nav className="mode-rail" aria-label="Workspace modes">
-      <button
-        type="button"
-        className={`mode-item ${mode === 'workflow' ? 'mode-item-active' : ''}`}
-        onClick={() => onModeChange('workflow')}
-      >
-        <span className="mode-icon">{modeIcon('workflow')}</span>
-        <span>Workflow</span>
-      </button>
-      <button
-        type="button"
-        className={`mode-item ${mode === 'templates' ? 'mode-item-active' : ''}`}
-        onClick={() => onModeChange('templates')}
-      >
-        <span className="mode-icon">{modeIcon('templates')}</span>
-        <span>Templates</span>
-      </button>
-      <button
-        type="button"
-        className={`mode-item ${mode === 'agents' ? 'mode-item-active' : ''}`}
-        onClick={() => onModeChange(mode === 'agents' ? 'workflow' : 'agents')}
-      >
-        <span className="mode-icon">{modeIcon('agents')}</span>
-        <span>Agents</span>
-      </button>
-      <button
-        type="button"
-        className={`mode-item ${mode === 'single' ? 'mode-item-active' : ''}`}
-        onClick={() => onModeChange('single')}
-      >
-        <span className="mode-icon">{modeIcon('single')}</span>
-        <span>Single</span>
-      </button>
+      {modes.map(m => (
+        <button
+          key={m.key}
+          type="button"
+          className={`mode-item ${mode === m.key ? 'mode-item-active' : ''}`}
+          onClick={() => onModeChange(m.key)}
+        >
+          <span className="mode-icon">{railIcon(m.key)}</span>
+          <span>{m.label}</span>
+        </button>
+      ))}
 
       <div className="mode-rail-spacer" />
 
@@ -70,7 +50,7 @@ export function ModeRail({ mode, onModeChange }: ModeRailProps): JSX.Element {
         className={`mode-item ${mode === 'settings' ? 'mode-item-active' : ''}`}
         onClick={() => onModeChange('settings')}
       >
-        <span className="mode-icon">{modeIcon('settings')}</span>
+        <span className="mode-icon">{railIcon('settings')}</span>
         <span>Settings</span>
       </button>
     </nav>

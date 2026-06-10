@@ -7,10 +7,10 @@ interface AgentMemoryPanelProps {
 }
 
 const CATEGORY_LABEL: Record<MemoryCategory, string> = {
-  avoidance: '⚠️ 避免',
-  preference: '✓ 偏好',
-  method: '→ 方法',
-  knowledge: '📌 知识'
+  avoidance: '避免',
+  preference: '偏好',
+  method: '方法',
+  knowledge: '知识'
 }
 
 export function AgentMemoryPanel({ agentId }: AgentMemoryPanelProps): JSX.Element | null {

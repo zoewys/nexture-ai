@@ -6,6 +6,7 @@ import {
   type RunStartResult,
   type RunEventEnvelope,
   type CliCheckResult,
+  type CliVersionResult,
   type AgentDefinition,
   type ModelCatalog,
   type WorkflowEventEnvelope,
@@ -24,7 +25,7 @@ import { TranscriptStore } from './TranscriptStore'
 import { AgentStore } from './AgentStore'
 import { WorkflowStore } from './WorkflowStore'
 import { WorkflowManager } from './WorkflowManager'
-import { checkClis } from './cliCheck'
+import { checkClis, getCliVersions } from './cliCheck'
 import { installClaudeCode, installCodexCli } from './cliInstall'
 import { listCliModels } from './cliModels'
 import { MemoryStore } from './memory/MemoryStore'
@@ -156,8 +157,14 @@ export function registerIpc(getWindow: () => BrowserWindow | null): AppManagers 
 
   ipcMain.handle(IPC.checkClis, (): Promise<CliCheckResult> => checkClis())
 
-  ipcMain.handle(IPC.cliInstall, async (_e, cli: 'claude' | 'codex') => {
-    return cli === 'claude' ? installClaudeCode() : installCodexCli()
+  ipcMain.handle(IPC.cliVersions, (): Promise<CliVersionResult> => getCliVersions())
+
+  ipcMain.handle(IPC.cliInstall, async (event, cli: 'claude' | 'codex') => {
+    const win = getWindow()
+    const onProgress = (msg: string) => {
+      if (win && !win.isDestroyed()) win.webContents.send(IPC.cliInstallProgress, cli, msg)
+    }
+    return cli === 'claude' ? installClaudeCode(onProgress) : installCodexCli(onProgress)
   })
 
   ipcMain.handle(IPC.listModels, (): Promise<ModelCatalog> => listCliModels())
@@ -169,6 +176,21 @@ export function registerIpc(getWindow: () => BrowserWindow | null): AppManagers 
     })
     if (result.canceled || result.filePaths.length === 0) return null
     return result.filePaths[0]
+  })
+
+  ipcMain.handle(IPC.pickFiles, async (): Promise<string[] | null> => {
+    const win = getWindow()
+    const result = await dialog.showOpenDialog(win ?? undefined!, {
+      properties: ['openFile', 'multiSelections'],
+      filters: [
+        { name: 'All Files', extensions: ['*'] },
+        { name: 'Images', extensions: ['png', 'jpg', 'jpeg', 'gif', 'svg', 'webp', 'bmp'] },
+        { name: 'Documents', extensions: ['md', 'txt', 'pdf', 'doc', 'docx'] },
+        { name: 'Code', extensions: ['ts', 'tsx', 'js', 'jsx', 'json', 'css', 'html', 'py', 'rb', 'go', 'rs'] }
+      ]
+    })
+    if (result.canceled || result.filePaths.length === 0) return null
+    return result.filePaths
   })
 
   // ── File utilities ────────────────────────────────────────────────────

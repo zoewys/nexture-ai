@@ -371,12 +371,20 @@ export const IPC = {
   transcriptDelta: 'transcript:delta',
   /** renderer → main: detect which CLIs are installed. */
   checkClis: 'cli:check',
+  /** renderer → main: get installed CLI version strings. */
+  cliVersions: 'cli:versions',
   /** renderer → main: ask installed CLIs for their current model choices. */
   listModels: 'cli:models',
   /** renderer → main: install a CLI tool. Returns InstallResult. */
   cliInstall: 'cli:install',
+  /** main → renderer: CLI install progress updates. */
+  cliInstallProgress: 'cli:install-progress',
+  /** renderer → main: stop an in-progress CLI install. */
+  cliInstallCancel: 'cli:install-cancel',
   /** renderer → main: open a native folder picker, returns chosen path or null. */
   pickDir: 'dialog:pickDir',
+  /** renderer → main: open a native file picker, returns chosen file paths or null. */
+  pickFiles: 'dialog:pickFiles',
   /** renderer → main: list all saved agent definitions. */
   agentsList: 'agents:list',
   /** renderer → main: create or update an agent definition. */
@@ -441,4 +449,9 @@ export interface RunEventEnvelope {
 export interface CliCheckResult {
   claude: boolean
   codex: boolean
+}
+
+export interface CliVersionResult {
+  claude: string | null
+  codex: string | null
 }

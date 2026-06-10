@@ -25,13 +25,9 @@ import { CodexOptions } from './CodexOptions'
 import { ModelSelect } from './ModelSelect'
 import { TranscriptViewer } from './TranscriptViewer'
 import { MemoryReferences } from './MemoryReferences'
+import { ComposerBar } from './ComposerBar'
 import { readLastProjectPath, rememberProjectPath } from './projectPathMemory'
-import {
-  FolderOpen,
-  ChevronLeft,
-  ChevronRight,
-  SlidersHorizontal
-} from './Icons'
+import { FolderOpen, ChevronLeft, ChevronRight, SlidersHorizontal } from 'lucide-react'
 
 interface SingleRunPanelProps {
   agents: AgentDefinition[]
@@ -74,6 +70,12 @@ export function SingleRunPanel({
   const [codexServiceTier, setCodexServiceTier] = useState<string | undefined>()
   const [interjection, setInterjection] = useState('')
   const [selectedAgentId, setSelectedAgentId] = useState<string | null>(null)
+  const [attachedFiles, setAttachedFiles] = useState<string[]>([])
+
+  const handlePickFiles = async () => {
+    const files = await window.api.pickFiles()
+    if (files && files.length > 0) setAttachedFiles(prev => [...prev, ...files])
+  }
 
   const selectedAgent = useMemo(
     () => agents.find((a) => a.id === selectedAgentId) ?? null,
@@ -126,16 +128,19 @@ export function SingleRunPanel({
 
   const handleComposerSend = async (): Promise<void> => {
     const text = interjection.trim()
-    if (!text || !composerEnabled) return
+    if ((!text && attachedFiles.length === 0) || !composerEnabled) return
+    const fullText = attachedFiles.length > 0
+      ? text + '\n\n[Attached files:\n' + attachedFiles.map(f => `  ${f}`).join('\n') + '\n]'
+      : text
+    setInterjection('')
+    setAttachedFiles([])
     if (canInterject) {
-      setInterjection('')
-      await onPush(text)
+      await onPush(fullText)
     } else if (canFollowUp) {
-      setInterjection('')
       const resumeFrom = state.sessionId ? { sessionId: state.sessionId, vendor } : undefined
       const config: RunConfig = {
         vendor,
-        prompt: resumeFrom ? text : buildSingleRunFollowUpPrompt(prompt, state.events, text),
+        prompt: resumeFrom ? fullText : buildSingleRunFollowUpPrompt(prompt, state.events, fullText),
         cwd: cwd.trim(),
         agentId: selectedAgent?.id,
         model: model.trim() || undefined,
@@ -143,7 +148,7 @@ export function SingleRunPanel({
         appendSystemPrompt: selectedAgent?.systemPrompt,
         permissionMode: selectedAgent?.permissionMode
       }
-      await onContinueSession(config, text)
+      await onContinueSession(config, text || '[Files attached]')
     }
   }
 
@@ -303,36 +308,28 @@ export function SingleRunPanel({
         )}
 
         {state.events.length > 0 && (
-          <div className="interject">
-            <input
-              value={interjection}
-              disabled={!composerEnabled}
-              placeholder={
-                canInterject
-                  ? '向运行中的 agent 发送消息...'
-                  : canResume
-                    ? '继续此会话...'
-                    : canFollowUp
-                      ? '继续对话（将基于当前 transcript 重建上下文）...'
-                      : vendor === 'claude'
-                        ? '先启动一次运行以创建会话...'
-                        : state.running
-                          ? `${vendor} 运行中暂不支持实时输入`
-                          : '先启动一次运行以创建对话...'
-              }
-              onChange={(e) => setInterjection(e.target.value)}
-              onKeyDown={(e) => {
-                if (e.key === 'Enter') void handleComposerSend()
-              }}
-            />
-            <button
-              onClick={handleComposerSend}
-              disabled={!composerEnabled}
-              type="button"
-            >
-              发送
-            </button>
-          </div>
+          <ComposerBar
+            value={interjection}
+            onChange={setInterjection}
+            onSend={handleComposerSend}
+            disabled={!composerEnabled}
+            placeholder={
+              canInterject
+                ? '向运行中的 agent 发送消息...'
+                : canResume
+                  ? '继续此会话...'
+                  : canFollowUp
+                    ? '继续对话（将基于当前 transcript 重建上下文）...'
+                    : vendor === 'claude'
+                      ? '先启动一次运行以创建会话...'
+                      : state.running
+                        ? `${vendor} 运行中暂不支持实时输入`
+                        : '先启动一次运行以创建对话...'
+            }
+            attachedFiles={attachedFiles}
+            onPickFiles={handlePickFiles}
+            onRemoveFile={(f) => setAttachedFiles(prev => prev.filter(x => x !== f))}
+          />
         )}
       </main>
     </>

@@ -24,7 +24,8 @@
   },
   "dependencies": {
     "@radix-ui/react-select": "^2.3.0",
-    "electron-updater": "^6.1.7"
+    "electron-updater": "^6.1.7",
+    "lucide-react": "^1.17.0"
   },
   "devDependencies": {
     "@types/node": "^20.11.0",

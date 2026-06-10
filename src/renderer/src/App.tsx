@@ -28,6 +28,7 @@ import { useUiReviewFixture } from './uiReviewFixture'
 import { prepareWorkflowNotificationSound } from './workflowNotificationSound'
 import { useAppSettings } from './useAppSettings'
 import { SettingsPanel } from './SettingsPanel'
+import { CliSetupDialog } from './CliSetupDialog'
 
 type UiReviewWorkflowSurface = 'workflow' | 'new-run'
 
@@ -41,6 +42,7 @@ export function App(): JSX.Element {
   const agents = uiReview.enabled ? uiReview.agents : savedAgents
   const workflows = uiReview.enabled ? uiReview.workflows : savedWorkflows
   const [clis, setClis] = useState<CliCheckResult | null>(null)
+  const [showCliSetup, setShowCliSetup] = useState(false)
   const [mode, setMode] = useState<WorkspaceMode>('workflow')
   const [configOpen, setConfigOpen] = useState(true)
   const [uiReviewWorkflowSurface, setUiReviewWorkflowSurface] =
@@ -50,13 +52,9 @@ export function App(): JSX.Element {
     (async () => {
       const result = await window.api.checkClis()
       setClis(result)
-      for (const cli of ['claude', 'codex'] as const) {
-        if (!result[cli]) {
-          await window.api.installCli(cli)
-        }
+      if (!result.claude || !result.codex) {
+        setShowCliSetup(true)
       }
-      const updated = await window.api.checkClis()
-      setClis(updated)
     })()
   }, [])
 
@@ -92,7 +90,7 @@ export function App(): JSX.Element {
         return 'Templates'
       case 'workflow':
         return uiReview.enabled && uiReviewWorkflowSurface === 'new-run'
-          ? 'Workflow · New Run Drawer'
+          ? 'Workflow · New Task Drawer'
           : 'Workflow'
       case 'single':
         return 'Single Agent'
@@ -103,6 +101,13 @@ export function App(): JSX.Element {
 
   return (
     <div className={['app', uiReview.enabled ? 'app-ui-review' : ''].filter(Boolean).join(' ')}>
+      {showCliSetup && (
+        <CliSetupDialog onDone={async () => {
+          setShowCliSetup(false)
+          const updated = await window.api.checkClis()
+          setClis(updated)
+        }} />
+      )}
       <header className="app-header">
         <div className="app-brand">
           <h1>Agent Studio</h1>
