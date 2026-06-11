@@ -16,6 +16,7 @@ import type {
   WorkflowStartInput,
   WorkflowTemplate
 } from '@shared/types'
+import { isParallelGroup } from '@shared/types'
 import { FolderOpen } from 'lucide-react'
 import { readLastProjectPath, rememberProjectPath } from './projectPathMemory'
 import { Select } from './Select'
@@ -217,8 +218,8 @@ export function NewWorkflowRunDrawer({
           </div>
           <div className="workflow-template-preview-pills">
             {previewSteps.map((step, index) => (
-              <span className="pill-small" key={`${step.agentId}-${index}`}>
-                {index + 1} {step.role || agentPreviewName(step.agentId, agents)}
+              <span className="pill-small" key={`step-${index}`}>
+                {index + 1} {isParallelGroup(step) ? '并行组' : step.role || agentPreviewName(step.agentId, agents)}
               </span>
             ))}
             {(selectedTemplate?.steps.length ?? 0) > previewSteps.length && (

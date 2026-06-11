@@ -1,4 +1,5 @@
 import { useMemo, useState } from 'react'
+import { isParallelGroup } from '@shared/types'
 import type {
   AgentDefinition,
   AgentEvent,
@@ -164,6 +165,8 @@ export function useUiReviewFixture(): UiReviewFixture {
       rerunStep: async () => {},
       abort: async () => {},
       pushInput: async () => {},
+      skipStep: async () => {},
+      gotoStep: async () => {},
       updatePrompt: async () => {},
       deleteRun: async (runId: string) => {
         setRuns((current) => current.filter((run) => run.id !== runId))
@@ -372,8 +375,9 @@ function createRun({
     totalCostUsd: stepStatuses.reduce((sum, _, i) => sum + (i <= currentStepIndex ? (i + 1) * 0.15 : 0), 0),
     steps: template.steps.map((step, index) => {
       const stepStatus = stepStatuses[index] ?? 'pending'
+      const stepAgentId = isParallelGroup(step) ? 'parallel-group' : step.agentId
       return {
-        agentId: step.agentId,
+        agentId: stepAgentId,
         displayName: stepDisplayNames[index],
         status: stepStatus,
         executions:
@@ -383,7 +387,7 @@ function createRun({
                 {
                   id: `${id}-step-${index + 1}`,
                   stepIndex: index,
-                  agentId: step.agentId,
+                  agentId: stepAgentId,
                   status: stepStatus,
                   sessionId: `${id}-session-${index + 1}`,
                   runId: id,

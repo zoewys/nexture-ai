@@ -7,7 +7,7 @@
  */
 
 import { useCallback, useEffect, useRef, useState } from 'react'
-import type { AgentDefinition, HandoffArtifactItem, WorkflowRun } from '@shared/types'
+import type { AgentDefinition, HandoffArtifactItem, WorkflowRun, WorkflowRunStep } from '@shared/types'
 import { AlertTriangle, ArrowRight, Check, CheckCircle, Code2, CornerUpRight, FileQuestion, Lightbulb, PenTool } from 'lucide-react'
 import { TranscriptViewer } from './TranscriptViewer'
 import { MarkdownPreview } from './MarkdownPreview'
@@ -373,26 +373,24 @@ export function WorkflowRunDetail({
 
 interface StepGroup {
   parallelGroupId: string | undefined
-  items: { step: WorkflowRun['steps'][number]; index: number }[]
+  items: { step: WorkflowRunStep; index: number }[]
 }
 
 function groupStepsByParallel(run: WorkflowRun): StepGroup[] {
   const groups: StepGroup[] = []
   let currentGroup: StepGroup | null = null
 
-  for (let i = 0; i < run.steps.length; i++) {
-    const step = run.steps[i]
+  for (const step of run.steps) {
     const gid = step.parallelGroupId
-    if (gid) {
-      if (currentGroup?.parallelGroupId === gid) {
-        currentGroup.items.push({ step, index: i })
-      } else {
-        currentGroup = { parallelGroupId: gid, items: [{ step, index: i }] }
-        groups.push(currentGroup)
-      }
+    if (gid && currentGroup?.parallelGroupId === gid) {
+      currentGroup.items.push({ step, index: 0 })
     } else {
-      currentGroup = null
-      groups.push({ parallelGroupId: undefined, items: [{ step, index: i }] })
+      const newGroup: StepGroup = {
+        parallelGroupId: gid,
+        items: [{ step, index: 0 }]
+      }
+      groups.push(newGroup)
+      currentGroup = newGroup
     }
   }
   return groups
