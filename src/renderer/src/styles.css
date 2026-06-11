@@ -2711,13 +2711,21 @@ button.icon-only {
 
 .workflow-cli-composer {
   flex-shrink: 0;
-  display: grid;
-  grid-template-columns: 24px minmax(0, 1fr) 76px;
+  display: flex;
+  flex-direction: column;
   gap: 8px;
-  align-items: center;
+  align-items: stretch;
   padding: 10px 12px;
   border-top: 1px solid var(--border);
   background: #1d2028;
+}
+
+.workflow-cli-composer .composer-row {
+  display: grid;
+  grid-template-columns: 32px minmax(0, 1fr) 32px;
+  align-items: center;
+  gap: 8px;
+  width: 100%;
 }
 
 .workflow-cli-prompt {
@@ -2735,7 +2743,8 @@ button.icon-only {
   line-height: 1.45;
 }
 
-.workflow-cli-composer input {
+.workflow-cli-composer .composer-input {
+  min-width: 0;
   min-height: 34px;
   font-family: inherit;
 }
@@ -4380,12 +4389,12 @@ button.icon-only {
 }
 
 .composer-chip-remove {
-  width: 16px; height: 16px; border-radius: 50%; border: none; background: transparent;
+  width: 16px; height: 16px; min-height: 16px; border-radius: 50%; border: none; background: transparent;
   color: var(--text-dim); cursor: pointer; font-size: 12px; display: flex;
   align-items: center; justify-content: center; flex-shrink: 0; padding: 0;
 }
 
-.composer-chip-remove:hover { background: rgba(232,96,106,.15); color: var(--red); }
+.composer-chip-remove:hover { background: transparent; color: var(--red); }
 
 /* ── composer row ── */
 
