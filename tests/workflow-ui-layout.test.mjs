@@ -102,17 +102,12 @@ test('templates screen matches sidebar and editor design', () => {
   assert.match(templatesView, /templates-sidebar-item/)
   assert.match(templatesView, /templates-editor/)
   assert.match(templatesView, /templates-editor-head/)
-  assert.match(templatesView, /templates-editor-body/)
-  assert.match(templatesView, /pipeline-chain/)
-  assert.match(templatesView, /pipeline-node/)
-  assert.match(templatesView, /templates-step-list/)
-  assert.match(templatesView, /templates-add-step-btn/)
+  // DAG canvas replaced linear editor — check canvas import instead of pipeline/step-list
+  assert.match(templatesView, /WorkflowCanvas/)
   assert.match(templatesView, /Duplicate/)
-  assert.match(templatesView, /Save/)
   assert.match(css, /\.templates-view\s*\{[\s\S]*display:\s*flex;/)
   assert.match(css, /\.templates-sidebar\s*\{[\s\S]*width:\s*300px;/)
   assert.match(css, /\.templates-editor\s*\{[\s\S]*display:\s*flex;[\s\S]*flex-direction:\s*column;/)
-  assert.match(css, /\.pipeline-chain\s*\{[\s\S]*display:\s*flex;/)
 })
 
 test('electron main window is visible for local UI review', () => {

@@ -72,9 +72,9 @@ export function useWorkflows() {
     return run
   }, [])
 
-  const confirmStep = useCallback(async () => {
+  const confirmStep = useCallback(async (stepIndex?: number) => {
     if (!selectedRun) return
-    const run = await window.api.confirmWorkflowStep(selectedRun.id)
+    const run = await window.api.confirmWorkflowStep(selectedRun.id, stepIndex)
     setRuns((prev) => applyRunUpdate(prev, run))
     setSelectedRunId(run.id)
   }, [selectedRun])
@@ -92,6 +92,20 @@ export function useWorkflows() {
   const abort = useCallback(async () => {
     if (!selectedRun) return
     const run = await window.api.abortWorkflow(selectedRun.id)
+    setRuns((prev) => applyRunUpdate(prev, run))
+    setSelectedRunId(run.id)
+  }, [selectedRun])
+
+  const skipStep = useCallback(async () => {
+    if (!selectedRun) return
+    const run = await window.api.skipWorkflowStep(selectedRun.id)
+    setRuns((prev) => applyRunUpdate(prev, run))
+    setSelectedRunId(run.id)
+  }, [selectedRun])
+
+  const gotoStep = useCallback(async (targetIndex: number) => {
+    if (!selectedRun) return
+    const run = await window.api.gotoWorkflowStep(selectedRun.id, targetIndex)
     setRuns((prev) => applyRunUpdate(prev, run))
     setSelectedRunId(run.id)
   }, [selectedRun])
@@ -158,6 +172,8 @@ export function useWorkflows() {
     confirmStep,
     rerunStep,
     abort,
+    skipStep,
+    gotoStep,
     pushInput,
     updatePrompt,
     deleteRun,

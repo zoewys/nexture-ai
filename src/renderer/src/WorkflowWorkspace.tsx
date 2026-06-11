@@ -234,6 +234,8 @@ export function WorkflowWorkspace({
           onConfirm={workflows.confirmStep}
           onRerun={workflows.rerunStep}
           onAbort={workflows.abort}
+          onSkipStep={workflows.skipStep}
+          onGotoStep={workflows.gotoStep}
           composerValue={workflowInput}
           composerEditable={composerEditable}
           composerEnabled={composerEnabled}

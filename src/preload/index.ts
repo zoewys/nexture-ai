@@ -75,7 +75,8 @@ const api = {
   inspectWorkflowGitSafety: (projectPath: string): Promise<WorkflowRunGitSafety> =>
     ipcRenderer.invoke(IPC.workflowGitSafety, projectPath),
 
-  confirmWorkflowStep: (runId: string) => ipcRenderer.invoke(IPC.workflowConfirmStep, runId),
+  confirmWorkflowStep: (runId: string, stepIndex?: number) =>
+    ipcRenderer.invoke(IPC.workflowConfirmStep, runId, stepIndex),
 
   rerunWorkflowStep: (runId: string, stepIndex: number) =>
     ipcRenderer.invoke(IPC.workflowRerunStep, runId, stepIndex),
@@ -133,6 +134,15 @@ const api = {
 
   appSettingsSave: (settings: AppSettings): Promise<void> =>
     ipcRenderer.invoke(IPC.appSettingsSave, settings),
+
+  skipWorkflowStep: (runId: string) =>
+    ipcRenderer.invoke(IPC.workflowSkipStep, runId),
+
+  gotoWorkflowStep: (runId: string, targetIndex: number) =>
+    ipcRenderer.invoke(IPC.workflowGotoStep, runId, targetIndex),
+
+  routeRecommend: (role: string) =>
+    ipcRenderer.invoke(IPC.routeRecommend, role),
 
   pickDir: (): Promise<string | null> => ipcRenderer.invoke(IPC.pickDir),
 

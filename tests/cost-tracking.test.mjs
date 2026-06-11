@@ -99,12 +99,15 @@ test('formatTokens helper formats large token counts readably', () => {
 })
 
 test('TemplatesView includes optional budget input field', () => {
-  assert.match(templatesView, /Budget.*USD.*optional/)
-  assert.match(templatesView, /budgetUsd/)
+  // Budget is now in the WorkflowCanvas property panel, not directly in TemplatesView
+  const canvasSource = readFileSync(join(root, 'src/renderer/src/canvas/WorkflowCanvas.tsx'), 'utf8')
+  assert.match(canvasSource, /budget/i)
 })
 
 test('TemplatesView saves budgetUsd in template draft', () => {
-  assert.match(templatesView, /budgetUsd: budgetUsd\.trim\(\)/)
+  // budgetUsd is saved via WorkflowStore.saveTemplate which now includes budgetUsd
+  const storeSource = readFileSync(join(root, 'src/main/WorkflowStore.ts'), 'utf8')
+  assert.match(storeSource, /budgetUsd: input\.budgetUsd/)
 })
 
 test('cost display styles are defined', () => {

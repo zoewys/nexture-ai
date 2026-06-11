@@ -146,16 +146,45 @@ export interface AgentDefinition {
 
 // ── Workflow orchestration ─────────────────────────────────────────────────
 
+// ── Step rules (conditional jumps) ──────────────────────────────────────────
+
+export interface StepRule {
+  on: 'error' | 'handoff-failed' | 'done'
+  action: 'retry' | 'skip' | 'goto'
+  target?: number
+  maxRetries?: number
+}
+
+export interface RouteSuggestion {
+  action: 'continue' | 'retry-prev' | 'skip-next' | 'goto'
+  target?: number
+  reason?: string
+}
+
+// ── Workflow template ────────────────────────────────────────────────────────
+
 export interface WorkflowTemplateStep {
   agentId: string
   role?: string
+  rules?: StepRule[]
+}
+
+export interface WorkflowParallelGroup {
+  parallel: WorkflowTemplateStep[]
+  join: boolean
+}
+
+export type WorkflowStepNode = WorkflowTemplateStep | WorkflowParallelGroup
+
+export function isParallelGroup(node: WorkflowStepNode): node is WorkflowParallelGroup {
+  return 'parallel' in node && Array.isArray((node as WorkflowParallelGroup).parallel)
 }
 
 export interface WorkflowTemplate {
   id: string
   name: string
   description?: string
-  steps: WorkflowTemplateStep[]
+  steps: WorkflowStepNode[]
   /** Optional per-run budget cap in USD applied to runs started from this template. */
   budgetUsd?: number
 }
@@ -199,6 +228,7 @@ export interface HandoffArtifact {
   summary: string
   artifacts: HandoffArtifactItem[]
   nextStepGuidance?: string
+  routeSuggestion?: RouteSuggestion
 }
 
 export interface WorkflowStepExecution {
@@ -227,6 +257,9 @@ export interface WorkflowRunStep {
   role?: string
   status: StepStatus
   executions: WorkflowStepExecution[]
+  parallelGroupId?: string
+  parallelGroupJoin?: boolean
+  worktreePath?: string
 }
 
 export type WorkflowRunStatus =
@@ -475,7 +508,13 @@ export const IPC = {
   /** renderer → main: validate a 5-field cron expression. */
   cronValidate: 'cron:validate',
   /** renderer → main: describe a cron expression and return next fire time. */
-  cronDescribe: 'cron:describe'
+  cronDescribe: 'cron:describe',
+  /** renderer → main: skip the next step in a workflow run. */
+  workflowSkipStep: 'workflow:skip-step',
+  /** renderer → main: jump to a specific step in a workflow run. */
+  workflowGotoStep: 'workflow:goto-step',
+  /** renderer → main: get a vendor/model recommendation for a role. */
+  routeRecommend: 'route:recommend'
 } as const
 
 export interface RunStartResult {

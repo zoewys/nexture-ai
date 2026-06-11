@@ -1,0 +1,1740 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="UTF-8">
+<title>Agent Studio — UI 交互方案选择（DAG 画布版）</title>
+<style>
+:root {
+  --bg: #17191f;
+  --bg-header: #191c23;
+  --bg-panel: #20232b;
+  --bg-input: #242833;
+  --bg-card: #161b22;
+  --border: #343946;
+  --border-soft: #2a2f3b;
+  --text-strong: #eef2f8;
+  --text: #eef2f8;
+  --text-soft: #c8d0df;
+  --text-dim: #9aa3b5;
+  --accent: #6c8cff;
+  --accent-dim: #3d4a7a;
+  --green: #4caf7d;
+  --yellow: #d4a548;
+  --red: #db6b6b;
+  --purple: #b48ead;
+  --orange: #d4874d;
+}
+
+* { margin: 0; padding: 0; box-sizing: border-box; }
+body {
+  font-family: Inter, -apple-system, BlinkMacSystemFont, 'Segoe UI', system-ui, sans-serif;
+  background: var(--bg);
+  color: var(--text);
+  font-size: 13px;
+  line-height: 1.5;
+  overflow-x: hidden;
+}
+
+.page-header {
+  background: var(--bg-header);
+  border-bottom: 1px solid var(--border);
+  padding: 16px 32px;
+  position: sticky;
+  top: 0;
+  z-index: 100;
+}
+.page-header h1 { font-size: 18px; font-weight: 750; }
+.page-header p { font-size: 12px; color: var(--text-dim); margin-top: 4px; }
+
+.container { max-width: 1200px; margin: 0 auto; padding: 24px 32px 80px; }
+
+/* Decision Section */
+.decision-section {
+  margin-bottom: 48px;
+  border: 1px solid var(--border);
+  border-radius: 10px;
+  overflow: hidden;
+}
+.decision-header {
+  background: var(--bg-panel);
+  padding: 16px 20px;
+  border-bottom: 1px solid var(--border);
+  display: flex;
+  align-items: center;
+  gap: 10px;
+}
+.decision-header .badge {
+  font-size: 10px;
+  font-weight: 800;
+  text-transform: uppercase;
+  letter-spacing: 0.06em;
+  padding: 2px 7px;
+  border-radius: 4px;
+  border: 1px solid;
+}
+.badge-p1 { border-color: rgba(108,140,255,0.5); background: rgba(108,140,255,0.12); color: var(--accent); }
+.badge-p2 { border-color: rgba(180,142,173,0.5); background: rgba(180,142,173,0.12); color: var(--purple); }
+.badge-p4 { border-color: rgba(212,135,77,0.5); background: rgba(212,135,77,0.12); color: var(--orange); }
+.decision-header h2 { font-size: 15px; font-weight: 700; }
+.decision-desc {
+  padding: 12px 20px;
+  font-size: 12px;
+  color: var(--text-dim);
+  background: var(--bg-panel);
+  border-bottom: 1px solid var(--border);
+}
+
+/* Options Grid */
+.options-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(340px, 1fr));
+  gap: 1px;
+  background: var(--border);
+}
+.option-card {
+  background: var(--bg);
+  padding: 20px;
+  cursor: pointer;
+  transition: background 0.15s, border-color 0.15s;
+  position: relative;
+}
+.option-card:hover { background: var(--bg-panel); }
+.option-card.selected { background: rgba(108,140,255,0.06); }
+.option-card.selected::before {
+  content: '';
+  position: absolute;
+  top: 0; left: 0; right: 0;
+  height: 2px;
+  background: var(--accent);
+}
+.option-card-header {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  margin-bottom: 10px;
+}
+.option-radio {
+  width: 16px; height: 16px; border-radius: 50%;
+  border: 2px solid var(--border);
+  display: flex; align-items: center; justify-content: center;
+  flex-shrink: 0;
+  transition: border-color 0.15s;
+}
+.selected .option-radio { border-color: var(--accent); }
+.selected .option-radio::after {
+  content: '';
+  width: 8px; height: 8px; border-radius: 50%;
+  background: var(--accent);
+}
+.option-label { font-size: 13px; font-weight: 700; color: var(--text-strong); }
+.option-sublabel { font-size: 11px; color: var(--text-dim); margin-bottom: 12px; }
+
+/* Mockup Area */
+.mockup {
+  border: 1px solid var(--border);
+  border-radius: 8px;
+  overflow: hidden;
+  background: var(--bg-card);
+}
+.mockup-title-bar {
+  font-size: 10px;
+  text-transform: uppercase;
+  letter-spacing: 0.05em;
+  color: var(--text-dim);
+  padding: 6px 10px;
+  border-bottom: 1px solid var(--border);
+  background: var(--bg-panel);
+}
+
+/* ======================================= */
+/* CANVAS SHARED STYLES                    */
+/* ======================================= */
+
+.canvas-bg {
+  background:
+    radial-gradient(circle at 1px 1px, rgba(255,255,255,0.03) 1px, transparent 0);
+  background-size: 20px 20px;
+  position: relative;
+  min-height: 260px;
+  padding: 20px;
+}
+
+/* Canvas toolbar */
+.canvas-toolbar {
+  display: flex;
+  align-items: center;
+  gap: 2px;
+  padding: 4px;
+  background: var(--bg-panel);
+  border: 1px solid var(--border);
+  border-radius: 8px;
+  position: absolute;
+  z-index: 5;
+}
+.canvas-toolbar-btn {
+  width: 30px; height: 28px;
+  border-radius: 5px;
+  border: none;
+  background: transparent;
+  color: var(--text-dim);
+  font-size: 13px;
+  display: flex; align-items: center; justify-content: center;
+  cursor: pointer;
+  transition: all 0.12s;
+}
+.canvas-toolbar-btn:hover {
+  background: var(--bg-input);
+  color: var(--text);
+}
+.canvas-toolbar-btn.active {
+  background: var(--accent-dim);
+  color: var(--accent);
+}
+.canvas-toolbar-sep {
+  width: 1px;
+  height: 18px;
+  background: var(--border);
+  margin: 0 2px;
+}
+
+/* Canvas nodes */
+.canvas-node {
+  position: absolute;
+  border-radius: 8px;
+  border: 1.5px solid var(--border);
+  background: var(--bg-panel);
+  min-width: 140px;
+  cursor: grab;
+  transition: border-color 0.15s, box-shadow 0.15s;
+}
+.canvas-node:hover {
+  border-color: var(--accent);
+  box-shadow: 0 0 0 1px var(--accent);
+}
+.canvas-node.selected {
+  border-color: var(--accent);
+  box-shadow: 0 0 0 2px rgba(108,140,255,0.25);
+}
+
+.canvas-node-header {
+  padding: 8px 10px 6px;
+  display: flex;
+  align-items: center;
+  gap: 6px;
+}
+.canvas-node-icon {
+  width: 22px; height: 22px;
+  border-radius: 5px;
+  display: flex; align-items: center; justify-content: center;
+  font-size: 11px;
+  font-weight: 700;
+  flex-shrink: 0;
+}
+.canvas-node-icon-claude { background: rgba(108,140,255,0.15); color: var(--accent); }
+.canvas-node-icon-codex { background: rgba(76,175,125,0.15); color: var(--green); }
+.canvas-node-title {
+  font-size: 12px;
+  font-weight: 700;
+  color: var(--text-strong);
+  white-space: nowrap;
+}
+.canvas-node-body {
+  padding: 0 10px 8px;
+}
+.canvas-node-role {
+  font-size: 10px;
+  color: var(--text-dim);
+}
+.canvas-node-model {
+  font-size: 9px;
+  padding: 1px 5px;
+  border-radius: 3px;
+  background: var(--bg-input);
+  color: var(--text-dim);
+  margin-top: 3px;
+  display: inline-block;
+}
+
+/* Node ports (connection handles) */
+.canvas-port {
+  width: 8px; height: 8px;
+  border-radius: 50%;
+  border: 2px solid var(--border);
+  background: var(--bg-panel);
+  position: absolute;
+}
+.canvas-port-in { top: 50%; left: -4px; transform: translateY(-50%); }
+.canvas-port-out { top: 50%; right: -4px; transform: translateY(-50%); }
+.canvas-port:hover {
+  border-color: var(--accent);
+  background: var(--accent);
+}
+
+/* Edges (SVG lines) */
+.canvas-edge {
+  stroke: var(--border);
+  stroke-width: 1.5;
+  fill: none;
+}
+.canvas-edge-active {
+  stroke: var(--accent);
+  stroke-width: 2;
+}
+.canvas-edge-conditional {
+  stroke: var(--yellow);
+  stroke-dasharray: 6 3;
+}
+
+/* Parallel group on canvas */
+.canvas-parallel-group {
+  position: absolute;
+  border: 1.5px dashed rgba(108,140,255,0.45);
+  border-radius: 10px;
+  background: rgba(108,140,255,0.03);
+}
+.canvas-parallel-label {
+  position: absolute;
+  top: -9px; left: 14px;
+  font-size: 9px;
+  text-transform: uppercase;
+  letter-spacing: 0.06em;
+  color: var(--accent);
+  background: var(--bg-card);
+  padding: 0 6px;
+  font-weight: 700;
+}
+
+/* Node detail sidebar */
+.node-detail-panel {
+  width: 100%;
+  padding: 12px;
+  background: var(--bg-panel);
+  border-left: 1px solid var(--border);
+}
+.node-detail-title {
+  font-size: 14px;
+  font-weight: 750;
+  color: var(--text-strong);
+  margin-bottom: 12px;
+}
+.node-detail-field { margin-bottom: 10px; }
+.node-detail-label {
+  font-size: 10px;
+  text-transform: uppercase;
+  letter-spacing: 0.05em;
+  color: var(--text-dim);
+  margin-bottom: 4px;
+}
+.node-detail-input {
+  width: 100%;
+  padding: 6px 8px;
+  border-radius: 5px;
+  border: 1px solid var(--border);
+  background: var(--bg-input);
+  color: var(--text);
+  font-size: 12px;
+  font-family: inherit;
+}
+.node-detail-input:focus {
+  outline: none;
+  border-color: var(--accent);
+}
+.node-detail-select {
+  width: 100%;
+  padding: 6px 8px;
+  border-radius: 5px;
+  border: 1px solid var(--border);
+  background: var(--bg-input);
+  color: var(--text);
+  font-size: 12px;
+  font-family: inherit;
+  appearance: none;
+}
+
+/* Right-click context menu */
+.ctx-menu {
+  background: var(--bg-panel);
+  border: 1px solid var(--border);
+  border-radius: 8px;
+  padding: 4px;
+  min-width: 160px;
+  box-shadow: 0 8px 24px rgba(0,0,0,0.4);
+  position: absolute;
+  z-index: 20;
+}
+.ctx-menu-item {
+  padding: 6px 10px;
+  font-size: 11px;
+  color: var(--text-soft);
+  border-radius: 4px;
+  cursor: pointer;
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+.ctx-menu-item:hover {
+  background: var(--accent-dim);
+  color: var(--text-strong);
+}
+.ctx-menu-item-danger { color: var(--red); }
+.ctx-menu-item-danger:hover { background: rgba(219,107,107,0.12); color: var(--red); }
+.ctx-menu-sep {
+  height: 1px;
+  background: var(--border);
+  margin: 3px 4px;
+}
+.ctx-menu-shortcut {
+  margin-left: auto;
+  font-size: 10px;
+  color: var(--text-dim);
+  font-family: 'SF Mono', Menlo, monospace;
+}
+
+/* ========================= */
+/* Step Chips (runtime)      */
+/* ========================= */
+
+.step-chips-bar {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  padding: 10px 16px;
+  overflow-x: auto;
+}
+.step-chip {
+  display: flex;
+  align-items: center;
+  gap: 5px;
+  padding: 4px 8px;
+  border: 1px solid var(--border);
+  border-radius: 6px;
+  background: var(--bg-input);
+  color: var(--text-dim);
+  font-size: 11px;
+  white-space: nowrap;
+  cursor: pointer;
+  transition: all 0.15s;
+}
+.step-chip-num {
+  width: 18px; height: 18px; border-radius: 50%;
+  background: rgba(255,255,255,0.08);
+  font-size: 10px; font-weight: 700;
+  display: flex; align-items: center; justify-content: center;
+}
+.step-chip-done { border-color: var(--green); background: rgba(76,175,125,0.1); }
+.step-chip-done .step-chip-num { background: var(--green); color: #fff; }
+.step-chip-running { border-color: var(--accent); background: rgba(108,140,255,0.1); }
+.step-chip-running .step-chip-num { background: var(--accent); color: #fff; }
+.step-chip-await { border-color: var(--yellow); background: rgba(212,165,72,0.1); }
+.step-chip-await .step-chip-num { background: var(--yellow); color: #fff; }
+.step-chip-error { border-color: var(--red); background: rgba(224,108,117,0.1); }
+.step-chip-error .step-chip-num { background: var(--red); color: #fff; }
+
+.chip-arrow { color: var(--text-dim); font-size: 10px; flex-shrink: 0; }
+
+.chip-parallel-stack {
+  display: flex;
+  flex-direction: column;
+  gap: 3px;
+  position: relative;
+}
+.chip-parallel-bracket {
+  position: absolute;
+  left: -6px;
+  top: 0; bottom: 0;
+  width: 3px;
+  border-radius: 2px;
+  background: rgba(108,140,255,0.3);
+}
+
+.chip-parallel-inline {
+  display: flex;
+  align-items: center;
+  gap: 3px;
+  padding: 2px;
+  border: 1px dashed rgba(108,140,255,0.35);
+  border-radius: 8px;
+  background: rgba(108,140,255,0.03);
+}
+.chip-parallel-divider {
+  width: 1px;
+  height: 22px;
+  background: rgba(108,140,255,0.3);
+}
+
+.chip-swimlane {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  position: relative;
+  padding: 4px 6px;
+  border-left: 2px solid rgba(108,140,255,0.3);
+  border-right: 2px solid rgba(108,140,255,0.3);
+  border-radius: 0;
+}
+.chip-swimlane-label {
+  font-size: 8px;
+  text-transform: uppercase;
+  letter-spacing: 0.08em;
+  color: var(--accent);
+  font-weight: 700;
+  text-align: center;
+  margin-bottom: 1px;
+}
+
+/* ========================= */
+/* Transcript                */
+/* ========================= */
+
+.transcript-container { padding: 12px; }
+
+.transcript-tabs {
+  display: flex;
+  gap: 0;
+  border-bottom: 1px solid var(--border);
+  margin-bottom: 8px;
+}
+.transcript-tab {
+  padding: 7px 14px;
+  font-size: 11px;
+  color: var(--text-dim);
+  border-bottom: 2px solid transparent;
+  cursor: pointer;
+  display: flex; align-items: center; gap: 5px;
+}
+.transcript-tab.active {
+  color: var(--accent);
+  border-bottom-color: var(--accent);
+}
+.transcript-tab .tab-dot {
+  width: 6px; height: 6px; border-radius: 50%;
+}
+.tab-dot-running { background: var(--accent); animation: pulse 1.2s infinite; }
+.tab-dot-done { background: var(--green); }
+
+@keyframes pulse { 0%,100%{ opacity: 0.3; } 50%{ opacity: 1; } }
+
+.transcript-line {
+  font-family: 'SF Mono', Menlo, monospace;
+  font-size: 11px;
+  line-height: 1.6;
+  color: var(--text-soft);
+  padding: 2px 0;
+}
+.transcript-line .tl-role { color: var(--accent); font-weight: 600; margin-right: 6px; }
+.transcript-line .tl-tool { color: var(--purple); font-weight: 600; margin-right: 6px; }
+
+.transcript-split {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 1px;
+  background: var(--border);
+  border-radius: 6px;
+  overflow: hidden;
+}
+.transcript-pane {
+  background: var(--bg-card);
+  padding: 8px 10px;
+}
+.transcript-pane-header {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  margin-bottom: 8px;
+  padding-bottom: 6px;
+  border-bottom: 1px solid var(--border-soft);
+}
+.transcript-pane-name { font-size: 11px; font-weight: 700; color: var(--text-soft); }
+.transcript-pane-status { font-size: 9px; padding: 1px 5px; border-radius: 3px; font-weight: 600; }
+.status-running { background: rgba(108,140,255,0.15); color: var(--accent); }
+.status-done { background: rgba(76,175,125,0.15); color: var(--green); }
+
+/* ========================= */
+/* Confirm Panel             */
+/* ========================= */
+
+.confirm-panel {
+  border: 1px solid var(--yellow);
+  border-radius: 8px;
+  background: rgba(212,165,72,0.06);
+  padding: 14px 16px;
+  margin: 8px 12px;
+}
+.confirm-panel-title {
+  font-size: 12px;
+  font-weight: 700;
+  color: var(--yellow);
+  margin-bottom: 8px;
+  display: flex; align-items: center; gap: 6px;
+}
+.confirm-panel-summary {
+  font-size: 12px;
+  color: var(--text-soft);
+  margin-bottom: 12px;
+  line-height: 1.5;
+}
+
+.confirm-btn-row { display: flex; gap: 6px; flex-wrap: wrap; }
+.confirm-btn {
+  padding: 6px 14px; border-radius: 6px; font-size: 11px; font-weight: 600;
+  cursor: pointer; border: 1px solid; transition: all 0.15s;
+}
+.confirm-btn-primary { background: var(--accent); border-color: var(--accent); color: #fff; }
+.confirm-btn-secondary { background: var(--bg-input); border-color: var(--border); color: var(--text-soft); }
+.confirm-btn-secondary:hover { border-color: var(--accent); color: var(--text); }
+.confirm-goto-select {
+  padding: 5px 8px; border-radius: 6px; border: 1px solid var(--border);
+  background: var(--bg-input); color: var(--text-soft); font-size: 11px; cursor: pointer;
+}
+
+.confirm-action-cards { display: grid; grid-template-columns: 1fr 1fr; gap: 6px; }
+.confirm-action-card {
+  padding: 10px 12px; border: 1px solid var(--border); border-radius: 6px;
+  background: var(--bg-card); cursor: pointer; transition: all 0.15s;
+}
+.confirm-action-card:hover { border-color: var(--accent); background: rgba(108,140,255,0.06); }
+.confirm-action-card.recommended { border-color: var(--accent); }
+.confirm-action-card-icon { font-size: 16px; margin-bottom: 4px; }
+.confirm-action-card-name { font-size: 12px; font-weight: 700; color: var(--text-strong); margin-bottom: 2px; }
+.confirm-action-card-desc { font-size: 10px; color: var(--text-dim); }
+.confirm-action-card .rec-badge { font-size: 9px; color: var(--accent); font-weight: 700; text-transform: uppercase; letter-spacing: 0.04em; }
+
+/* ========================= */
+/* Route Suggestion          */
+/* ========================= */
+
+.route-suggestion-box {
+  margin-top: 10px; padding: 10px 12px; border-radius: 6px;
+  border: 1px solid rgba(180,142,173,0.4); background: rgba(180,142,173,0.06);
+}
+.route-suggestion-header { display: flex; align-items: center; gap: 6px; margin-bottom: 6px; }
+.route-suggestion-label {
+  font-size: 10px; text-transform: uppercase; letter-spacing: 0.06em;
+  font-weight: 700; color: var(--purple);
+}
+.route-suggestion-reason { font-size: 12px; color: var(--text-soft); margin-bottom: 8px; line-height: 1.45; }
+.route-suggestion-action {
+  padding: 5px 12px; border-radius: 6px; border: 1px solid var(--purple);
+  background: rgba(180,142,173,0.12); color: var(--purple); font-size: 11px; font-weight: 600; cursor: pointer;
+}
+
+.route-suggestion-inline {
+  display: flex; align-items: center; gap: 8px; margin-top: 10px;
+  padding: 6px 10px; border-radius: 6px;
+  background: rgba(180,142,173,0.08); border-left: 3px solid var(--purple);
+}
+.route-suggestion-inline-text { flex: 1; font-size: 11px; color: var(--text-soft); }
+.route-suggestion-inline-text strong { color: var(--purple); font-weight: 600; }
+.route-suggestion-inline .apply-btn {
+  padding: 4px 10px; border-radius: 5px; border: 1px solid var(--purple);
+  background: transparent; color: var(--purple); font-size: 10px; font-weight: 600;
+  cursor: pointer; white-space: nowrap;
+}
+
+/* ========================= */
+/* Rules Config              */
+/* ========================= */
+
+.rule-inline-section {
+  margin-top: 8px; padding: 8px 10px;
+  border: 1px solid var(--border-soft); border-radius: 6px; background: var(--bg-panel);
+}
+.rule-inline-header { display: flex; align-items: center; justify-content: space-between; cursor: pointer; }
+.rule-inline-title { font-size: 11px; font-weight: 600; color: var(--text-dim); display: flex; align-items: center; gap: 5px; }
+.rule-list { margin-top: 8px; }
+.rule-row {
+  display: flex; align-items: center; gap: 6px; padding: 5px 0;
+  font-size: 11px; color: var(--text-soft); border-bottom: 1px solid var(--border-soft);
+}
+.rule-row:last-child { border-bottom: none; }
+.rule-keyword {
+  font-size: 10px; font-weight: 700; text-transform: uppercase;
+  letter-spacing: 0.03em; padding: 1px 5px; border-radius: 3px;
+}
+.rule-keyword-on { background: rgba(212,165,72,0.15); color: var(--yellow); }
+.rule-keyword-action { background: rgba(108,140,255,0.15); color: var(--accent); }
+.rule-add-btn {
+  font-size: 10px; color: var(--accent); cursor: pointer;
+  padding: 4px 0; margin-top: 4px; display: flex; align-items: center; gap: 4px;
+}
+
+/* Toggle track */
+.toggle-track {
+  width: 28px; height: 14px; border-radius: 7px; background: var(--green);
+  position: relative; cursor: pointer; display: inline-block;
+}
+.toggle-track .toggle-thumb {
+  width: 10px; height: 10px; border-radius: 50%; background: #fff;
+  position: absolute; top: 2px; right: 2px;
+}
+
+/* Summary panel */
+.summary-panel {
+  position: fixed; bottom: 0; left: 0; right: 0;
+  background: var(--bg-header); border-top: 1px solid var(--border);
+  padding: 14px 32px; z-index: 100;
+  display: flex; align-items: center; justify-content: space-between;
+}
+.summary-count { font-size: 12px; color: var(--text-dim); }
+.summary-count strong { color: var(--accent); }
+.summary-btn {
+  padding: 8px 20px; border-radius: 6px; border: none; background: var(--accent);
+  color: #fff; font-size: 13px; font-weight: 700; cursor: pointer; transition: opacity 0.15s;
+}
+.summary-btn:hover { opacity: 0.9; }
+.summary-btn:disabled { opacity: 0.4; cursor: not-allowed; }
+
+.desc-code {
+  font-family: 'SF Mono', Menlo, monospace; font-size: 10px;
+  background: var(--bg-input); padding: 1px 4px; border-radius: 3px; color: var(--accent);
+}
+
+/* Modal */
+.modal-btn-cancel {
+  padding: 6px 14px; border-radius: 6px; border: 1px solid var(--border);
+  background: var(--bg-input); color: var(--text-soft); font-size: 12px; cursor: pointer;
+}
+.modal-btn-save {
+  padding: 6px 14px; border-radius: 6px; border: 1px solid var(--accent);
+  background: var(--accent); color: #fff; font-size: 12px; font-weight: 600; cursor: pointer;
+}
+
+/* Agent drag sidebar for canvas */
+.agent-sidebar {
+  width: 100%;
+  padding: 8px;
+  border-right: 1px solid var(--border);
+  background: var(--bg-panel);
+}
+.agent-sidebar-title {
+  font-size: 10px; text-transform: uppercase; letter-spacing: 0.05em;
+  color: var(--text-dim); margin-bottom: 8px; padding: 0 4px;
+}
+.agent-drag-item {
+  display: flex; align-items: center; gap: 6px;
+  padding: 6px 8px; border-radius: 6px;
+  border: 1px solid var(--border); background: var(--bg-card);
+  cursor: grab; font-size: 11px; color: var(--text-soft);
+  margin-bottom: 4px;
+  transition: all 0.12s;
+}
+.agent-drag-item:hover {
+  border-color: var(--accent);
+  background: rgba(108,140,255,0.06);
+}
+.agent-drag-icon {
+  width: 18px; height: 18px; border-radius: 4px;
+  display: flex; align-items: center; justify-content: center;
+  font-size: 9px; font-weight: 700; flex-shrink: 0;
+}
+
+/* Minimap */
+.minimap {
+  position: absolute;
+  bottom: 10px; right: 10px;
+  width: 120px; height: 70px;
+  border: 1px solid var(--border);
+  border-radius: 6px;
+  background: rgba(22,27,34,0.9);
+  overflow: hidden;
+}
+.minimap-viewport {
+  position: absolute;
+  border: 1px solid var(--accent);
+  background: rgba(108,140,255,0.08);
+  border-radius: 2px;
+}
+.minimap-node {
+  position: absolute;
+  background: rgba(108,140,255,0.3);
+  border-radius: 1px;
+}
+</style>
+</head>
+<body>
+
+<div class="page-header">
+  <h1>Agent Studio — UI 交互方案选择（DAG 画布版）</h1>
+  <p>直接采用 DAG 画布作为模板编辑器。以下每个问题有 2~3 个可视化方案，点击选择偏好方案，最后"导出选择"生成 spec 任务列表。</p>
+</div>
+
+<div class="container">
+
+<!-- =============================== -->
+<!-- DECISION 1: 画布节点样式        -->
+<!-- =============================== -->
+<div class="decision-section" data-decision="node-style">
+  <div class="decision-header">
+    <span class="badge badge-p4">P4</span>
+    <h2>画布节点样式</h2>
+  </div>
+  <div class="decision-desc">
+    每个 Agent 步骤在画布上的节点外观。需要展示：Agent 名称、角色、模型信息、连接端口。
+  </div>
+  <div class="options-grid">
+    <!-- Option A: Compact card -->
+    <div class="option-card" onclick="selectOption(this)">
+      <div class="option-card-header">
+        <div class="option-radio"></div>
+        <span class="option-label">A. 紧凑卡片</span>
+      </div>
+      <div class="option-sublabel">小尺寸节点，仅显示图标 + 名称 + 角色标签，悬停展示详情</div>
+      <div class="mockup">
+        <div class="mockup-title-bar">画布节点</div>
+        <div class="canvas-bg" style="min-height: 180px; display: flex; align-items: center; justify-content: center; gap: 40px;">
+          <!-- Node 1 -->
+          <div style="position: relative; width: 130px;">
+            <div style="border-radius: 8px; border: 1.5px solid var(--border); background: var(--bg-panel); padding: 8px 10px; display: flex; align-items: center; gap: 7px;">
+              <div class="canvas-node-icon canvas-node-icon-claude">C</div>
+              <div>
+                <div style="font-size: 11px; font-weight: 700; color: var(--text-strong);">需求分析</div>
+                <div style="font-size: 9px; color: var(--text-dim);">product</div>
+              </div>
+            </div>
+            <div class="canvas-port canvas-port-out"></div>
+          </div>
+          <!-- Node 2 -->
+          <div style="position: relative; width: 130px;">
+            <div style="border-radius: 8px; border: 1.5px solid var(--accent); background: var(--bg-panel); padding: 8px 10px; display: flex; align-items: center; gap: 7px; box-shadow: 0 0 0 2px rgba(108,140,255,0.25);">
+              <div class="canvas-node-icon canvas-node-icon-codex">X</div>
+              <div>
+                <div style="font-size: 11px; font-weight: 700; color: var(--text-strong);">前端开发</div>
+                <div style="font-size: 9px; color: var(--text-dim);">dev</div>
+              </div>
+            </div>
+            <div class="canvas-port canvas-port-in"></div>
+            <div class="canvas-port canvas-port-out"></div>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <!-- Option B: Detailed card -->
+    <div class="option-card" onclick="selectOption(this)">
+      <div class="option-card-header">
+        <div class="option-radio"></div>
+        <span class="option-label">B. 详细卡片</span>
+      </div>
+      <div class="option-sublabel">较大节点，直接显示名称、角色、模型、vendor 标签</div>
+      <div class="mockup">
+        <div class="mockup-title-bar">画布节点</div>
+        <div class="canvas-bg" style="min-height: 180px; display: flex; align-items: center; justify-content: center; gap: 40px;">
+          <!-- Node 1 -->
+          <div style="position: relative; width: 160px;">
+            <div style="border-radius: 8px; border: 1.5px solid var(--border); background: var(--bg-panel);">
+              <div style="padding: 8px 10px 4px; display: flex; align-items: center; gap: 6px;">
+                <div class="canvas-node-icon canvas-node-icon-claude">C</div>
+                <div style="font-size: 12px; font-weight: 700; color: var(--text-strong);">需求分析</div>
+              </div>
+              <div style="padding: 0 10px 8px;">
+                <div style="font-size: 10px; color: var(--text-dim); margin-bottom: 3px;">product</div>
+                <span style="font-size: 9px; padding: 1px 5px; border-radius: 3px; background: var(--bg-input); color: var(--text-dim);">claude · sonnet</span>
+              </div>
+            </div>
+            <div class="canvas-port canvas-port-out"></div>
+          </div>
+          <!-- Node 2 selected -->
+          <div style="position: relative; width: 160px;">
+            <div style="border-radius: 8px; border: 1.5px solid var(--accent); background: var(--bg-panel); box-shadow: 0 0 0 2px rgba(108,140,255,0.25);">
+              <div style="padding: 8px 10px 4px; display: flex; align-items: center; gap: 6px;">
+                <div class="canvas-node-icon canvas-node-icon-codex">X</div>
+                <div style="font-size: 12px; font-weight: 700; color: var(--text-strong);">前端开发</div>
+              </div>
+              <div style="padding: 0 10px 8px;">
+                <div style="font-size: 10px; color: var(--text-dim); margin-bottom: 3px;">dev</div>
+                <span style="font-size: 9px; padding: 1px 5px; border-radius: 3px; background: var(--bg-input); color: var(--text-dim);">codex · codex-mini</span>
+              </div>
+            </div>
+            <div class="canvas-port canvas-port-in"></div>
+            <div class="canvas-port canvas-port-out"></div>
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- ======================================== -->
+<!-- DECISION 2: 并行组在画布上的表示方式      -->
+<!-- ======================================== -->
+<div class="decision-section" data-decision="canvas-parallel">
+  <div class="decision-header">
+    <span class="badge badge-p4">P4</span>
+    <h2>并行组在画布上的表示方式</h2>
+  </div>
+  <div class="decision-desc">
+    画布中如何呈现并行分支结构？需要清晰表达 fan-out / fan-in 关系。
+  </div>
+  <div class="options-grid">
+    <!-- Option A: Dashed box group -->
+    <div class="option-card" onclick="selectOption(this)">
+      <div class="option-card-header">
+        <div class="option-radio"></div>
+        <span class="option-label">A. 虚线框包围 + 分叉连线</span>
+      </div>
+      <div class="option-sublabel">并行节点用虚线框包围标识为一组，入口/出口用分叉线连接</div>
+      <div class="mockup">
+        <div class="mockup-title-bar">画布 — 并行组</div>
+        <div class="canvas-bg" style="min-height: 240px;">
+          <!-- Node: 需求分析 -->
+          <div style="position: absolute; left: 30px; top: 90px; width: 120px;">
+            <div style="border-radius: 8px; border: 1.5px solid var(--border); background: var(--bg-panel); padding: 7px 10px; display: flex; align-items: center; gap: 6px;">
+              <div class="canvas-node-icon canvas-node-icon-claude" style="width: 18px; height: 18px; font-size: 9px;">C</div>
+              <div style="font-size: 11px; font-weight: 700; color: var(--text-strong);">需求分析</div>
+            </div>
+          </div>
+
+          <!-- Parallel group box -->
+          <div class="canvas-parallel-group" style="left: 185px; top: 20px; width: 170px; height: 200px;">
+            <span class="canvas-parallel-label">Parallel · 汇合</span>
+            <!-- Node: 前端 -->
+            <div style="position: absolute; left: 15px; top: 25px; width: 140px;">
+              <div style="border-radius: 8px; border: 1.5px solid var(--border); background: var(--bg-panel); padding: 7px 10px; display: flex; align-items: center; gap: 6px;">
+                <div class="canvas-node-icon canvas-node-icon-codex" style="width: 18px; height: 18px; font-size: 9px;">X</div>
+                <div style="font-size: 11px; font-weight: 700; color: var(--text-strong);">前端开发</div>
+              </div>
+            </div>
+            <!-- Node: 后端 -->
+            <div style="position: absolute; left: 15px; top: 130px; width: 140px;">
+              <div style="border-radius: 8px; border: 1.5px solid var(--border); background: var(--bg-panel); padding: 7px 10px; display: flex; align-items: center; gap: 6px;">
+                <div class="canvas-node-icon canvas-node-icon-codex" style="width: 18px; height: 18px; font-size: 9px;">X</div>
+                <div style="font-size: 11px; font-weight: 700; color: var(--text-strong);">后端开发</div>
+              </div>
+            </div>
+          </div>
+
+          <!-- Node: 集成测试 -->
+          <div style="position: absolute; right: 30px; top: 90px; width: 120px;">
+            <div style="border-radius: 8px; border: 1.5px solid var(--border); background: var(--bg-panel); padding: 7px 10px; display: flex; align-items: center; gap: 6px;">
+              <div class="canvas-node-icon canvas-node-icon-claude" style="width: 18px; height: 18px; font-size: 9px;">C</div>
+              <div style="font-size: 11px; font-weight: 700; color: var(--text-strong);">集成测试</div>
+            </div>
+          </div>
+
+          <!-- SVG edges -->
+          <svg style="position: absolute; inset: 0; width: 100%; height: 100%; pointer-events: none;">
+            <!-- 需求 → 前端 -->
+            <path d="M 150 110 C 175 110, 175 56, 200 56" class="canvas-edge" />
+            <!-- 需求 → 后端 -->
+            <path d="M 150 110 C 175 110, 175 164, 200 164" class="canvas-edge" />
+            <!-- 前端 → 集成 -->
+            <path d="M 355 56 C 380 56, 380 110, 405 110" class="canvas-edge" />
+            <!-- 后端 → 集成 -->
+            <path d="M 355 164 C 380 164, 380 110, 405 110" class="canvas-edge" />
+          </svg>
+        </div>
+      </div>
+    </div>
+
+    <!-- Option B: Pure edges, no box -->
+    <div class="option-card" onclick="selectOption(this)">
+      <div class="option-card-header">
+        <div class="option-radio"></div>
+        <span class="option-label">B. 纯连线分叉（无包围框）</span>
+      </div>
+      <div class="option-sublabel">不用虚线框，仅靠连线的分叉/汇合表达并行关系，更简洁</div>
+      <div class="mockup">
+        <div class="mockup-title-bar">画布 — 并行组</div>
+        <div class="canvas-bg" style="min-height: 240px;">
+          <!-- Node: 需求分析 -->
+          <div style="position: absolute; left: 30px; top: 90px; width: 120px;">
+            <div style="border-radius: 8px; border: 1.5px solid var(--border); background: var(--bg-panel); padding: 7px 10px; display: flex; align-items: center; gap: 6px;">
+              <div class="canvas-node-icon canvas-node-icon-claude" style="width: 18px; height: 18px; font-size: 9px;">C</div>
+              <div style="font-size: 11px; font-weight: 700; color: var(--text-strong);">需求分析</div>
+            </div>
+          </div>
+
+          <!-- Node: 前端 -->
+          <div style="position: absolute; left: 210px; top: 35px; width: 130px;">
+            <div style="border-radius: 8px; border: 1.5px solid var(--border); background: var(--bg-panel); padding: 7px 10px; display: flex; align-items: center; gap: 6px;">
+              <div class="canvas-node-icon canvas-node-icon-codex" style="width: 18px; height: 18px; font-size: 9px;">X</div>
+              <div style="font-size: 11px; font-weight: 700; color: var(--text-strong);">前端开发</div>
+            </div>
+          </div>
+
+          <!-- Node: 后端 -->
+          <div style="position: absolute; left: 210px; top: 150px; width: 130px;">
+            <div style="border-radius: 8px; border: 1.5px solid var(--border); background: var(--bg-panel); padding: 7px 10px; display: flex; align-items: center; gap: 6px;">
+              <div class="canvas-node-icon canvas-node-icon-codex" style="width: 18px; height: 18px; font-size: 9px;">X</div>
+              <div style="font-size: 11px; font-weight: 700; color: var(--text-strong);">后端开发</div>
+            </div>
+          </div>
+
+          <!-- Node: 集成测试 -->
+          <div style="position: absolute; right: 30px; top: 90px; width: 120px;">
+            <div style="border-radius: 8px; border: 1.5px solid var(--border); background: var(--bg-panel); padding: 7px 10px; display: flex; align-items: center; gap: 6px;">
+              <div class="canvas-node-icon canvas-node-icon-claude" style="width: 18px; height: 18px; font-size: 9px;">C</div>
+              <div style="font-size: 11px; font-weight: 700; color: var(--text-strong);">集成测试</div>
+            </div>
+          </div>
+
+          <svg style="position: absolute; inset: 0; width: 100%; height: 100%; pointer-events: none;">
+            <path d="M 150 110 C 185 110, 185 52, 210 52" class="canvas-edge canvas-edge-active" />
+            <path d="M 150 110 C 185 110, 185 168, 210 168" class="canvas-edge canvas-edge-active" />
+            <path d="M 340 52 C 375 52, 375 110, 405 110" class="canvas-edge canvas-edge-active" />
+            <path d="M 340 168 C 375 168, 375 110, 405 110" class="canvas-edge canvas-edge-active" />
+          </svg>
+        </div>
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- ======================================== -->
+<!-- DECISION 3: 画布工具栏与节点操作          -->
+<!-- ======================================== -->
+<div class="decision-section" data-decision="canvas-toolbar">
+  <div class="decision-header">
+    <span class="badge badge-p4">P4</span>
+    <h2>画布工具栏位置 & 节点编辑方式</h2>
+  </div>
+  <div class="decision-desc">
+    画布的工具栏放在哪里？选中节点后如何编辑其配置（agent、role、rules）？
+  </div>
+  <div class="options-grid">
+    <!-- Option A: Top toolbar + right panel -->
+    <div class="option-card" onclick="selectOption(this)">
+      <div class="option-card-header">
+        <div class="option-radio"></div>
+        <span class="option-label">A. 顶部工具栏 + 右侧属性面板</span>
+      </div>
+      <div class="option-sublabel">工具栏固定在画布上方，选中节点后右侧展开属性编辑面板</div>
+      <div class="mockup">
+        <div class="mockup-title-bar">画布布局</div>
+        <div style="display: grid; grid-template-columns: 1fr 200px; min-height: 240px;">
+          <div class="canvas-bg" style="position: relative;">
+            <!-- Top toolbar -->
+            <div class="canvas-toolbar" style="top: 10px; left: 50%; transform: translateX(-50%);">
+              <div class="canvas-toolbar-btn" title="选择">🔲</div>
+              <div class="canvas-toolbar-btn active" title="连线">⤳</div>
+              <div class="canvas-toolbar-sep"></div>
+              <div class="canvas-toolbar-btn" title="撤销">↩</div>
+              <div class="canvas-toolbar-btn" title="重做">↪</div>
+              <div class="canvas-toolbar-sep"></div>
+              <div class="canvas-toolbar-btn" title="适应画布">⛶</div>
+              <div class="canvas-toolbar-btn" title="缩放">🔍</div>
+            </div>
+            <!-- Sample node -->
+            <div style="position: absolute; left: 40px; top: 80px; width: 140px;">
+              <div style="border-radius: 8px; border: 1.5px solid var(--accent); background: var(--bg-panel); padding: 8px 10px; display: flex; align-items: center; gap: 6px; box-shadow: 0 0 0 2px rgba(108,140,255,0.25);">
+                <div class="canvas-node-icon canvas-node-icon-codex" style="width: 18px; height: 18px; font-size: 9px;">X</div>
+                <div>
+                  <div style="font-size: 11px; font-weight: 700; color: var(--text-strong);">前端开发</div>
+                  <div style="font-size: 9px; color: var(--text-dim);">dev</div>
+                </div>
+              </div>
+            </div>
+            <!-- Minimap -->
+            <div class="minimap">
+              <div class="minimap-viewport" style="left: 8px; top: 12px; width: 50px; height: 30px;"></div>
+              <div class="minimap-node" style="left: 20px; top: 20px; width: 12px; height: 5px;"></div>
+              <div class="minimap-node" style="left: 50px; top: 15px; width: 12px; height: 5px;"></div>
+              <div class="minimap-node" style="left: 50px; top: 30px; width: 12px; height: 5px;"></div>
+              <div class="minimap-node" style="left: 80px; top: 22px; width: 12px; height: 5px;"></div>
+            </div>
+          </div>
+          <!-- Right detail panel -->
+          <div class="node-detail-panel">
+            <div class="node-detail-title">前端开发</div>
+            <div class="node-detail-field">
+              <div class="node-detail-label">Agent</div>
+              <select class="node-detail-select">
+                <option>Codex · codex-mini</option>
+              </select>
+            </div>
+            <div class="node-detail-field">
+              <div class="node-detail-label">Role</div>
+              <input class="node-detail-input" value="dev" />
+            </div>
+            <div class="node-detail-field">
+              <div class="node-detail-label">Rules</div>
+              <div class="rule-inline-section" style="margin-top: 0;">
+                <div class="rule-row" style="border-bottom: none; padding: 2px 0;">
+                  <span class="rule-keyword rule-keyword-on">ON</span> error
+                  <span class="rule-keyword rule-keyword-action">→</span> retry
+                  <span style="color: var(--text-dim); font-size: 10px;">(2x)</span>
+                </div>
+                <div class="rule-add-btn">+ 添加规则</div>
+              </div>
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <!-- Option B: Floating toolbar + popover -->
+    <div class="option-card" onclick="selectOption(this)">
+      <div class="option-card-header">
+        <div class="option-radio"></div>
+        <span class="option-label">B. 浮动工具栏 + 弹出编辑卡片</span>
+      </div>
+      <div class="option-sublabel">工具栏浮在画布左下角，双击节点弹出编辑卡片（就近浮动）</div>
+      <div class="mockup">
+        <div class="mockup-title-bar">画布布局</div>
+        <div class="canvas-bg" style="min-height: 260px; position: relative;">
+          <!-- Floating toolbar bottom-left -->
+          <div class="canvas-toolbar" style="bottom: 10px; left: 10px;">
+            <div class="canvas-toolbar-btn active" title="选择">🔲</div>
+            <div class="canvas-toolbar-btn" title="连线">⤳</div>
+            <div class="canvas-toolbar-sep"></div>
+            <div class="canvas-toolbar-btn" title="撤销">↩</div>
+            <div class="canvas-toolbar-btn" title="重做">↪</div>
+            <div class="canvas-toolbar-sep"></div>
+            <div class="canvas-toolbar-btn" title="适应">⛶</div>
+          </div>
+
+          <!-- Node being edited -->
+          <div style="position: absolute; left: 40px; top: 50px; width: 140px;">
+            <div style="border-radius: 8px; border: 1.5px solid var(--accent); background: var(--bg-panel); padding: 8px 10px; display: flex; align-items: center; gap: 6px; box-shadow: 0 0 0 2px rgba(108,140,255,0.25);">
+              <div class="canvas-node-icon canvas-node-icon-codex" style="width: 18px; height: 18px; font-size: 9px;">X</div>
+              <div>
+                <div style="font-size: 11px; font-weight: 700; color: var(--text-strong);">前端开发</div>
+                <div style="font-size: 9px; color: var(--text-dim);">dev</div>
+              </div>
+            </div>
+          </div>
+
+          <!-- Floating edit popover -->
+          <div style="position: absolute; left: 195px; top: 30px; width: 220px; background: var(--bg-panel); border: 1px solid var(--border); border-radius: 10px; padding: 14px; box-shadow: 0 8px 24px rgba(0,0,0,0.4);">
+            <div style="font-size: 12px; font-weight: 750; color: var(--text-strong); margin-bottom: 10px;">编辑节点</div>
+            <div class="node-detail-field">
+              <div class="node-detail-label">Agent</div>
+              <select class="node-detail-select" style="font-size: 11px; padding: 5px 8px;">
+                <option>Codex · codex-mini</option>
+              </select>
+            </div>
+            <div class="node-detail-field">
+              <div class="node-detail-label">Role</div>
+              <input class="node-detail-input" value="dev" style="font-size: 11px; padding: 5px 8px;" />
+            </div>
+            <div class="node-detail-field" style="margin-bottom: 0;">
+              <div class="node-detail-label">Rules</div>
+              <div style="font-size: 10px; color: var(--text-dim);">error → retry (2x)</div>
+              <div class="rule-add-btn" style="margin-top: 2px;">+ 编辑规则</div>
+            </div>
+          </div>
+
+          <!-- Another node -->
+          <div style="position: absolute; right: 50px; top: 80px; width: 120px;">
+            <div style="border-radius: 8px; border: 1.5px solid var(--border); background: var(--bg-panel); padding: 7px 10px; display: flex; align-items: center; gap: 6px;">
+              <div class="canvas-node-icon canvas-node-icon-claude" style="width: 18px; height: 18px; font-size: 9px;">C</div>
+              <div style="font-size: 11px; font-weight: 700; color: var(--text-strong);">集成测试</div>
+            </div>
+          </div>
+
+          <svg style="position: absolute; inset: 0; width: 100%; height: 100%; pointer-events: none;">
+            <path d="M 180 68 C 300 68, 300 100, 385 100" class="canvas-edge" />
+          </svg>
+
+          <!-- Minimap -->
+          <div class="minimap">
+            <div class="minimap-viewport" style="left: 5px; top: 10px; width: 55px; height: 35px;"></div>
+            <div class="minimap-node" style="left: 15px; top: 18px; width: 12px; height: 5px;"></div>
+            <div class="minimap-node" style="left: 60px; top: 22px; width: 12px; height: 5px;"></div>
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- ======================================== -->
+<!-- DECISION 4: 节点添加方式                  -->
+<!-- ======================================== -->
+<div class="decision-section" data-decision="node-adding">
+  <div class="decision-header">
+    <span class="badge badge-p4">P4</span>
+    <h2>节点添加方式</h2>
+  </div>
+  <div class="decision-desc">
+    用户如何向画布中添加新的 Agent 节点？
+  </div>
+  <div class="options-grid">
+    <!-- Option A: Left sidebar drag -->
+    <div class="option-card" onclick="selectOption(this)">
+      <div class="option-card-header">
+        <div class="option-radio"></div>
+        <span class="option-label">A. 左侧 Agent 列表拖拽</span>
+      </div>
+      <div class="option-sublabel">画布左侧常驻 Agent 列表面板，拖拽 Agent 到画布上创建节点</div>
+      <div class="mockup">
+        <div class="mockup-title-bar">画布 — 左侧列表</div>
+        <div style="display: grid; grid-template-columns: 160px 1fr; min-height: 200px;">
+          <div class="agent-sidebar">
+            <div class="agent-sidebar-title">Agents</div>
+            <div class="agent-drag-item">
+              <div class="agent-drag-icon" style="background: rgba(108,140,255,0.15); color: var(--accent);">C</div>
+              <span>需求分析师</span>
+            </div>
+            <div class="agent-drag-item" style="border-color: var(--accent); background: rgba(108,140,255,0.06); opacity: 0.6;">
+              <div class="agent-drag-icon" style="background: rgba(76,175,125,0.15); color: var(--green);">X</div>
+              <span style="color: var(--accent);">前端开发 ⇠</span>
+            </div>
+            <div class="agent-drag-item">
+              <div class="agent-drag-icon" style="background: rgba(76,175,125,0.15); color: var(--green);">X</div>
+              <span>后端开发</span>
+            </div>
+            <div class="agent-drag-item">
+              <div class="agent-drag-icon" style="background: rgba(108,140,255,0.15); color: var(--accent);">C</div>
+              <span>测试专家</span>
+            </div>
+          </div>
+          <div class="canvas-bg" style="min-height: 200px;">
+            <div style="position: absolute; left: 30px; top: 70px; width: 130px; border: 2px dashed var(--accent); border-radius: 8px; padding: 7px 10px; background: rgba(108,140,255,0.04); display: flex; align-items: center; gap: 6px;">
+              <div class="canvas-node-icon canvas-node-icon-codex" style="width: 18px; height: 18px; font-size: 9px; opacity: 0.5;">X</div>
+              <div style="font-size: 11px; color: var(--accent); opacity: 0.7;">放置到此处</div>
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <!-- Option B: Right-click on canvas -->
+    <div class="option-card" onclick="selectOption(this)">
+      <div class="option-card-header">
+        <div class="option-radio"></div>
+        <span class="option-label">B. 画布右键菜单添加</span>
+      </div>
+      <div class="option-sublabel">右键画布空白处弹出菜单，选择 Agent 后在点击位置创建节点。画布更清爽。</div>
+      <div class="mockup">
+        <div class="mockup-title-bar">画布 — 右键菜单</div>
+        <div class="canvas-bg" style="min-height: 200px;">
+          <!-- Existing node -->
+          <div style="position: absolute; left: 30px; top: 60px; width: 130px;">
+            <div style="border-radius: 8px; border: 1.5px solid var(--border); background: var(--bg-panel); padding: 7px 10px; display: flex; align-items: center; gap: 6px;">
+              <div class="canvas-node-icon canvas-node-icon-claude" style="width: 18px; height: 18px; font-size: 9px;">C</div>
+              <div style="font-size: 11px; font-weight: 700; color: var(--text-strong);">需求分析</div>
+            </div>
+          </div>
+
+          <!-- Right-click menu -->
+          <div class="ctx-menu" style="left: 220px; top: 50px;">
+            <div class="ctx-menu-item" style="font-size: 10px; color: var(--text-dim); cursor: default; padding: 3px 10px;">添加节点</div>
+            <div class="ctx-menu-item">
+              <span style="width: 14px; height: 14px; border-radius: 3px; background: rgba(108,140,255,0.15); color: var(--accent); display: flex; align-items: center; justify-content: center; font-size: 8px; font-weight: 700;">C</span>
+              需求分析师
+            </div>
+            <div class="ctx-menu-item">
+              <span style="width: 14px; height: 14px; border-radius: 3px; background: rgba(76,175,125,0.15); color: var(--green); display: flex; align-items: center; justify-content: center; font-size: 8px; font-weight: 700;">X</span>
+              前端开发
+            </div>
+            <div class="ctx-menu-item">
+              <span style="width: 14px; height: 14px; border-radius: 3px; background: rgba(76,175,125,0.15); color: var(--green); display: flex; align-items: center; justify-content: center; font-size: 8px; font-weight: 700;">X</span>
+              后端开发
+            </div>
+            <div class="ctx-menu-item">
+              <span style="width: 14px; height: 14px; border-radius: 3px; background: rgba(108,140,255,0.15); color: var(--accent); display: flex; align-items: center; justify-content: center; font-size: 8px; font-weight: 700;">C</span>
+              测试专家
+            </div>
+            <div class="ctx-menu-sep"></div>
+            <div class="ctx-menu-item">⫘ 创建并行组</div>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <!-- Option C: Both -->
+    <div class="option-card" onclick="selectOption(this)">
+      <div class="option-card-header">
+        <div class="option-radio"></div>
+        <span class="option-label">C. 两者兼备</span>
+      </div>
+      <div class="option-sublabel">左侧可折叠的 Agent 列表 + 右键菜单，用户自选习惯方式</div>
+      <div class="mockup">
+        <div class="mockup-title-bar">画布 — 折叠侧栏 + 右键</div>
+        <div style="display: grid; grid-template-columns: 40px 1fr; min-height: 200px;">
+          <!-- Collapsed sidebar -->
+          <div style="background: var(--bg-panel); border-right: 1px solid var(--border); display: flex; flex-direction: column; align-items: center; padding-top: 8px; gap: 6px;">
+            <div style="width: 28px; height: 28px; border-radius: 6px; background: var(--bg-input); border: 1px solid var(--border); display: flex; align-items: center; justify-content: center; cursor: pointer; font-size: 11px; color: var(--text-dim);" title="展开 Agent 列表">☰</div>
+            <div style="width: 24px; height: 24px; border-radius: 5px; background: rgba(108,140,255,0.15); display: flex; align-items: center; justify-content: center; font-size: 9px; font-weight: 700; color: var(--accent); cursor: grab;" title="需求分析师">C</div>
+            <div style="width: 24px; height: 24px; border-radius: 5px; background: rgba(76,175,125,0.15); display: flex; align-items: center; justify-content: center; font-size: 9px; font-weight: 700; color: var(--green); cursor: grab;" title="前端开发">X</div>
+            <div style="width: 24px; height: 24px; border-radius: 5px; background: rgba(76,175,125,0.15); display: flex; align-items: center; justify-content: center; font-size: 9px; font-weight: 700; color: var(--green); cursor: grab;" title="后端开发">X</div>
+            <div style="width: 24px; height: 24px; border-radius: 5px; background: rgba(108,140,255,0.15); display: flex; align-items: center; justify-content: center; font-size: 9px; font-weight: 700; color: var(--accent); cursor: grab;" title="测试专家">C</div>
+          </div>
+          <div class="canvas-bg" style="min-height: 200px;">
+            <div style="position: absolute; left: 20px; top: 70px; width: 130px;">
+              <div style="border-radius: 8px; border: 1.5px solid var(--border); background: var(--bg-panel); padding: 7px 10px; display: flex; align-items: center; gap: 6px;">
+                <div class="canvas-node-icon canvas-node-icon-claude" style="width: 18px; height: 18px; font-size: 9px;">C</div>
+                <div style="font-size: 11px; font-weight: 700; color: var(--text-strong);">需求分析</div>
+              </div>
+            </div>
+            <div style="position: absolute; right: 20px; top: 70px; width: 130px;">
+              <div style="border-radius: 8px; border: 1.5px solid var(--border); background: var(--bg-panel); padding: 7px 10px; display: flex; align-items: center; gap: 6px;">
+                <div class="canvas-node-icon canvas-node-icon-codex" style="width: 18px; height: 18px; font-size: 9px;">X</div>
+                <div style="font-size: 11px; font-weight: 700; color: var(--text-strong);">前端开发</div>
+              </div>
+            </div>
+            <svg style="position: absolute; inset: 0; width: 100%; height: 100%; pointer-events: none;">
+              <path d="M 150 88 C 230 88, 230 88, 310 88" class="canvas-edge" />
+            </svg>
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- ======================================== -->
+<!-- DECISION 5: 并行 Step Chips 显示方式      -->
+<!-- ======================================== -->
+<div class="decision-section" data-decision="parallel-chips">
+  <div class="decision-header">
+    <span class="badge badge-p1">P1</span>
+    <h2>并行步骤 Chips 显示方式（Run 详情顶部）</h2>
+  </div>
+  <div class="decision-desc">
+    工作流运行详情页顶部步骤导航条中，并行步骤如何展示？
+  </div>
+  <div class="options-grid">
+    <div class="option-card" onclick="selectOption(this)">
+      <div class="option-card-header">
+        <div class="option-radio"></div>
+        <span class="option-label">A. 垂直堆叠 + 蓝色竖条</span>
+      </div>
+      <div class="option-sublabel">并行步骤纵向排列，左侧蓝色竖条标识</div>
+      <div class="mockup">
+        <div class="mockup-title-bar">Run 详情 — Step Chips</div>
+        <div class="step-chips-bar">
+          <div class="step-chip step-chip-done"><span class="step-chip-num">1</span>需求分析</div>
+          <span class="chip-arrow">→</span>
+          <div class="chip-parallel-stack">
+            <div class="chip-parallel-bracket"></div>
+            <div class="step-chip step-chip-running" style="margin-left: 4px;"><span class="step-chip-num">2a</span>前端开发</div>
+            <div class="step-chip step-chip-await" style="margin-left: 4px;"><span class="step-chip-num">2b</span>后端开发</div>
+          </div>
+          <span class="chip-arrow">→</span>
+          <div class="step-chip"><span class="step-chip-num">3</span>集成测试</div>
+        </div>
+      </div>
+    </div>
+    <div class="option-card" onclick="selectOption(this)">
+      <div class="option-card-header">
+        <div class="option-radio"></div>
+        <span class="option-label">B. 行内分组（虚线框）</span>
+      </div>
+      <div class="option-sublabel">水平排列，虚线框和分隔线标识为一组</div>
+      <div class="mockup">
+        <div class="mockup-title-bar">Run 详情 — Step Chips</div>
+        <div class="step-chips-bar">
+          <div class="step-chip step-chip-done"><span class="step-chip-num">1</span>需求分析</div>
+          <span class="chip-arrow">→</span>
+          <div class="chip-parallel-inline">
+            <div class="step-chip step-chip-running"><span class="step-chip-num">2a</span>前端开发</div>
+            <div class="chip-parallel-divider"></div>
+            <div class="step-chip step-chip-await"><span class="step-chip-num">2b</span>后端开发</div>
+          </div>
+          <span class="chip-arrow">→</span>
+          <div class="step-chip"><span class="step-chip-num">3</span>集成测试</div>
+        </div>
+      </div>
+    </div>
+    <div class="option-card" onclick="selectOption(this)">
+      <div class="option-card-header">
+        <div class="option-radio"></div>
+        <span class="option-label">C. 泳道式</span>
+      </div>
+      <div class="option-sublabel">"PARALLEL" 标签 + 竖线围栏</div>
+      <div class="mockup">
+        <div class="mockup-title-bar">Run 详情 — Step Chips</div>
+        <div class="step-chips-bar">
+          <div class="step-chip step-chip-done"><span class="step-chip-num">1</span>需求分析</div>
+          <span class="chip-arrow">→</span>
+          <div class="chip-swimlane">
+            <span class="chip-swimlane-label">Parallel</span>
+            <div class="step-chip step-chip-running"><span class="step-chip-num">2a</span>前端开发</div>
+            <div class="step-chip step-chip-await"><span class="step-chip-num">2b</span>后端开发</div>
+          </div>
+          <span class="chip-arrow">→</span>
+          <div class="step-chip"><span class="step-chip-num">3</span>集成测试</div>
+        </div>
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- ======================================== -->
+<!-- DECISION 6: 并行运行转录查看方式          -->
+<!-- ======================================== -->
+<div class="decision-section" data-decision="parallel-transcript">
+  <div class="decision-header">
+    <span class="badge badge-p1">P1</span>
+    <h2>并行步骤运行时转录查看方式</h2>
+  </div>
+  <div class="decision-desc">
+    多个步骤同时运行时，用户如何查看各步骤的实时转录输出？
+  </div>
+  <div class="options-grid">
+    <div class="option-card" onclick="selectOption(this)">
+      <div class="option-card-header">
+        <div class="option-radio"></div>
+        <span class="option-label">A. Tab 切换</span>
+      </div>
+      <div class="option-sublabel">每个并行步骤一个 tab，带状态指示，点击切换</div>
+      <div class="mockup">
+        <div class="mockup-title-bar">实时转录</div>
+        <div class="transcript-container">
+          <div class="transcript-tabs">
+            <div class="transcript-tab active"><span class="tab-dot tab-dot-running"></span>前端开发</div>
+            <div class="transcript-tab"><span class="tab-dot tab-dot-running"></span>后端开发</div>
+          </div>
+          <div class="transcript-line"><span class="tl-role">assistant</span> 我来创建前端页面结构...</div>
+          <div class="transcript-line"><span class="tl-tool">tool:write</span> public/index.html</div>
+          <div class="transcript-line"><span class="tl-role">assistant</span> 接下来添加交互逻辑...</div>
+        </div>
+      </div>
+    </div>
+    <div class="option-card" onclick="selectOption(this)">
+      <div class="option-card-header">
+        <div class="option-radio"></div>
+        <span class="option-label">B. 分栏并排</span>
+      </div>
+      <div class="option-sublabel">左右分栏同时显示所有并行步骤转录</div>
+      <div class="mockup">
+        <div class="mockup-title-bar">实时转录</div>
+        <div class="transcript-container">
+          <div class="transcript-split">
+            <div class="transcript-pane">
+              <div class="transcript-pane-header">
+                <span class="transcript-pane-name">前端开发</span>
+                <span class="transcript-pane-status status-running">running</span>
+              </div>
+              <div class="transcript-line"><span class="tl-role">asst</span> 创建页面结构...</div>
+              <div class="transcript-line"><span class="tl-tool">write</span> index.html</div>
+            </div>
+            <div class="transcript-pane">
+              <div class="transcript-pane-header">
+                <span class="transcript-pane-name">后端开发</span>
+                <span class="transcript-pane-status status-running">running</span>
+              </div>
+              <div class="transcript-line"><span class="tl-role">asst</span> 设计 API 路由...</div>
+              <div class="transcript-line"><span class="tl-tool">write</span> server.mjs</div>
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- ======================================== -->
+<!-- DECISION 7: Confirm 面板操作布局          -->
+<!-- ======================================== -->
+<div class="decision-section" data-decision="confirm-actions">
+  <div class="decision-header">
+    <span class="badge badge-p2">P2</span>
+    <h2>确认面板操作布局</h2>
+  </div>
+  <div class="decision-desc">
+    步骤完成等待确认时，如何排布多种操作选项（继续、重跑、跳转、跳过）？
+  </div>
+  <div class="options-grid">
+    <div class="option-card" onclick="selectOption(this)">
+      <div class="option-card-header">
+        <div class="option-radio"></div>
+        <span class="option-label">A. 按钮行 + 下拉</span>
+      </div>
+      <div class="option-sublabel">主操作突出，次要操作普通按钮 + 跳转下拉</div>
+      <div class="mockup">
+        <div class="mockup-title-bar">确认面板</div>
+        <div style="padding: 12px;">
+          <div class="confirm-panel">
+            <div class="confirm-panel-title">⏸ 等待确认 — Step 2: 前端开发</div>
+            <div class="confirm-panel-summary">Agent 已完成前端页面开发，生成了 3 个文件。</div>
+            <div class="confirm-btn-row">
+              <button class="confirm-btn confirm-btn-primary">▶ 确认并继续</button>
+              <button class="confirm-btn confirm-btn-secondary">↻ 重跑当前步骤</button>
+              <button class="confirm-btn confirm-btn-secondary">⏭ 跳过下一步</button>
+              <select class="confirm-goto-select">
+                <option>↗ 跳转到...</option>
+                <option>Step 1: 需求分析</option>
+                <option>Step 3: 后端开发</option>
+              </select>
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+    <div class="option-card" onclick="selectOption(this)">
+      <div class="option-card-header">
+        <div class="option-radio"></div>
+        <span class="option-label">B. 操作卡片网格</span>
+      </div>
+      <div class="option-sublabel">每种操作一张卡片，含图标和描述，推荐高亮</div>
+      <div class="mockup">
+        <div class="mockup-title-bar">确认面板</div>
+        <div style="padding: 12px;">
+          <div class="confirm-panel">
+            <div class="confirm-panel-title">⏸ 等待确认 — Step 2: 前端开发</div>
+            <div class="confirm-panel-summary">Agent 已完成前端页面开发，生成了 3 个文件。</div>
+            <div class="confirm-action-cards">
+              <div class="confirm-action-card recommended">
+                <div class="confirm-action-card-icon">▶</div>
+                <div class="confirm-action-card-name">确认并继续</div>
+                <div class="confirm-action-card-desc">接受输出，推进到下一步</div>
+                <div class="rec-badge">推荐</div>
+              </div>
+              <div class="confirm-action-card">
+                <div class="confirm-action-card-icon">↻</div>
+                <div class="confirm-action-card-name">重跑当前步骤</div>
+                <div class="confirm-action-card-desc">使用相同提示重新执行</div>
+              </div>
+              <div class="confirm-action-card">
+                <div class="confirm-action-card-icon">⏭</div>
+                <div class="confirm-action-card-name">跳过下一步</div>
+                <div class="confirm-action-card-desc">直接跳过 Step 3</div>
+              </div>
+              <div class="confirm-action-card">
+                <div class="confirm-action-card-icon">↗</div>
+                <div class="confirm-action-card-name">跳转到指定步骤</div>
+                <div class="confirm-action-card-desc">选择目标步骤进行跳转</div>
+              </div>
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- ======================================== -->
+<!-- DECISION 8: Route Suggestion 展示        -->
+<!-- ======================================== -->
+<div class="decision-section" data-decision="route-suggestion">
+  <div class="decision-header">
+    <span class="badge badge-p2">P2</span>
+    <h2>Agent 路由建议展示方式</h2>
+  </div>
+  <div class="decision-desc">
+    当 agent handoff 包含 <span class="desc-code">routeSuggestion</span> 时如何展示？
+  </div>
+  <div class="options-grid">
+    <div class="option-card" onclick="selectOption(this)">
+      <div class="option-card-header">
+        <div class="option-radio"></div>
+        <span class="option-label">A. 独立卡片</span>
+      </div>
+      <div class="option-sublabel">紫色卡片突出展示，含"采纳建议"按钮</div>
+      <div class="mockup">
+        <div class="mockup-title-bar">确认面板内</div>
+        <div style="padding: 12px;">
+          <div class="confirm-panel-summary" style="margin-bottom: 0;">Agent 完成了代码审查，发现 3 个问题。</div>
+          <div class="route-suggestion-box">
+            <div class="route-suggestion-header">
+              <span style="font-size: 14px;">💡</span>
+              <span class="route-suggestion-label">Agent 建议</span>
+            </div>
+            <div class="route-suggestion-reason">测试发现 3 个关键 bug，建议跳回 <strong>Step 2: 开发</strong> 修复。</div>
+            <button class="route-suggestion-action">采纳建议：跳转到 Step 2</button>
+          </div>
+        </div>
+      </div>
+    </div>
+    <div class="option-card" onclick="selectOption(this)">
+      <div class="option-card-header">
+        <div class="option-radio"></div>
+        <span class="option-label">B. 内联横幅</span>
+      </div>
+      <div class="option-sublabel">紧凑内联提示条，紫色竖线 + "采纳"按钮</div>
+      <div class="mockup">
+        <div class="mockup-title-bar">确认面板内</div>
+        <div style="padding: 12px;">
+          <div class="confirm-panel-summary" style="margin-bottom: 0;">Agent 完成了代码审查，发现 3 个问题。</div>
+          <div class="route-suggestion-inline">
+            <span style="font-size: 14px;">💡</span>
+            <div class="route-suggestion-inline-text"><strong>Agent 建议：</strong> 跳回 Step 2: 开发 修复 3 个关键 bug</div>
+            <button class="apply-btn">采纳</button>
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+</div>
+
+</div><!-- /container -->
+
+<!-- Summary Bar -->
+<div class="summary-panel">
+  <div class="summary-count" id="summaryCount">已选择 <strong>0</strong> / 8 个方案</div>
+  <button class="summary-btn" id="exportBtn" disabled onclick="exportSelections()">导出选择结果</button>
+</div>
+
+<!-- Export Modal -->
+<div id="exportModal" style="display:none; position:fixed; inset:0; background:rgba(0,0,0,0.6); z-index:200; align-items:center; justify-content:center;">
+  <div style="background:var(--bg-panel); border:1px solid var(--border); border-radius:12px; padding:24px; max-width:750px; width:90%; max-height:80vh; overflow-y:auto;">
+    <h2 style="font-size:16px; font-weight:750; margin-bottom:12px;">选择结果</h2>
+    <pre id="exportContent" style="font-family:'SF Mono',Menlo,monospace; font-size:11px; line-height:1.6; color:var(--text-soft); white-space:pre-wrap; background:var(--bg-card); padding:16px; border-radius:8px; border:1px solid var(--border);"></pre>
+    <div style="display:flex; justify-content:flex-end; gap:8px; margin-top:16px;">
+      <button class="modal-btn-cancel" onclick="document.getElementById('exportModal').style.display='none'">关闭</button>
+      <button class="modal-btn-save" onclick="copyExport()">复制到剪贴板</button>
+    </div>
+  </div>
+</div>
+
+<script>
+const TOTAL = 8;
+const selections = {};
+
+const decisionMeta = {
+  'node-style': {
+    title: 'P4: 画布节点样式',
+    options: ['紧凑卡片（图标+名称+角色，悬停详情）', '详细卡片（直接显示名称+角色+模型标签）']
+  },
+  'canvas-parallel': {
+    title: 'P4: 并行组画布表示',
+    options: ['虚线框包围 + 分叉连线', '纯连线分叉（无包围框）']
+  },
+  'canvas-toolbar': {
+    title: 'P4: 画布工具栏 & 节点编辑',
+    options: ['顶部工具栏 + 右侧属性面板', '浮动工具栏 + 弹出编辑卡片']
+  },
+  'node-adding': {
+    title: 'P4: 节点添加方式',
+    options: ['左侧 Agent 列表拖拽', '画布右键菜单添加', '两者兼备（折叠侧栏 + 右键）']
+  },
+  'parallel-chips': {
+    title: 'P1: 并行步骤 Chips 显示',
+    options: ['垂直堆叠 + 蓝色竖条', '行内分组（虚线框）', '泳道式（标签 + 竖线）']
+  },
+  'parallel-transcript': {
+    title: 'P1: 并行运行转录查看',
+    options: ['Tab 切换', '分栏并排']
+  },
+  'confirm-actions': {
+    title: 'P2: 确认面板操作布局',
+    options: ['按钮行 + 下拉', '操作卡片网格']
+  },
+  'route-suggestion': {
+    title: 'P2: Agent 路由建议展示',
+    options: ['独立卡片', '内联横幅']
+  }
+};
+
+function selectOption(card) {
+  const section = card.closest('.decision-section');
+  const decision = section.dataset.decision;
+  const cards = section.querySelectorAll('.option-card');
+  const index = Array.from(cards).indexOf(card);
+  cards.forEach(c => c.classList.remove('selected'));
+  card.classList.add('selected');
+  selections[decision] = index;
+  updateSummary();
+}
+
+function updateSummary() {
+  const count = Object.keys(selections).length;
+  document.getElementById('summaryCount').innerHTML = `已选择 <strong>${count}</strong> / ${TOTAL} 个方案`;
+  document.getElementById('exportBtn').disabled = count < TOTAL;
+}
+
+function exportSelections() {
+  const L = String.fromCharCode;
+  let o = '# UI 交互方案选择结果（DAG 画布版）\n\n';
+  o += '> 时间：' + new Date().toLocaleString('zh-CN') + '\n\n';
+
+  for (const [key, meta] of Object.entries(decisionMeta)) {
+    const idx = selections[key];
+    const choice = idx !== undefined ? meta.options[idx] : '未选择';
+    const letter = idx !== undefined ? L(65 + idx) : '?';
+    o += `## ${meta.title}\n`;
+    o += `选择：**方案 ${letter}** — ${choice}\n\n`;
+  }
+
+  o += '---\n\n';
+  o += '## 合并后的 Spec 任务列表（DAG 画布直接替代线性编辑器）\n\n';
+
+  o += '### Phase 1：并行分支（后端引擎）\n\n';
+  o += '| # | 任务 | 预估 |\n';
+  o += '|---|------|------|\n';
+  o += '| P1-1 | types.ts 新增 WorkflowStepNode、WorkflowParallelGroup 类型 | 小 |\n';
+  o += '| P1-2 | WorkflowRunStep 新增 parallelGroupId、worktreePath 字段 | 小 |\n';
+  o += '| P1-3 | 新建 worktreeManager.ts | 中 |\n';
+  o += '| P1-4 | WorkflowStore 旧 template 兼容迁移 | 小 |\n';
+  o += '| P1-5 | WorkflowManager.start() 展平嵌套 steps | 中 |\n';
+  o += '| P1-6 | WorkflowManager startParallelGroup() | 大 |\n';
+  o += '| P1-7 | liveByRunId 支持多活跃 step | 中 |\n';
+  o += '| P1-8 | 并行组完成状态检查与推进 | 中 |\n';
+  o += '| P1-9 | buildPrompt 多上游 handoff 拼接 | 小 |\n';
+  o += '| P1-10 | abort 支持 kill 并行组 | 小 |\n';
+  o += '| P1-11 | rerunStep 支持并行组内单步 | 中 |\n';
+  o += '| P1-12 | Worktree 清理策略 | 小 |\n';
+  o += '| P1-15 | 并行分支测试 | 中 |\n\n';
+
+  // P1 runtime UI
+  const chips = selections['parallel-chips'] !== undefined
+    ? `方案 ${L(65+selections['parallel-chips'])}：${decisionMeta['parallel-chips'].options[selections['parallel-chips']]}`
+    : '未选';
+  const transcript = selections['parallel-transcript'] !== undefined
+    ? `方案 ${L(65+selections['parallel-transcript'])}：${decisionMeta['parallel-transcript'].options[selections['parallel-transcript']]}`
+    : '未选';
+
+  o += '### Phase 1：并行分支（运行时 UI）\n\n';
+  o += '| # | 任务 | UI 方案 |\n';
+  o += '|---|------|---------|\n';
+  o += `| P1-14 | WorkflowRunDetail 并行 chips 显示 | ${chips} |\n`;
+  o += `| P1-14b | 并行运行转录查看 | ${transcript} |\n\n`;
+
+  // P2
+  const confirm = selections['confirm-actions'] !== undefined
+    ? `方案 ${L(65+selections['confirm-actions'])}：${decisionMeta['confirm-actions'].options[selections['confirm-actions']]}`
+    : '未选';
+  const route = selections['route-suggestion'] !== undefined
+    ? `方案 ${L(65+selections['route-suggestion'])}：${decisionMeta['route-suggestion'].options[selections['route-suggestion']]}`
+    : '未选';
+
+  o += '### Phase 2：条件跳转\n\n';
+  o += '| # | 任务 | UI 方案 |\n';
+  o += '|---|------|---------|\n';
+  o += '| P2-1~P2-10 | 后端引擎 + IPC | — |\n';
+  o += `| P2-11 | confirm 面板多操作 | ${confirm} |\n`;
+  o += `| P2-12 | routeSuggestion 展示 | ${route} |\n`;
+  o += '| P2-13 | 节点 rules 配置（集成到画布属性面板） | 随画布编辑方式 |\n';
+  o += '| P2-14 | 条件跳转测试 | — |\n\n';
+
+  // P4 canvas
+  const nodeStyle = selections['node-style'] !== undefined
+    ? `方案 ${L(65+selections['node-style'])}：${decisionMeta['node-style'].options[selections['node-style']]}`
+    : '未选';
+  const parallel = selections['canvas-parallel'] !== undefined
+    ? `方案 ${L(65+selections['canvas-parallel'])}：${decisionMeta['canvas-parallel'].options[selections['canvas-parallel']]}`
+    : '未选';
+  const toolbar = selections['canvas-toolbar'] !== undefined
+    ? `方案 ${L(65+selections['canvas-toolbar'])}：${decisionMeta['canvas-toolbar'].options[selections['canvas-toolbar']]}`
+    : '未选';
+  const adding = selections['node-adding'] !== undefined
+    ? `方案 ${L(65+selections['node-adding'])}：${decisionMeta['node-adding'].options[selections['node-adding']]}`
+    : '未选';
+
+  o += '### Phase 4：DAG 画布编辑器（替代线性 TemplatesView）\n\n';
+  o += '| # | 任务 | UI 方案 |\n';
+  o += '|---|------|---------|\n';
+  o += '| P4-1 | 安装 @xyflow/react 依赖 | — |\n';
+  o += `| P4-2 | canvasSerializer.ts 双向转换 | — |\n`;
+  o += `| P4-3 | AgentNode.tsx 自定义节点 | ${nodeStyle} |\n`;
+  o += `| P4-3b | ParallelGroupNode.tsx 并行组节点 | ${parallel} |\n`;
+  o += '| P4-4 | ConditionalEdge.tsx 条件边渲染 | — |\n';
+  o += `| P4-5 | WorkflowCanvas.tsx 主画布 | ${toolbar} |\n`;
+  o += `| P4-6 | 节点添加交互 | ${adding} |\n`;
+  o += '| P4-7 | useCanvasState.ts 画布状态 hook | — |\n';
+  o += '| P4-8 | TemplatesView 切换为画布（lazy load） | — |\n';
+  o += '| P4-9 | 框选创建并行组 | — |\n';
+  o += '| P4-10 | 画布序列化往返测试 | — |\n\n';
+
+  o += '### Phase 3：智能路由（不变）\n\n';
+  o += '| P3-1~P3-5 | routeRecommendation + 画布"推荐"按钮 | — |\n';
+
+  document.getElementById('exportContent').textContent = o;
+  document.getElementById('exportModal').style.display = 'flex';
+}
+
+function copyExport() {
+  const text = document.getElementById('exportContent').textContent;
+  navigator.clipboard.writeText(text).then(() => {
+    const btn = document.querySelector('#exportModal .modal-btn-save');
+    btn.textContent = '已复制 ✓';
+    setTimeout(() => btn.textContent = '复制到剪贴板', 1500);
+  });
+}
+</script>
+
+</body>
+</html>

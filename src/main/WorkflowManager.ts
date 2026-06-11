@@ -5,15 +5,20 @@ import type {
   HandoffArtifact,
   JSONSchema,
   MemorySignal,
+  RouteSuggestion,
   RunConfig,
+  StepRule,
   WorkflowEventEnvelope,
   WorkflowRun,
   WorkflowRunGitSafety,
+  WorkflowRunStep,
   WorkflowStartInput,
   WorkflowStartResult,
   WorkflowStepExecution,
-  WorkflowTemplate
+  WorkflowTemplate,
+  WorkflowTemplateStep
 } from '@shared/types'
+import { isParallelGroup } from '@shared/types'
 import type { AgentStore } from './AgentStore'
 import type { RunManager } from './RunManager'
 import type { TranscriptStore } from './TranscriptStore'
@@ -22,6 +27,12 @@ import { inspectWorkflowGitSafety } from './gitSafety'
 import type { MemoryInjector } from './memory/MemoryInjector'
 import type { SignalCollector } from './memory/SignalCollector'
 import { summarizeTranscript } from './memory/transcriptSummarizer'
+import {
+  createWorktree,
+  removeWorktree,
+  cleanupOrphanedWorktrees,
+  isGitRepo
+} from './worktreeManager'
 
 type EmitWorkflow = (envelope: WorkflowEventEnvelope) => void
 type RunSettledHandler = (run: WorkflowRun) => void
@@ -45,10 +56,12 @@ const HANDOFF_HINT = [
   '      "type": "requirement|design|code|test|other"',
   '    }',
   '  ],',
-  '  "nextStepGuidance": "<optional: what the next agent should focus on>"',
+  '  "nextStepGuidance": "<optional: what the next agent should focus on>",',
+  '  "routeSuggestion": { "action": "continue|retry-prev|skip-next|goto", "target": 0, "reason": "..." }',
   '}',
   '',
-  'Output ONLY the JSON object. Do not wrap it in ``` fences. Do not add any other text before or after.'
+  'Output ONLY the JSON object. Do not wrap it in ``` fences. Do not add any other text before or after.',
+  'The routeSuggestion field is optional — only include it if you believe the workflow should deviate from the default next step.'
 ].join('\n')
 
 const HANDOFF_OUTPUT_SCHEMA: JSONSchema = {
@@ -70,15 +83,25 @@ const HANDOFF_OUTPUT_SCHEMA: JSONSchema = {
         }
       }
     },
-    nextStepGuidance: { type: 'string' }
+    nextStepGuidance: { type: 'string' },
+    routeSuggestion: {
+      type: 'object',
+      additionalProperties: false,
+      properties: {
+        action: { type: 'string', enum: ['continue', 'retry-prev', 'skip-next', 'goto'] },
+        target: { type: 'number' },
+        reason: { type: 'string' }
+      }
+    }
   }
 }
 
 export class WorkflowManager {
   private runs = new Map<string, WorkflowRun>()
-  private liveByRunId = new Map<string, LiveStep>()
+  private liveByRunId = new Map<string, LiveStep[]>()
   private settledRunIds = new Set<string>()
   private runSettledHandler: RunSettledHandler | null = null
+  private gotoCountByRun = new Map<string, number>()
 
   constructor(
     private readonly agentStore: AgentStore,
@@ -127,21 +150,12 @@ export class WorkflowManager {
       budgetUsd: template.budgetUsd,
       autoConfirm: input.autoConfirm,
       scheduledBy: input.scheduledBy,
-      steps: template.steps.map((step) => {
-        const agent = this.agentStore.list().find((a) => a.id === step.agentId)
-        return {
-          agentId: step.agentId,
-          displayName: agent?.name,
-          role: step.role,
-          status: 'pending' as const,
-          executions: [] as WorkflowRun['steps'][number]['executions']
-        }
-      })
+      steps: this.flattenTemplateSteps(template)
     }
     this.runs.set(run.id, run)
     this.workflowStore.saveRun(run)
     this.emitUpdate(run)
-    this.startStep(run.id, 0)
+    this.startNextNode(run.id, 0)
     return { run }
   }
 
@@ -154,9 +168,14 @@ export class WorkflowManager {
     if (run.status === 'running') {
       throw new Error('Stop a running workflow before deleting it')
     }
-    const live = this.liveByRunId.get(runId)
-    if (live) this.runManager.abort(live.childRunId)
+    const liveSteps = this.liveByRunId.get(runId) ?? []
+    for (const live of liveSteps) this.runManager.abort(live.childRunId)
     this.liveByRunId.delete(runId)
+    for (const step of run.steps) {
+      if (step.worktreePath) {
+        try { removeWorktree(run.projectPath, step.worktreePath) } catch { /* best-effort */ }
+      }
+    }
     this.runs.delete(runId)
     this.workflowStore.deleteRun(runId)
   }
@@ -165,9 +184,10 @@ export class WorkflowManager {
     return inspectWorkflowGitSafety(projectPath, this.listRuns())
   }
 
-  confirmStep(runId: string): WorkflowRun {
+  confirmStep(runId: string, stepIndex?: number): WorkflowRun {
     const run = this.getRun(runId)
-    const step = run.steps[run.currentStepIndex]
+    const idx = stepIndex ?? run.currentStepIndex
+    const step = run.steps[idx]
     const execution = latestExecution(step)
     if (!execution || execution.status !== 'awaiting-confirm') {
       throw new Error('Current step is not awaiting confirmation')
@@ -176,9 +196,36 @@ export class WorkflowManager {
     execution.status = 'done'
     execution.finishedAt = execution.finishedAt ?? Date.now()
     step.status = 'done'
-    this.collectMemorySignal('positive', 'user-confirmed', run, run.currentStepIndex, execution)
+    this.collectMemorySignal('positive', 'user-confirmed', run, idx, execution)
 
-    const nextIndex = run.currentStepIndex + 1
+    if (step.parallelGroupId) {
+      if (step.worktreePath) {
+        try { removeWorktree(run.projectPath, step.worktreePath) } catch { /* best-effort */ }
+        step.worktreePath = undefined
+      }
+      if (step.parallelGroupJoin && !this.isParallelGroupComplete(run, step.parallelGroupId)) {
+        this.persistAndEmit(run)
+        return run
+      }
+      if (step.parallelGroupJoin) {
+        const nextIndex = this.getNextNodeAfterGroup(run, step.parallelGroupId)
+        if (nextIndex === null) {
+          run.status = 'completed'
+          run.finishedAt = Date.now()
+          this.persistAndEmit(run)
+          return run
+        }
+        run.currentStepIndex = nextIndex
+        run.status = 'running'
+        this.persistAndEmit(run)
+        this.startNextNode(run.id, nextIndex)
+        return run
+      }
+      this.persistAndEmit(run)
+      return run
+    }
+
+    const nextIndex = idx + 1
     if (nextIndex >= run.steps.length) {
       run.status = 'completed'
       run.finishedAt = Date.now()
@@ -189,7 +236,7 @@ export class WorkflowManager {
     run.currentStepIndex = nextIndex
     run.status = 'running'
     this.persistAndEmit(run)
-    this.startStep(run.id, nextIndex)
+    this.startNextNode(run.id, nextIndex)
     return run
   }
 
@@ -197,8 +244,14 @@ export class WorkflowManager {
     const run = this.getRun(runId)
     if (stepIndex < 0 || stepIndex >= run.steps.length) throw new Error('Invalid step index')
 
-    const live = this.liveByRunId.get(run.id)
-    if (live) this.runManager.abort(live.childRunId)
+    const liveSteps = this.liveByRunId.get(run.id) ?? []
+    const targetLive = liveSteps.find((ls) => ls.stepIndex === stepIndex)
+    if (targetLive) {
+      this.runManager.abort(targetLive.childRunId)
+      const filtered = liveSteps.filter((ls) => ls.stepIndex !== stepIndex)
+      if (filtered.length === 0) this.liveByRunId.delete(run.id)
+      else this.liveByRunId.set(run.id, filtered)
+    }
 
     const previous = latestExecution(run.steps[stepIndex])
     if (previous) {
@@ -223,18 +276,24 @@ export class WorkflowManager {
 
   abort(runId: string): WorkflowRun {
     const run = this.getRun(runId)
-    const live = this.liveByRunId.get(run.id)
-    if (live) this.runManager.abort(live.childRunId)
+    const liveSteps = this.liveByRunId.get(run.id) ?? []
+    for (const live of liveSteps) this.runManager.abort(live.childRunId)
+    this.liveByRunId.delete(run.id)
 
     run.status = 'aborted'
     run.finishedAt = Date.now()
-    const step = run.steps[run.currentStepIndex]
-    const execution = latestExecution(step)
-    if (execution?.status === 'running') {
-      execution.status = 'error'
-      execution.finishedAt = Date.now()
-      execution.error = 'Workflow aborted'
-      step.status = 'error'
+    for (const step of run.steps) {
+      const execution = latestExecution(step)
+      if (execution?.status === 'running') {
+        execution.status = 'error'
+        execution.finishedAt = Date.now()
+        execution.error = 'Workflow aborted'
+        step.status = 'error'
+      }
+      if (step.worktreePath) {
+        try { removeWorktree(run.projectPath, step.worktreePath) } catch { /* best-effort */ }
+        step.worktreePath = undefined
+      }
     }
     this.persistAndEmit(run)
     return run
@@ -247,11 +306,9 @@ export class WorkflowManager {
     const run = this.getRun(runId)
     if (stepIndex < 0 || stepIndex >= run.steps.length) throw new Error('Invalid step index')
 
-    const live = this.liveByRunId.get(run.id)
+    const liveSteps = this.liveByRunId.get(run.id) ?? []
+    const live = liveSteps.find((ls) => ls.stepIndex === stepIndex)
     if (live) {
-      if (live.stepIndex !== stepIndex) {
-        throw new Error('Only the running workflow step can accept live input')
-      }
       const execution = run.steps[live.stepIndex]?.executions.find(
         (item) => item.id === live.executionId
       )
@@ -334,7 +391,7 @@ export class WorkflowManager {
     })
     execution.runId = childRunId
     this.transcripts.recordUserInput(childRunId, prompt)
-    this.liveByRunId.set(run.id, {
+    this.addLiveStep(run.id, {
       workflowRunId: run.id,
       childRunId,
       stepIndex,
@@ -345,7 +402,9 @@ export class WorkflowManager {
   }
 
   abortAll(): void {
-    for (const live of this.liveByRunId.values()) this.runManager.abort(live.childRunId)
+    for (const liveSteps of this.liveByRunId.values()) {
+      for (const live of liveSteps) this.runManager.abort(live.childRunId)
+    }
     this.liveByRunId.clear()
   }
 
@@ -373,11 +432,11 @@ export class WorkflowManager {
     }
     step.executions.push(execution)
     step.status = 'running'
-    run.currentStepIndex = stepIndex
+    if (!step.parallelGroupId) run.currentStepIndex = stepIndex
     run.status = 'running'
     this.persistAndEmit(run)
 
-    // Budget check before rerunning
+    // Budget check before running
     if (run.budgetUsd !== undefined && run.totalCostUsd >= run.budgetUsd) {
       this.finishStepWithError(
         run,
@@ -388,10 +447,11 @@ export class WorkflowManager {
       return
     }
 
+    const cwd = step.worktreePath ?? run.projectPath
     const config: RunConfig = {
       vendor: agent.vendor,
       prompt,
-      cwd: run.projectPath,
+      cwd,
       model: agent.model?.trim() || undefined,
       codexReasoningEffort: agent.codexReasoningEffort,
       codexServiceTier: agent.codexServiceTier?.trim() || undefined,
@@ -405,7 +465,7 @@ export class WorkflowManager {
     })
     execution.runId = childRunId
     this.transcripts.recordUserInput(childRunId, prompt)
-    this.liveByRunId.set(run.id, {
+    this.addLiveStep(run.id, {
       workflowRunId: run.id,
       childRunId,
       stepIndex,
@@ -439,7 +499,7 @@ export class WorkflowManager {
     }
 
     if (event.kind === 'turn-done') {
-      this.liveByRunId.delete(run.id)
+      this.removeLiveStep(run.id, executionId)
       if (event.reason === 'complete') {
         this.finishStepWithHandoff(run, stepIndex, execution)
       } else {
@@ -476,6 +536,63 @@ export class WorkflowManager {
     execution.finishedAt = Date.now()
     run.steps[stepIndex].status = execution.status
 
+    // Check P2 rules on done
+    const rule = this.evaluateRules(run, stepIndex, 'done')
+    if (rule && this.canApplyRule(run, rule)) {
+      this.collectMemorySignal('positive', 'user-confirmed', run, stepIndex, execution)
+      this.applyRule(run, stepIndex, rule)
+      return
+    }
+
+    const step = run.steps[stepIndex]
+
+    // Parallel group handling
+    if (step.parallelGroupId) {
+      if (run.autoConfirm) {
+        this.collectMemorySignal('positive', 'user-confirmed', run, stepIndex, execution)
+        step.status = 'done'
+        execution.status = 'done'
+      }
+      if (step.parallelGroupJoin) {
+        if (!this.isParallelGroupComplete(run, step.parallelGroupId)) {
+          run.status = this.hasLiveSteps(run.id) ? 'running' : 'awaiting-confirm'
+          this.persistAndEmit(run)
+          return
+        }
+        this.cleanupGroupWorktrees(run, step.parallelGroupId)
+        const nextIndex = this.getNextNodeAfterGroup(run, step.parallelGroupId)
+        if (nextIndex === null) {
+          run.status = 'completed'
+          run.finishedAt = Date.now()
+          this.persistAndEmit(run)
+          return
+        }
+        if (run.autoConfirm) {
+          run.currentStepIndex = nextIndex
+          run.status = 'running'
+          this.persistAndEmit(run)
+          this.startNextNode(run.id, nextIndex)
+        } else {
+          run.status = 'awaiting-confirm'
+          this.persistAndEmit(run)
+        }
+      } else {
+        if (step.worktreePath) {
+          try { removeWorktree(run.projectPath, step.worktreePath) } catch { /* best-effort */ }
+          step.worktreePath = undefined
+        }
+        if (run.steps.every((s) => s.status === 'done' || s.status === 'error' || s.status === 'stale')) {
+          run.status = run.steps.some((s) => s.status === 'error') ? 'error' : 'completed'
+          run.finishedAt = Date.now()
+        } else {
+          run.status = this.hasLiveSteps(run.id) ? 'running' : 'awaiting-confirm'
+        }
+        this.persistAndEmit(run)
+      }
+      return
+    }
+
+    // Sequential step handling
     if (run.autoConfirm) {
       this.collectMemorySignal('positive', 'user-confirmed', run, stepIndex, execution)
       const nextIndex = run.currentStepIndex + 1
@@ -490,7 +607,7 @@ export class WorkflowManager {
         run.currentStepIndex = nextIndex
         run.status = 'running'
         this.persistAndEmit(run)
-        this.startStep(run.id, nextIndex)
+        this.startNextNode(run.id, nextIndex)
       }
       return
     }
@@ -513,9 +630,53 @@ export class WorkflowManager {
     execution.error = message
     execution.finishedAt = Date.now()
     run.steps[stepIndex].status = 'error'
+
+    const trigger = message === 'Could not parse handoff JSON' ? 'handoff-failed' as const : 'error' as const
+    const rule = this.evaluateRules(run, stepIndex, trigger)
+    if (rule && this.canApplyRule(run, rule)) {
+      this.applyRule(run, stepIndex, rule)
+      return
+    }
+
+    const step = run.steps[stepIndex]
+    if (step.parallelGroupId) {
+      this.removeLiveStep(run.id, execution.id)
+      if (step.parallelGroupJoin) {
+        if (!this.isParallelGroupComplete(run, step.parallelGroupId)) {
+          run.status = this.hasLiveSteps(run.id) ? 'running' : 'error'
+          this.persistAndEmit(run)
+          return
+        }
+        const allError = run.steps
+          .filter((s) => s.parallelGroupId === step.parallelGroupId)
+          .every((s) => s.status === 'error')
+        if (allError) {
+          run.status = 'error'
+          run.finishedAt = Date.now()
+        } else {
+          this.cleanupGroupWorktrees(run, step.parallelGroupId)
+          const nextIndex = this.getNextNodeAfterGroup(run, step.parallelGroupId)
+          if (nextIndex === null) {
+            run.status = 'error'
+            run.finishedAt = Date.now()
+          } else {
+            run.currentStepIndex = nextIndex
+            run.status = 'running'
+            this.persistAndEmit(run)
+            this.startNextNode(run.id, nextIndex)
+            return
+          }
+        }
+        this.persistAndEmit(run)
+        return
+      }
+      this.persistAndEmit(run)
+      return
+    }
+
     run.status = 'error'
     run.finishedAt = Date.now()
-    this.liveByRunId.delete(run.id)
+    this.removeLiveStep(run.id, execution.id)
     this.persistAndEmit(run)
   }
 
@@ -563,6 +724,12 @@ export class WorkflowManager {
       return this.withMemoryContext(agent, run.projectPath, mainPrompt)
     }
 
+    // Check if predecessor is part of a join parallel group
+    const prevStep = run.steps[stepIndex - 1]
+    if (prevStep?.parallelGroupId && prevStep.parallelGroupJoin) {
+      return this.buildPromptForJoinStep(run, stepIndex, agent, prevStep.parallelGroupId)
+    }
+
     const previous = latestCompletedHandoff(run, stepIndex - 1)
     const sections: string[] = [
       '# User request',
@@ -600,6 +767,44 @@ export class WorkflowManager {
     return this.withMemoryContext(agent, run.projectPath, mainPrompt)
   }
 
+  private buildPromptForJoinStep(
+    run: WorkflowRun,
+    stepIndex: number,
+    agent: AgentDefinition,
+    groupId: string
+  ): { prompt: string; injectedMemoryIds: string[] } {
+    const groupSteps = run.steps
+      .map((s, i) => ({ step: s, index: i }))
+      .filter(({ step }) => step.parallelGroupId === groupId)
+
+    const sections: string[] = ['# User request', run.initialPrompt]
+    const progress = buildWorkflowProgress(run, stepIndex)
+    if (progress) sections.push('', progress)
+
+    sections.push('', '# Upstream handoffs (parallel group)')
+
+    for (const { step, index } of groupSteps) {
+      const handoff = latestCompletedHandoff(run, index)
+      const label = step.displayName ?? step.role ?? `Step ${index + 1}`
+      sections.push('', `## From ${label}`)
+      if (handoff) {
+        sections.push(
+          handoff.summary,
+          '',
+          '# Artifacts',
+          handoff.artifacts.map((a) => `- ${a.path}: ${a.description}`).join('\n') || '(none)'
+        )
+        if (handoff.nextStepGuidance) sections.push('', '# Next-step guidance', handoff.nextStepGuidance)
+      } else {
+        sections.push('(no handoff available)')
+      }
+    }
+
+    sections.push('', '# Handoff requirement', HANDOFF_HINT)
+    const mainPrompt = sections.join('\n')
+    return this.withMemoryContext(agent, run.projectPath, mainPrompt)
+  }
+
   private markInterruptedRunsOnStartup(runs: WorkflowRun[]): WorkflowRun[] {
     return runs.map((run) => {
       if (run.status !== 'running') return run
@@ -607,18 +812,19 @@ export class WorkflowManager {
       const interrupted: WorkflowRun = {
         ...run,
         finishedAt: run.finishedAt ?? Date.now(),
-        steps: run.steps.map((step, index) => {
-          if (index !== run.currentStepIndex || step.status !== 'running') return step
+        steps: run.steps.map((step) => {
+          if (step.status !== 'running') return step
           return {
             ...step,
-            status: 'error',
+            status: 'error' as const,
+            worktreePath: undefined,
             executions: step.executions.map((execution, executionIndex, list) => {
               if (executionIndex !== list.length - 1 || execution.status !== 'running') {
                 return execution
               }
               return {
                 ...execution,
-                status: 'error',
+                status: 'error' as const,
                 finishedAt: execution.finishedAt ?? Date.now(),
                 error: 'App restarted before this workflow step finished'
               }
@@ -627,9 +833,237 @@ export class WorkflowManager {
         })
       }
       interrupted.status = 'interrupted'
+
+      // Cleanup orphaned worktrees from interrupted runs
+      try { cleanupOrphanedWorktrees(run.projectPath, new Set()) } catch { /* best-effort */ }
+
       this.workflowStore.saveRun(interrupted)
       return interrupted
     })
+  }
+
+  skipStep(runId: string): WorkflowRun {
+    const run = this.getRun(runId)
+    const nextIndex = run.currentStepIndex + 2
+    if (nextIndex >= run.steps.length) {
+      run.steps[run.currentStepIndex + 1].status = 'done'
+      run.status = 'completed'
+      run.finishedAt = Date.now()
+      this.persistAndEmit(run)
+      return run
+    }
+    run.steps[run.currentStepIndex + 1].status = 'done'
+    run.currentStepIndex = nextIndex
+    run.status = 'running'
+    this.persistAndEmit(run)
+    this.startNextNode(run.id, nextIndex)
+    return run
+  }
+
+  gotoStep(runId: string, targetIndex: number): WorkflowRun {
+    const run = this.getRun(runId)
+    if (targetIndex < 0 || targetIndex >= run.steps.length) {
+      throw new Error('Invalid target step index')
+    }
+    markDownstreamStale(run, targetIndex)
+    run.currentStepIndex = targetIndex
+    run.status = 'running'
+    this.persistAndEmit(run)
+    this.startNextNode(run.id, targetIndex)
+    return run
+  }
+
+  private flattenTemplateSteps(template: WorkflowTemplate): WorkflowRunStep[] {
+    const result: WorkflowRunStep[] = []
+    for (const node of template.steps) {
+      if (isParallelGroup(node)) {
+        const groupId = randomUUID()
+        for (const step of node.parallel) {
+          const agent = this.agentStore.list().find((a) => a.id === step.agentId)
+          result.push({
+            agentId: step.agentId,
+            displayName: agent?.name,
+            role: step.role,
+            status: 'pending',
+            executions: [],
+            parallelGroupId: groupId,
+            parallelGroupJoin: node.join
+          })
+        }
+      } else {
+        const agent = this.agentStore.list().find((a) => a.id === node.agentId)
+        result.push({
+          agentId: node.agentId,
+          displayName: agent?.name,
+          role: node.role,
+          status: 'pending',
+          executions: []
+        })
+      }
+    }
+    return result
+  }
+
+  private startNextNode(runId: string, startIndex: number): void {
+    const run = this.getRun(runId)
+    if (startIndex >= run.steps.length) {
+      run.status = 'completed'
+      run.finishedAt = Date.now()
+      this.persistAndEmit(run)
+      return
+    }
+
+    const step = run.steps[startIndex]
+    if (step.parallelGroupId) {
+      const groupId = step.parallelGroupId
+      const groupIndices = run.steps
+        .map((s, i) => (s.parallelGroupId === groupId ? i : -1))
+        .filter((i) => i >= 0)
+      this.startParallelGroup(runId, groupIndices)
+    } else {
+      this.startStep(runId, startIndex)
+    }
+  }
+
+  private startParallelGroup(runId: string, stepIndices: number[]): void {
+    const run = this.getRun(runId)
+
+    if (isGitRepo(run.projectPath)) {
+      for (const idx of stepIndices) {
+        const step = run.steps[idx]
+        try {
+          const wt = createWorktree(run.projectPath, `${run.id.slice(0, 8)}-step-${idx}`)
+          step.worktreePath = wt.path
+        } catch {
+          step.worktreePath = undefined
+        }
+      }
+    }
+
+    run.currentStepIndex = stepIndices[0]
+    this.persistAndEmit(run)
+
+    for (const idx of stepIndices) {
+      this.startStep(runId, idx)
+    }
+  }
+
+  private isParallelGroupComplete(run: WorkflowRun, groupId: string): boolean {
+    return run.steps
+      .filter((s) => s.parallelGroupId === groupId)
+      .every((s) => s.status === 'done' || s.status === 'error')
+  }
+
+  private getNextNodeAfterGroup(run: WorkflowRun, groupId: string): number | null {
+    const lastGroupIndex = run.steps.reduce(
+      (max, s, i) => (s.parallelGroupId === groupId ? Math.max(max, i) : max),
+      -1
+    )
+    const nextIndex = lastGroupIndex + 1
+    return nextIndex < run.steps.length ? nextIndex : null
+  }
+
+  private cleanupGroupWorktrees(run: WorkflowRun, groupId: string): void {
+    for (const step of run.steps) {
+      if (step.parallelGroupId === groupId && step.worktreePath) {
+        try { removeWorktree(run.projectPath, step.worktreePath) } catch { /* best-effort */ }
+        step.worktreePath = undefined
+      }
+    }
+  }
+
+  private addLiveStep(runId: string, liveStep: LiveStep): void {
+    const steps = this.liveByRunId.get(runId) ?? []
+    steps.push(liveStep)
+    this.liveByRunId.set(runId, steps)
+  }
+
+  private removeLiveStep(runId: string, executionId: string): void {
+    const steps = this.liveByRunId.get(runId)
+    if (!steps) return
+    const filtered = steps.filter((ls) => ls.executionId !== executionId)
+    if (filtered.length === 0) this.liveByRunId.delete(runId)
+    else this.liveByRunId.set(runId, filtered)
+  }
+
+  private hasLiveSteps(runId: string): boolean {
+    return (this.liveByRunId.get(runId)?.length ?? 0) > 0
+  }
+
+  private evaluateRules(
+    run: WorkflowRun,
+    stepIndex: number,
+    trigger: 'error' | 'handoff-failed' | 'done'
+  ): StepRule | null {
+    const templateStep = this.getTemplateStepForRunStep(run, stepIndex)
+    if (!templateStep?.rules) return null
+
+    for (const rule of templateStep.rules) {
+      if (rule.on !== trigger) continue
+      if (rule.action === 'retry') {
+        const retryCount = run.steps[stepIndex].executions.length - 1
+        if (retryCount >= (rule.maxRetries ?? 1)) continue
+      }
+      return rule
+    }
+    return null
+  }
+
+  private getTemplateStepForRunStep(run: WorkflowRun, stepIndex: number): WorkflowTemplateStep | null {
+    const template = this.workflowStore.listTemplates().find((t) => t.id === run.templateId)
+    if (!template) return null
+    const flatSteps: WorkflowTemplateStep[] = []
+    for (const node of template.steps) {
+      if (isParallelGroup(node)) {
+        for (const s of node.parallel) flatSteps.push(s)
+      } else {
+        flatSteps.push(node)
+      }
+    }
+    return flatSteps[stepIndex] ?? null
+  }
+
+  private canApplyRule(run: WorkflowRun, rule: StepRule): boolean {
+    if (rule.action === 'goto') {
+      const count = this.gotoCountByRun.get(run.id) ?? 0
+      if (count >= 5) return false
+      this.gotoCountByRun.set(run.id, count + 1)
+    }
+    return true
+  }
+
+  private applyRule(run: WorkflowRun, stepIndex: number, rule: StepRule): void {
+    switch (rule.action) {
+      case 'retry':
+        run.status = 'running'
+        this.persistAndEmit(run)
+        this.startStep(run.id, stepIndex)
+        break
+      case 'skip': {
+        const nextIndex = stepIndex + 2
+        if (nextIndex >= run.steps.length) {
+          run.status = 'completed'
+          run.finishedAt = Date.now()
+          this.persistAndEmit(run)
+        } else {
+          run.steps[stepIndex + 1].status = 'done'
+          run.currentStepIndex = nextIndex
+          run.status = 'running'
+          this.persistAndEmit(run)
+          this.startNextNode(run.id, nextIndex)
+        }
+        break
+      }
+      case 'goto':
+        if (rule.target !== undefined) {
+          markDownstreamStale(run, rule.target)
+          run.currentStepIndex = rule.target
+          run.status = 'running'
+          this.persistAndEmit(run)
+          this.startNextNode(run.id, rule.target)
+        }
+        break
+    }
   }
 
   private getRun(runId: string): WorkflowRun {
@@ -792,7 +1226,10 @@ function tryParseHandoffFromText(text: string): HandoffArtifact | null {
         summary: parsed.summary,
         artifacts,
         nextStepGuidance:
-          typeof parsed.nextStepGuidance === 'string' ? parsed.nextStepGuidance : undefined
+          typeof parsed.nextStepGuidance === 'string' ? parsed.nextStepGuidance : undefined,
+        routeSuggestion: isValidRouteSuggestion((parsed as any).routeSuggestion)
+          ? (parsed as any).routeSuggestion
+          : undefined
       }
     } catch {
       // Try the next candidate.
@@ -807,4 +1244,10 @@ function extractJson(text: string): string | null {
   const start = trimmed.indexOf('{')
   const end = trimmed.lastIndexOf('}')
   return start >= 0 && end > start ? trimmed.slice(start, end + 1) : null
+}
+
+function isValidRouteSuggestion(val: unknown): val is RouteSuggestion {
+  if (!val || typeof val !== 'object') return false
+  const rs = val as Record<string, unknown>
+  return ['continue', 'retry-prev', 'skip-next', 'goto'].includes(rs.action as string)
 }

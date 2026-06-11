@@ -1,0 +1,953 @@
+import { useCallback, useEffect, useMemo, useRef, useState } from 'react'
+import {
+  ReactFlow,
+  Controls,
+  MiniMap,
+  Background,
+  BackgroundVariant,
+  Panel,
+  useReactFlow,
+  ReactFlowProvider,
+  type Node
+} from '@xyflow/react'
+import '@xyflow/react/dist/style.css'
+import {
+  Undo2,
+  Redo2,
+  Maximize2,
+  ZoomIn,
+  ZoomOut,
+  ChevronsLeft,
+  ChevronsRight,
+  Bot,
+  Code2,
+  Sparkles,
+  GitFork,
+  Plus
+} from 'lucide-react'
+
+import type { AgentDefinition, WorkflowTemplate, StepRule } from '@shared/types'
+import { AgentNode, type AgentNodeData } from './AgentNode'
+import { ConditionalEdge } from './ConditionalEdge'
+import { useCanvasState } from './useCanvasState'
+
+// ── Theme tokens ──────────────────────────────────────────────────────────────
+
+const colors = {
+  bg: '#17191f',
+  bgPanel: '#20232b',
+  border: '#343946',
+  accent: '#6c8cff',
+  text: '#eef2f8',
+  textMuted: '#9aa3b5',
+  textDim: '#6b7280',
+  hover: '#282c36'
+}
+
+// ── Vendor helpers ────────────────────────────────────────────────────────────
+
+const vendorMeta: Record<string, { icon: typeof Bot; color: string }> = {
+  claude: { icon: Bot, color: '#6c8cff' },
+  codex: { icon: Code2, color: '#4caf7d' }
+}
+
+function VendorIcon({ vendor, size = 13 }: { vendor: string; size?: number }) {
+  const meta = vendorMeta[vendor] ?? { icon: Bot, color: '#9aa3b5' }
+  const Icon = meta.icon
+  return <Icon size={size} color={meta.color} />
+}
+
+// ── Types ─────────────────────────────────────────────────────────────────────
+
+interface WorkflowCanvasProps {
+  agents: AgentDefinition[]
+  template: WorkflowTemplate | null
+  onMarkDirty: () => void
+  onSave?: (steps: import('@shared/types').WorkflowStepNode[]) => void
+}
+
+interface ContextMenuState {
+  x: number
+  y: number
+  type: 'canvas' | 'selection'
+}
+
+// ── Node/Edge type maps ───────────────────────────────────────────────────────
+
+const nodeTypes = { agent: AgentNode }
+const edgeTypes = { conditional: ConditionalEdge }
+
+// ── Inner Canvas (needs ReactFlowProvider ancestor) ───────────────────────────
+
+function CanvasInner({ agents, template, onMarkDirty, onSave }: WorkflowCanvasProps) {
+  const reactFlowInstance = useReactFlow()
+
+  const {
+    nodes,
+    edges,
+    onNodesChange,
+    onEdgesChange,
+    onConnect,
+    selectedNodeId,
+    setSelectedNodeId,
+    isDirty,
+    addAgentNode,
+    removeNode,
+    createParallelGroup,
+    getSteps,
+    undo,
+    redo,
+    canUndo,
+    canRedo,
+    updateNodeData
+  } = useCanvasState({ template, agents })
+
+  // Track dirty state for parent
+  const prevDirty = useRef(isDirty)
+  useEffect(() => {
+    if (isDirty && !prevDirty.current) onMarkDirty()
+    prevDirty.current = isDirty
+  }, [isDirty, onMarkDirty])
+
+  // ── Right panel state ───────────────────────────────────────────────────────
+  const [rightPanelOpen, setRightPanelOpen] = useState(false)
+
+  // Auto-open when node selected, but allow manual close
+  const prevSelectedRef = useRef(selectedNodeId)
+  useEffect(() => {
+    if (selectedNodeId && selectedNodeId !== prevSelectedRef.current) {
+      setRightPanelOpen(true)
+    }
+    prevSelectedRef.current = selectedNodeId
+  }, [selectedNodeId])
+  const [sidebarExpanded, setSidebarExpanded] = useState(false)
+
+  // ── Context menu ────────────────────────────────────────────────────────────
+  const [contextMenu, setContextMenu] = useState<ContextMenuState | null>(null)
+  const contextMenuRef = useRef<HTMLDivElement>(null)
+
+  const closeContextMenu = useCallback(() => setContextMenu(null), [])
+
+  useEffect(() => {
+    if (!contextMenu) return
+    const handler = (e: MouseEvent) => {
+      if (contextMenuRef.current && !contextMenuRef.current.contains(e.target as HTMLElement)) {
+        closeContextMenu()
+      }
+    }
+    document.addEventListener('mousedown', handler)
+    return () => document.removeEventListener('mousedown', handler)
+  }, [contextMenu, closeContextMenu])
+
+  const onPaneContextMenu = useCallback(
+    (event: MouseEvent | React.MouseEvent) => {
+      event.preventDefault()
+      const selectedNodes = nodes.filter((n) => n.selected)
+      if (selectedNodes.length >= 2) {
+        setContextMenu({ x: event.clientX, y: event.clientY, type: 'selection' })
+      } else {
+        setContextMenu({ x: event.clientX, y: event.clientY, type: 'canvas' })
+      }
+    },
+    [nodes]
+  )
+
+  // ── Keyboard shortcuts ──────────────────────────────────────────────────────
+  const getStepsRef = useRef(getSteps)
+  getStepsRef.current = getSteps
+  const onSaveRef = useRef(onSave)
+  onSaveRef.current = onSave
+
+  useEffect(() => {
+    const handler = (e: KeyboardEvent) => {
+      const meta = e.metaKey || e.ctrlKey
+
+      if (meta && e.key === 's') {
+        e.preventDefault()
+        onSaveRef.current?.(getStepsRef.current())
+      } else if (meta && e.key === 'z' && !e.shiftKey) {
+        e.preventDefault()
+        undo()
+      } else if (meta && e.key === 'z' && e.shiftKey) {
+        e.preventDefault()
+        redo()
+      } else if ((e.key === 'Delete' || e.key === 'Backspace') && selectedNodeId) {
+        const tag = (e.target as HTMLElement).tagName
+        if (tag !== 'INPUT' && tag !== 'TEXTAREA' && tag !== 'SELECT') {
+          e.preventDefault()
+          removeNode(selectedNodeId)
+        }
+      }
+    }
+    window.addEventListener('keydown', handler)
+    return () => window.removeEventListener('keydown', handler)
+  }, [undo, redo, removeNode, selectedNodeId])
+
+  // ── Drag-and-drop from sidebar ──────────────────────────────────────────────
+  const onDragOver = useCallback((e: React.DragEvent) => {
+    e.preventDefault()
+    e.dataTransfer.dropEffect = 'move'
+  }, [])
+
+  const onDrop = useCallback(
+    (e: React.DragEvent) => {
+      e.preventDefault()
+      const agentId = e.dataTransfer.getData('application/agent-id')
+      if (!agentId) return
+
+      const position = reactFlowInstance.screenToFlowPosition({
+        x: e.clientX,
+        y: e.clientY
+      })
+      // Snap to grid
+      position.x = Math.round(position.x / 20) * 20
+      position.y = Math.round(position.y / 20) * 20
+
+      addAgentNode(agentId, position)
+    },
+    [reactFlowInstance, addAgentNode]
+  )
+
+  // ── Node selection sync ─────────────────────────────────────────────────────
+  const onNodeClick = useCallback(
+    (_: React.MouseEvent, node: Node) => {
+      setSelectedNodeId(node.id)
+    },
+    [setSelectedNodeId]
+  )
+
+  const onPaneClick = useCallback(() => {
+    setSelectedNodeId(null)
+    closeContextMenu()
+  }, [setSelectedNodeId, closeContextMenu])
+
+  // Ctrl+scroll to zoom
+  const canvasRef = useRef<HTMLDivElement>(null)
+  useEffect(() => {
+    const el = canvasRef.current
+    if (!el) return
+    const handler = (e: WheelEvent) => {
+      if (e.ctrlKey || e.metaKey) {
+        e.preventDefault()
+        if (e.deltaY < 0) reactFlowInstance.zoomIn({ duration: 100 })
+        else reactFlowInstance.zoomOut({ duration: 100 })
+      }
+    }
+    el.addEventListener('wheel', handler, { passive: false })
+    return () => el.removeEventListener('wheel', handler)
+  }, [reactFlowInstance])
+
+  // ── Selected node data for property panel ───────────────────────────────────
+  const selectedNode = useMemo(
+    () => nodes.find((n) => n.id === selectedNodeId) ?? null,
+    [nodes, selectedNodeId]
+  )
+
+  // ── Toolbar actions ─────────────────────────────────────────────────────────
+  const fitView = useCallback(() => reactFlowInstance.fitView({ padding: 0.2 }), [reactFlowInstance])
+  const zoomIn = useCallback(() => reactFlowInstance.zoomIn(), [reactFlowInstance])
+  const zoomOut = useCallback(() => reactFlowInstance.zoomOut(), [reactFlowInstance])
+
+  // ── Render ──────────────────────────────────────────────────────────────────
+  const sidebarWidth = sidebarExpanded ? 160 : 40
+
+  return (
+    <div style={{ display: 'flex', width: '100%', height: '100%', background: colors.bg }}>
+      {/* ── Agent Sidebar ─────────────────────────────────────────────────── */}
+      <div
+        style={{
+          width: sidebarWidth,
+          flexShrink: 0,
+          background: colors.bgPanel,
+          borderRight: `1px solid ${colors.border}`,
+          display: 'flex',
+          flexDirection: 'column',
+          transition: 'width 0.15s ease',
+          overflow: 'hidden'
+        }}
+      >
+        {/* Header */}
+        <div
+          style={{
+            display: 'flex',
+            alignItems: 'center',
+            justifyContent: sidebarExpanded ? 'space-between' : 'center',
+            padding: sidebarExpanded ? '8px 10px' : '8px 0',
+            borderBottom: `1px solid ${colors.border}`,
+            minHeight: 36
+          }}
+        >
+          {sidebarExpanded && (
+            <span style={{ fontSize: 10, textTransform: 'uppercase', letterSpacing: 0.5, color: colors.textDim, fontWeight: 600 }}>Agents</span>
+          )}
+          <button
+            onClick={() => setSidebarExpanded((v) => !v)}
+            style={{
+              background: 'transparent',
+              border: 'none',
+              color: colors.textMuted,
+              cursor: 'pointer',
+              padding: 4,
+              display: 'flex',
+              alignItems: 'center'
+            }}
+            title={sidebarExpanded ? 'Collapse sidebar' : 'Expand sidebar'}
+          >
+            {sidebarExpanded ? <ChevronsLeft size={14} /> : <ChevronsRight size={14} />}
+          </button>
+        </div>
+
+        {/* Agent list */}
+        <div style={{ flex: 1, overflowY: 'auto', padding: '4px 0', display: 'flex', flexDirection: 'column', alignItems: sidebarExpanded ? 'stretch' : 'center' }}>
+          {agents.map((agent) => (
+            <div
+              key={agent.id}
+              draggable
+              onDragStart={(e) => {
+                e.dataTransfer.setData('application/agent-id', agent.id)
+                e.dataTransfer.effectAllowed = 'move'
+              }}
+              style={{
+                display: 'flex',
+                alignItems: 'center',
+                gap: 8,
+                padding: sidebarExpanded ? '6px 10px' : '6px 0',
+                cursor: 'grab',
+                borderRadius: 6,
+                margin: sidebarExpanded ? '2px 4px' : '2px 0',
+                transition: 'background 0.1s',
+                justifyContent: sidebarExpanded ? 'flex-start' : 'center'
+              }}
+              onMouseEnter={(e) => {
+                ;(e.currentTarget as HTMLElement).style.background = colors.hover
+              }}
+              onMouseLeave={(e) => {
+                ;(e.currentTarget as HTMLElement).style.background = 'transparent'
+              }}
+              title={agent.name}
+            >
+              <div
+                style={{
+                  width: 24,
+                  height: 24,
+                  borderRadius: 5,
+                  background: (vendorMeta[agent.vendor]?.color ?? '#9aa3b5') + '22',
+                  border: `1px solid ${(vendorMeta[agent.vendor]?.color ?? '#9aa3b5')}55`,
+                  display: 'flex',
+                  alignItems: 'center',
+                  justifyContent: 'center',
+                  flexShrink: 0
+                }}
+              >
+                <VendorIcon vendor={agent.vendor} size={13} />
+              </div>
+              {sidebarExpanded && (
+                <span
+                  style={{
+                    fontSize: 11,
+                    color: colors.text,
+                    whiteSpace: 'nowrap',
+                    overflow: 'hidden',
+                    textOverflow: 'ellipsis'
+                  }}
+                >
+                  {agent.name}
+                </span>
+              )}
+            </div>
+          ))}
+        </div>
+      </div>
+
+      {/* ── Canvas area ───────────────────────────────────────────────────── */}
+      <div ref={canvasRef} style={{ flex: 1, position: 'relative' }}>
+        <ReactFlow
+          nodes={nodes}
+          edges={edges}
+          onNodesChange={onNodesChange}
+          onEdgesChange={onEdgesChange}
+          onConnect={onConnect}
+          onNodeClick={onNodeClick}
+          onPaneClick={onPaneClick}
+          onPaneContextMenu={onPaneContextMenu}
+          onDragOver={onDragOver}
+          onDrop={onDrop}
+          nodeTypes={nodeTypes}
+          edgeTypes={edgeTypes}
+          snapToGrid
+          snapGrid={[20, 20]}
+          panOnDrag={false}
+          panActivationKeyCode="Meta"
+          selectionOnDrag
+          selectionKeyCode={null}
+          zoomOnScroll={false}
+          zoomOnPinch
+          zoomOnDoubleClick={false}
+          preventScrolling={false}
+          fitView
+          proOptions={{ hideAttribution: true }}
+          style={{ background: colors.bg }}
+        >
+          <Background variant={BackgroundVariant.Dots} color={colors.border} gap={20} size={1} />
+
+          {/* ── Floating Toolbar ──────────────────────────────────────────── */}
+          <Panel position="top-center">
+            <div
+              style={{
+                display: 'flex',
+                alignItems: 'center',
+                gap: 2,
+                background: colors.bgPanel,
+                border: `1px solid ${colors.border}`,
+                borderRadius: 8,
+                padding: '4px 6px',
+                boxShadow: '0 2px 12px rgba(0,0,0,0.3)'
+              }}
+            >
+              <ToolbarButton onClick={undo} disabled={!canUndo} title="Undo (Cmd+Z)">
+                <Undo2 size={14} />
+              </ToolbarButton>
+              <ToolbarButton onClick={redo} disabled={!canRedo} title="Redo (Cmd+Shift+Z)">
+                <Redo2 size={14} />
+              </ToolbarButton>
+              <ToolbarButton onClick={fitView} title="Fit view">
+                <Maximize2 size={14} />
+              </ToolbarButton>
+              <div style={{ width: 1, height: 18, background: colors.border, margin: '0 4px' }} />
+              <ToolbarButton onClick={zoomIn} title="Zoom in">
+                <ZoomIn size={14} />
+              </ToolbarButton>
+              <ToolbarButton onClick={zoomOut} title="Zoom out">
+                <ZoomOut size={14} />
+              </ToolbarButton>
+            </div>
+          </Panel>
+
+          {/* ── MiniMap ───────────────────────────────────────────────────── */}
+          <MiniMap
+            position="bottom-right"
+            style={{ background: colors.bgPanel, border: `1px solid ${colors.border}` }}
+            nodeColor={() => colors.accent}
+            maskColor="rgba(23, 25, 31, 0.7)"
+          />
+
+          <Controls
+            showInteractive={false}
+            style={{ display: 'none' }}
+          />
+        </ReactFlow>
+
+        {/* ── Context Menu ─────────────────────────────────────────────────── */}
+        {contextMenu && (
+          <div
+            ref={contextMenuRef}
+            style={{
+              position: 'absolute',
+              top: contextMenu.y,
+              left: contextMenu.x,
+              zIndex: 1000,
+              background: colors.bgPanel,
+              border: `1px solid ${colors.border}`,
+              borderRadius: 8,
+              padding: '4px 0',
+              minWidth: 160,
+              boxShadow: '0 4px 16px rgba(0,0,0,0.4)'
+            }}
+          >
+            {contextMenu.type === 'canvas' && (
+              <>
+                <div
+                  style={{
+                    padding: '6px 12px',
+                    fontSize: 10,
+                    color: colors.textDim,
+                    textTransform: 'uppercase',
+                    letterSpacing: 0.5
+                  }}
+                >
+                  Add Agent
+                </div>
+                {agents.map((agent) => (
+                  <button
+                    key={agent.id}
+                    onClick={() => {
+                      const position = reactFlowInstance.screenToFlowPosition({
+                        x: contextMenu.x,
+                        y: contextMenu.y
+                      })
+                      position.x = Math.round(position.x / 20) * 20
+                      position.y = Math.round(position.y / 20) * 20
+                      addAgentNode(agent.id, position)
+                      closeContextMenu()
+                    }}
+                    style={{
+                      display: 'flex',
+                      alignItems: 'center',
+                      gap: 8,
+                      width: '100%',
+                      textAlign: 'left',
+                      padding: '6px 12px',
+                      background: 'transparent',
+                      border: 'none',
+                      color: colors.text,
+                      fontSize: 12,
+                      cursor: 'pointer'
+                    }}
+                    onMouseEnter={(e) => {
+                      ;(e.currentTarget as HTMLElement).style.background = colors.hover
+                    }}
+                    onMouseLeave={(e) => {
+                      ;(e.currentTarget as HTMLElement).style.background = 'transparent'
+                    }}
+                  >
+                    <VendorIcon vendor={agent.vendor} size={12} />
+                    {agent.name}
+                  </button>
+                ))}
+              </>
+            )}
+            {contextMenu.type === 'selection' && (
+              <button
+                onClick={() => {
+                  const selected = nodes.filter((n) => n.selected).map((n) => n.id)
+                  if (selected.length >= 2) createParallelGroup(selected)
+                  closeContextMenu()
+                }}
+                style={{
+                  display: 'flex',
+                  alignItems: 'center',
+                  gap: 8,
+                  width: '100%',
+                  textAlign: 'left',
+                  padding: '6px 12px',
+                  background: 'transparent',
+                  border: 'none',
+                  color: colors.text,
+                  fontSize: 12,
+                  cursor: 'pointer'
+                }}
+                onMouseEnter={(e) => {
+                  ;(e.currentTarget as HTMLElement).style.background = colors.hover
+                }}
+                onMouseLeave={(e) => {
+                  ;(e.currentTarget as HTMLElement).style.background = 'transparent'
+                }}
+              >
+                <GitFork size={12} />
+                Create Parallel Group
+              </button>
+            )}
+          </div>
+        )}
+      </div>
+
+      {/* ── Right Property Panel (collapsible) ──────────────────────────── */}
+      {rightPanelOpen ? (
+        <div
+          style={{
+            width: 240,
+            flexShrink: 0,
+            background: colors.bgPanel,
+            borderLeft: `1px solid ${colors.border}`,
+            display: 'flex',
+            flexDirection: 'column',
+            overflow: 'hidden'
+          }}
+        >
+          <div style={{
+            display: 'flex',
+            alignItems: 'center',
+            justifyContent: 'space-between',
+            padding: '8px 12px',
+            borderBottom: `1px solid ${colors.border}`
+          }}>
+            <span style={{ fontSize: 11, color: colors.textMuted, textTransform: 'uppercase', letterSpacing: 0.5 }}>
+              {selectedNode ? 'Properties' : 'Template'}
+            </span>
+            <button
+              onClick={() => setRightPanelOpen(false)}
+              style={{ background: 'none', border: 'none', color: colors.textMuted, cursor: 'pointer', padding: 2, display: 'flex' }}
+              title="Close panel"
+            >
+              <ChevronsLeft size={14} />
+            </button>
+          </div>
+          <div style={{ flex: 1, overflowY: 'auto', padding: 12, display: 'flex', flexDirection: 'column', gap: 12 }}>
+            {selectedNode ? (
+              <NodePropertyPanel
+                node={selectedNode}
+                agents={agents}
+                allNodes={nodes}
+                updateNodeData={updateNodeData}
+              />
+            ) : (
+              <TemplatePropertyPanel template={template} />
+            )}
+          </div>
+        </div>
+      ) : (
+        <div style={{
+          width: 36,
+          flexShrink: 0,
+          background: colors.bgPanel,
+          borderLeft: `1px solid ${colors.border}`,
+          display: 'flex',
+          alignItems: 'flex-start',
+          justifyContent: 'center',
+          paddingTop: 8
+        }}>
+          <button
+            onClick={() => setRightPanelOpen(true)}
+            style={{ background: 'none', border: 'none', color: colors.textMuted, cursor: 'pointer', padding: 4, display: 'flex' }}
+            title="Open properties panel"
+          >
+            <ChevronsRight size={14} />
+          </button>
+        </div>
+      )}
+    </div>
+  )
+}
+
+// ── Node Property Panel ───────────────────────────────────────────────────────
+
+function NodePropertyPanel({
+  node,
+  agents,
+  allNodes,
+  updateNodeData
+}: {
+  node: Node
+  agents: AgentDefinition[]
+  allNodes: Node[]
+  updateNodeData: (nodeId: string, data: Partial<Record<string, unknown>>) => void
+}) {
+  const data = node.data as AgentNodeData
+  const rules: StepRule[] = (data as unknown as { rules?: StepRule[] }).rules ?? []
+
+  const getRule = (trigger: StepRule['on']): StepRule | undefined =>
+    rules.find((r) => r.on === trigger)
+
+  const setRuleForTrigger = (trigger: StepRule['on'], action: string, patch?: Partial<StepRule>) => {
+    if (action === 'stop') {
+      updateNodeData(node.id, { rules: rules.filter((r) => r.on !== trigger) })
+      return
+    }
+    const existing = rules.find((r) => r.on === trigger)
+    if (existing) {
+      updateNodeData(node.id, {
+        rules: rules.map((r) => r.on === trigger ? { ...r, action: action as StepRule['action'], ...patch } : r)
+      })
+    } else {
+      updateNodeData(node.id, {
+        rules: [...rules, { on: trigger, action: action as StepRule['action'], ...patch }]
+      })
+    }
+  }
+
+  const selectStyle: React.CSSProperties = {
+    display: 'block',
+    width: '100%',
+    padding: '6px 10px',
+    borderRadius: 6,
+    border: `1px solid ${colors.border}`,
+    background: colors.bg,
+    color: colors.text,
+    fontSize: 12,
+    fontFamily: 'inherit',
+    appearance: 'none' as const,
+    cursor: 'pointer',
+    outline: 'none',
+    backgroundImage: `url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='12' height='12' viewBox='0 0 24 24' fill='none' stroke='%239aa3b5' stroke-width='2'%3E%3Cpath d='M6 9l6 6 6-6'/%3E%3C/svg%3E")`,
+    backgroundRepeat: 'no-repeat',
+    backgroundPosition: 'right 8px center',
+    paddingRight: 28
+  }
+
+  const numStyle: React.CSSProperties = {
+    width: 48,
+    padding: '5px 8px',
+    borderRadius: 5,
+    border: `1px solid ${colors.border}`,
+    background: colors.bg,
+    color: colors.text,
+    fontSize: 12,
+    fontFamily: 'inherit',
+    textAlign: 'center',
+    outline: 'none'
+  }
+
+  const hintStyle: React.CSSProperties = {
+    fontSize: 10,
+    color: colors.textDim,
+    lineHeight: 1.4,
+    marginTop: 4
+  }
+
+  const errorRule = getRule('error')
+  const handoffRule = getRule('handoff-failed')
+  const errorAction = errorRule?.action ?? 'stop'
+  const handoffAction = handoffRule?.action ?? 'stop'
+
+  return (
+    <>
+      {/* Agent name */}
+      <div style={{ fontSize: 13, fontWeight: 600, color: colors.text }}>{data.agentName}</div>
+
+      {/* Agent select */}
+      <label style={{ fontSize: 11, color: colors.textMuted }}>
+        Agent
+        <select
+          value={data.agentId}
+          onChange={(e) => {
+            const agent = agents.find((a) => a.id === e.target.value)
+            if (agent) {
+              updateNodeData(node.id, {
+                agentId: agent.id,
+                agentName: agent.name,
+                vendor: agent.vendor,
+                model: agent.model ?? '',
+                role: agent.role
+              })
+            }
+          }}
+          style={{ ...selectStyle, marginTop: 4 }}
+        >
+          {agents.map((a) => (
+            <option key={a.id} value={a.id}>{a.name}</option>
+          ))}
+        </select>
+      </label>
+
+      {/* Role input */}
+      <label style={{ fontSize: 11, color: colors.textMuted }}>
+        Role
+        <input
+          type="text"
+          value={data.role}
+          onChange={(e) => updateNodeData(node.id, { role: e.target.value })}
+          style={{
+            display: 'block',
+            width: '100%',
+            marginTop: 4,
+            padding: '6px 8px',
+            background: colors.bg,
+            border: `1px solid ${colors.border}`,
+            borderRadius: 6,
+            color: colors.text,
+            fontSize: 12,
+            outline: 'none'
+          }}
+        />
+      </label>
+
+      <div style={{ height: 1, background: colors.border, margin: '4px 0' }} />
+
+      {/* Error handling — simplified */}
+      <div>
+        <div style={{ fontSize: 10, textTransform: 'uppercase', letterSpacing: 0.5, color: colors.textDim, marginBottom: 8, fontWeight: 600 }}>
+          出错处理
+        </div>
+        <select
+          value={errorAction}
+          onChange={(e) => setRuleForTrigger('error', e.target.value, e.target.value === 'retry' ? { maxRetries: 2 } : undefined)}
+          style={selectStyle}
+        >
+          <option value="stop">停止运行</option>
+          <option value="retry">自动重试</option>
+          <option value="skip">跳过继续</option>
+          <option value="goto">跳转到指定步骤</option>
+        </select>
+
+        {errorAction === 'retry' && (
+          <div style={{ display: 'flex', alignItems: 'center', gap: 8, marginTop: 8, padding: '6px 10px', background: colors.bg, border: `1px solid ${colors.border}`, borderRadius: 6 }}>
+            <span style={{ fontSize: 11, color: colors.textDim }}>最多重试</span>
+            <input
+              type="number"
+              min={1}
+              max={5}
+              value={errorRule?.maxRetries ?? 2}
+              onChange={(e) => setRuleForTrigger('error', 'retry', { maxRetries: Number(e.target.value) })}
+              style={numStyle}
+            />
+            <span style={{ fontSize: 11, color: colors.textDim }}>次</span>
+          </div>
+        )}
+
+        {errorAction === 'goto' && (
+          <div style={{ display: 'flex', alignItems: 'center', gap: 8, marginTop: 8, padding: '6px 10px', background: colors.bg, border: `1px solid ${colors.border}`, borderRadius: 6 }}>
+            <span style={{ fontSize: 11, color: colors.textDim, whiteSpace: 'nowrap' }}>跳转到</span>
+            <select
+              value={errorRule?.target ?? 0}
+              onChange={(e) => setRuleForTrigger('error', 'goto', { target: Number(e.target.value) })}
+              style={{ ...selectStyle, marginTop: 0, flex: 1 }}
+            >
+              {allNodes.map((n, i) => {
+                if (n.id === node.id) return null
+                const nd = n.data as AgentNodeData
+                return <option key={n.id} value={i}>#{i + 1} {nd.agentName || 'Step'}{nd.role ? ` (${nd.role})` : ''}</option>
+              })}
+            </select>
+          </div>
+        )}
+
+        <div style={hintStyle}>
+          {errorAction === 'stop' && '出错时整个工作流停止，等待人工处理。'}
+          {errorAction === 'retry' && '出错后自动重新执行当前步骤。'}
+          {errorAction === 'skip' && '出错时跳过下一步继续执行。'}
+          {errorAction === 'goto' && '出错时自动跳转到指定步骤。'}
+        </div>
+      </div>
+
+      {/* Handoff parse failure */}
+      <div>
+        <div style={{ fontSize: 10, textTransform: 'uppercase', letterSpacing: 0.5, color: colors.textDim, marginBottom: 8, fontWeight: 600 }}>
+          Handoff 解析失败
+        </div>
+        <select
+          value={handoffAction}
+          onChange={(e) => setRuleForTrigger('handoff-failed', e.target.value, e.target.value === 'retry' ? { maxRetries: 1 } : undefined)}
+          style={selectStyle}
+        >
+          <option value="stop">停止运行</option>
+          <option value="retry">自动重试</option>
+          <option value="skip">跳过继续</option>
+        </select>
+
+        {handoffAction === 'retry' && (
+          <div style={{ display: 'flex', alignItems: 'center', gap: 8, marginTop: 8, padding: '6px 10px', background: colors.bg, border: `1px solid ${colors.border}`, borderRadius: 6 }}>
+            <span style={{ fontSize: 11, color: colors.textDim }}>最多重试</span>
+            <input
+              type="number"
+              min={1}
+              max={5}
+              value={handoffRule?.maxRetries ?? 1}
+              onChange={(e) => setRuleForTrigger('handoff-failed', 'retry', { maxRetries: Number(e.target.value) })}
+              style={numStyle}
+            />
+            <span style={{ fontSize: 11, color: colors.textDim }}>次</span>
+          </div>
+        )}
+
+        <div style={hintStyle}>
+          {handoffAction === 'stop' && 'Agent 输出格式不对时停止运行。'}
+          {handoffAction === 'retry' && 'Agent 输出格式不对时自动重试。'}
+          {handoffAction === 'skip' && 'Agent 输出格式不对时跳过继续。'}
+        </div>
+      </div>
+
+      {/* Recommend button */}
+      <button
+        onClick={async () => {
+          const result = await window.api.routeRecommend(data.role)
+          if (!result) return
+          const match = agents.find((a) => a.vendor === result.vendor && (!result.model || a.model?.includes(result.model)))
+          if (match) {
+            updateNodeData(node.id, {
+              agentId: match.id,
+              agentName: match.name,
+              vendor: match.vendor,
+              model: match.model ?? ''
+            })
+          }
+        }}
+        style={{
+          marginTop: 8,
+          padding: '6px 12px',
+          background: colors.accent + '22',
+          border: `1px solid ${colors.accent}55`,
+          borderRadius: 6,
+          color: colors.accent,
+          fontSize: 11,
+          fontWeight: 600,
+          cursor: 'pointer',
+          display: 'flex',
+          alignItems: 'center',
+          gap: 6
+        }}
+      >
+        <Sparkles size={12} />
+        Recommend
+      </button>
+    </>
+  )
+}
+
+// ── Template Property Panel (no node selected) ────────────────────────────────
+
+function TemplatePropertyPanel({ template }: { template: WorkflowTemplate | null }) {
+  if (!template) {
+    return (
+      <div style={{ fontSize: 12, color: colors.textDim, fontStyle: 'italic' }}>
+        No template loaded
+      </div>
+    )
+  }
+
+  return (
+    <>
+      <div style={{ fontSize: 11, color: colors.textMuted, textTransform: 'uppercase', letterSpacing: 0.5 }}>
+        Template
+      </div>
+      <div style={{ fontSize: 13, fontWeight: 600, color: colors.text }}>{template.name}</div>
+      {template.description && (
+        <div style={{ fontSize: 11, color: colors.textMuted, lineHeight: 1.4 }}>
+          {template.description}
+        </div>
+      )}
+      {template.budgetUsd != null && (
+        <div style={{ fontSize: 11, color: colors.textMuted }}>
+          Budget: <strong style={{ color: colors.text }}>${template.budgetUsd}</strong>
+        </div>
+      )}
+    </>
+  )
+}
+
+// ── Toolbar Button ────────────────────────────────────────────────────────────
+
+function ToolbarButton({
+  onClick,
+  disabled,
+  title,
+  children
+}: {
+  onClick: () => void
+  disabled?: boolean
+  title?: string
+  children: React.ReactNode
+}) {
+  return (
+    <button
+      onClick={onClick}
+      disabled={disabled}
+      title={title}
+      style={{
+        width: 28,
+        height: 28,
+        display: 'flex',
+        alignItems: 'center',
+        justifyContent: 'center',
+        background: 'transparent',
+        border: 'none',
+        borderRadius: 5,
+        color: disabled ? colors.textDim : colors.text,
+        fontSize: 14,
+        cursor: disabled ? 'default' : 'pointer',
+        opacity: disabled ? 0.4 : 1
+      }}
+    >
+      {children}
+    </button>
+  )
+}
+
+// ── Exported wrapper with ReactFlowProvider ───────────────────────────────────
+
+export default function WorkflowCanvas(props: WorkflowCanvasProps) {
+  return (
+    <ReactFlowProvider>
+      <CanvasInner {...props} />
+    </ReactFlowProvider>
+  )
+}

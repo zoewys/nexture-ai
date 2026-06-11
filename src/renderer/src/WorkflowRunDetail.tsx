@@ -8,7 +8,7 @@
 
 import { useCallback, useEffect, useRef, useState } from 'react'
 import type { AgentDefinition, HandoffArtifactItem, WorkflowRun } from '@shared/types'
-import { Check, CheckCircle, Code2, FileQuestion, PenTool } from 'lucide-react'
+import { AlertTriangle, ArrowRight, Check, CheckCircle, Code2, CornerUpRight, FileQuestion, Lightbulb, PenTool } from 'lucide-react'
 import { TranscriptViewer } from './TranscriptViewer'
 import { MarkdownPreview } from './MarkdownPreview'
 import { MemoryReferences } from './MemoryReferences'
@@ -28,7 +28,7 @@ export interface WorkflowRunDetailProps {
   selectedExecution: WorkflowRun['steps'][number]['executions'][number] | null
   handoff: NonNullable<WorkflowRun['steps'][number]['executions'][number]['handoff']> | null
   uiReviewEnabled?: boolean
-  onConfirm: () => Promise<void>
+  onConfirm: (stepIndex?: number) => Promise<void>
   onRerun: (stepIndex: number) => Promise<void>
   onAbort: () => Promise<void>
   onUpdatePrompt: (runId: string, newPrompt: string) => Promise<void>
@@ -43,6 +43,8 @@ export interface WorkflowRunDetailProps {
   onComposerChange: (value: string) => void
   onComposerSend: () => Promise<void>
   showMemoryReferences?: boolean
+  onSkipStep?: () => Promise<void>
+  onGotoStep?: (targetIndex: number) => Promise<void>
 }
 
 interface OpenFile {
@@ -73,7 +75,9 @@ export function WorkflowRunDetail({
   onPickFiles,
   onRemoveFile,
   attachedFiles = [],
-  showMemoryReferences = false
+  showMemoryReferences = false,
+  onSkipStep,
+  onGotoStep
 }: WorkflowRunDetailProps): JSX.Element {
   const [openFiles, setOpenFiles] = useState<OpenFile[]>([])
   const [activeFile, setActiveFile] = useState<string | null>(null)
@@ -154,8 +158,8 @@ export function WorkflowRunDetail({
     ? agents.find((agent) => agent.id === selectedStep.agentId) ?? null
     : null
   const awaitingConfirm =
-    run.status === 'awaiting-confirm' &&
-    run.steps[run.currentStepIndex]?.status === 'awaiting-confirm'
+    run.status === 'awaiting-confirm' ||
+    run.steps.some((s) => s.status === 'awaiting-confirm')
   const { displayPath, gitSafetyMessage } = run as WorkflowRunUiMeta
 
   return (
@@ -190,9 +194,26 @@ export function WorkflowRunDetail({
           </div>
           <div className="workflow-run-detail-actions">
             {awaitingConfirm && (
-              <button type="button" className="primary workflow-confirm-step" onClick={onConfirm}>
-                <CheckCircle size={14} /> 确认并继续
-              </button>
+              <>
+                <button type="button" className="primary workflow-confirm-step" onClick={() => onConfirm(selectedStepIndex)}>
+                  <CheckCircle size={14} /> 确认并继续
+                </button>
+                {onSkipStep && (
+                  <button type="button" onClick={onSkipStep}>跳过下一步</button>
+                )}
+                {onGotoStep && (
+                  <select
+                    className="workflow-goto-select"
+                    value=""
+                    onChange={(e) => { if (e.target.value) onGotoStep(Number(e.target.value)) }}
+                  >
+                    <option value="">跳转到...</option>
+                    {run.steps.map((s, i) => (
+                      <option key={i} value={i}>Step {i + 1}: {s.displayName || s.role || `Step ${i + 1}`}</option>
+                    ))}
+                  </select>
+                )}
+              </>
             )}
             <button type="button" onClick={() => onRerun(selectedStepIndex)}>Rerun Step</button>
             {(run.status === 'running' || run.status === 'awaiting-confirm') && (
@@ -201,27 +222,35 @@ export function WorkflowRunDetail({
           </div>
         </div>
 
-        {/* step nav */}
+        {/* step nav — with parallel group support */}
         <div className="workflow-step-nav">
-          {run.steps.map((step, index) => {
-            const agent = agents.find((candidate) => candidate.id === step.agentId)
-            const stepTokens = step.executions.reduce((sum, ex) => sum + (ex.totalInputTokens ?? 0) + (ex.totalOutputTokens ?? 0), 0)
-            const stepCost = step.executions.reduce((sum, ex) => sum + (ex.totalCostUsd ?? 0), 0)
-            const costTitle = stepTokens > 0 ? `${formatTokens(stepTokens)} tokens${stepCost > 0 ? ` · $${stepCost.toFixed(2)}` : ''}` : undefined
-            return (
-              <button
-                type="button"
-                key={`${run.id}-step-${index}`}
-                className={`workflow-step-chip ${selectedStepIndex === index ? 'workflow-step-chip-active' : ''} workflow-step-chip-${step.status}`}
-                onClick={() => onSelectStep(index)}
-                title={costTitle}
-              >
-                <span className="workflow-step-chip-num">{index + 1}</span>
-                <span className="workflow-step-chip-name">{step.role || step.displayName || agent?.name || agent?.role || `Step ${index + 1}`}</span>
-              </button>
-            )
-          })}
+          {renderStepChips(run, agents, selectedStepIndex, onSelectStep)}
         </div>
+
+        {/* parallel transcript tabs */}
+        {selectedStep?.parallelGroupId && (() => {
+          const groupSteps = run.steps
+            .map((s, i) => ({ step: s, index: i }))
+            .filter(({ step }) => step.parallelGroupId === selectedStep.parallelGroupId)
+          return groupSteps.length > 1 ? (
+            <div className="parallel-transcript-tabs">
+              {groupSteps.map(({ step, index }) => {
+                const agent = agents.find((a) => a.id === step.agentId)
+                return (
+                  <button
+                    key={index}
+                    type="button"
+                    className={`parallel-tab${selectedStepIndex === index ? ' parallel-tab-active' : ''}`}
+                    onClick={() => onSelectStep(index)}
+                  >
+                    <span className={`parallel-tab-dot parallel-tab-dot-${step.status}`} />
+                    {step.role || step.displayName || agent?.name || `Step ${index + 1}`}
+                  </button>
+                )
+              })}
+            </div>
+          ) : null
+        })()}
 
         {/* prompt display */}
         <div className="workflow-prompt-section">
@@ -248,8 +277,31 @@ export function WorkflowRunDetail({
         {selectedExecution?.error && (
           <div className={`workflow-detail-error${selectedExecution.error.startsWith('Budget exceeded') ? ' workflow-budget-exceeded' : ''}`}>
             {selectedExecution.error.startsWith('Budget exceeded')
-              ? <>⚠️ 已达到预算上限，运行已自动停止。{selectedExecution.error.slice(15)}</>
+              ? <><AlertTriangle size={12} style={{ display: 'inline', verticalAlign: 'middle' }} /> 已达到预算上限，运行已自动停止。{selectedExecution.error.slice(15)}</>
               : selectedExecution.error}
+          </div>
+        )}
+
+        {/* route suggestion banner */}
+        {selectedExecution?.handoff?.routeSuggestion && onGotoStep && (
+          <div className="route-suggestion-inline">
+            <span className="route-suggestion-icon"><Lightbulb size={14} /></span>
+            <div className="route-suggestion-inline-text">
+              <strong>Agent 建议：</strong> {selectedExecution.handoff.routeSuggestion.reason || selectedExecution.handoff.routeSuggestion.action}
+            </div>
+            <button
+              type="button"
+              className="route-suggestion-adopt"
+              onClick={() => {
+                const rs = selectedExecution.handoff!.routeSuggestion!
+                if (rs.action === 'goto' && rs.target !== undefined) onGotoStep(rs.target)
+                else if (rs.action === 'retry-prev') onRerun(selectedStepIndex)
+                else if (rs.action === 'skip-next' && onSkipStep) onSkipStep()
+                else onConfirm(selectedStepIndex)
+              }}
+            >
+              采纳
+            </button>
           </div>
         )}
 
@@ -315,6 +367,93 @@ export function WorkflowRunDetail({
       )}
     </main>
   )
+}
+
+// ── Step Chips with parallel group support ──────────────────────────────────
+
+interface StepGroup {
+  parallelGroupId: string | undefined
+  items: { step: WorkflowRun['steps'][number]; index: number }[]
+}
+
+function groupStepsByParallel(run: WorkflowRun): StepGroup[] {
+  const groups: StepGroup[] = []
+  let currentGroup: StepGroup | null = null
+
+  for (let i = 0; i < run.steps.length; i++) {
+    const step = run.steps[i]
+    const gid = step.parallelGroupId
+    if (gid) {
+      if (currentGroup?.parallelGroupId === gid) {
+        currentGroup.items.push({ step, index: i })
+      } else {
+        currentGroup = { parallelGroupId: gid, items: [{ step, index: i }] }
+        groups.push(currentGroup)
+      }
+    } else {
+      currentGroup = null
+      groups.push({ parallelGroupId: undefined, items: [{ step, index: i }] })
+    }
+  }
+  return groups
+}
+
+function renderStepChips(
+  run: WorkflowRun,
+  agents: AgentDefinition[],
+  selectedStepIndex: number,
+  onSelectStep: (index: number) => void
+): JSX.Element[] {
+  const groups = groupStepsByParallel(run)
+  const elements: JSX.Element[] = []
+
+  for (let gi = 0; gi < groups.length; gi++) {
+    if (gi > 0) {
+      elements.push(<span key={`arrow-${gi}`} className="workflow-step-chip-arrow"><ArrowRight size={10} /></span>)
+    }
+    const group = groups[gi]
+    if (group.items.length === 1) {
+      const { step, index } = group.items[0]
+      const agent = agents.find((a) => a.id === step.agentId)
+      const stepTokens = step.executions.reduce((sum, ex) => sum + (ex.totalInputTokens ?? 0) + (ex.totalOutputTokens ?? 0), 0)
+      const stepCost = step.executions.reduce((sum, ex) => sum + (ex.totalCostUsd ?? 0), 0)
+      const costTitle = stepTokens > 0 ? `${formatTokens(stepTokens)} tokens${stepCost > 0 ? ` · $${stepCost.toFixed(2)}` : ''}` : undefined
+      elements.push(
+        <button
+          type="button"
+          key={`step-${index}`}
+          className={`workflow-step-chip ${selectedStepIndex === index ? 'workflow-step-chip-active' : ''} workflow-step-chip-${step.status}`}
+          onClick={() => onSelectStep(index)}
+          title={costTitle}
+        >
+          <span className="workflow-step-chip-num">{index + 1}</span>
+          <span className="workflow-step-chip-name">{step.role || step.displayName || agent?.name || agent?.role || `Step ${index + 1}`}</span>
+        </button>
+      )
+    } else {
+      elements.push(
+        <div key={`pgroup-${group.parallelGroupId}`} className="parallel-group-stack">
+          <div className="parallel-group-bracket" />
+          {group.items.map(({ step, index }) => {
+            const agent = agents.find((a) => a.id === step.agentId)
+            return (
+              <button
+                type="button"
+                key={`step-${index}`}
+                className={`workflow-step-chip ${selectedStepIndex === index ? 'workflow-step-chip-active' : ''} workflow-step-chip-${step.status}`}
+                onClick={() => onSelectStep(index)}
+                style={{ marginLeft: 4 }}
+              >
+                <span className="workflow-step-chip-num">{index + 1}</span>
+                <span className="workflow-step-chip-name">{step.role || step.displayName || agent?.name || `Step ${index + 1}`}</span>
+              </button>
+            )
+          })}
+        </div>
+      )
+    }
+  }
+  return elements
 }
 
 // ── Artifact Card ───────────────────────────────────────────────────────────

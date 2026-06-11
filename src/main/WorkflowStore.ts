@@ -2,7 +2,8 @@ import { app } from 'electron'
 import { existsSync, mkdirSync, readdirSync, readFileSync, unlinkSync, writeFileSync } from 'node:fs'
 import { join } from 'node:path'
 import { randomUUID } from 'node:crypto'
-import type { WorkflowRun, WorkflowTemplate } from '@shared/types'
+import type { WorkflowRun, WorkflowTemplate, WorkflowStepNode } from '@shared/types'
+import { isParallelGroup } from '@shared/types'
 
 type SaveTemplateInput = Omit<WorkflowTemplate, 'id'> & { id?: string }
 
@@ -20,7 +21,7 @@ export class WorkflowStore {
   }
 
   listTemplates(): WorkflowTemplate[] {
-    return readArray<WorkflowTemplate>(this.templatesPath)
+    return readArray<WorkflowTemplate>(this.templatesPath).map(normalizeTemplate)
   }
 
   saveTemplate(input: SaveTemplateInput): WorkflowTemplate {
@@ -29,7 +30,8 @@ export class WorkflowStore {
       id: input.id ?? randomUUID(),
       name: input.name,
       description: input.description,
-      steps: input.steps
+      steps: input.steps,
+      budgetUsd: input.budgetUsd
     }
     const idx = list.findIndex((item) => item.id === template.id)
     if (idx >= 0) list[idx] = template
@@ -112,5 +114,15 @@ function writeArray<T>(path: string, list: T[]): void {
     writeFileSync(path, JSON.stringify(list, null, 2))
   } catch {
     // Persistence is best-effort.
+  }
+}
+
+function normalizeTemplate(t: WorkflowTemplate): WorkflowTemplate {
+  return {
+    ...t,
+    steps: t.steps.map((node: WorkflowStepNode) => {
+      if (isParallelGroup(node)) return { ...node, join: node.join ?? true }
+      return node
+    })
   }
 }

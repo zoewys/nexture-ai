@@ -118,7 +118,7 @@ test('workflow manager records scheduled metadata and auto-confirms successful h
   assert.match(manager, /setRunSettledHandler/)
   assert.match(manager, /execution\.status = run\.autoConfirm \? 'done' : 'awaiting-confirm'/)
   assert.match(manager, /if \(run\.autoConfirm\)/)
-  assert.match(manager, /this\.startStep\(run\.id, nextIndex\)/)
+  assert.match(manager, /this\.startNextNode\(run\.id, nextIndex\)/)
   assert.match(manager, /run\.status = 'completed'/)
 })
 

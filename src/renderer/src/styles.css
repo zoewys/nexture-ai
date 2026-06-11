@@ -4575,3 +4575,139 @@ button.icon-only {
 }
 
 .cli-mini-text { font-size: 12px; color: var(--text-soft); }
+
+/* ── Parallel group step chips ──────────────────────────────────────────── */
+
+.parallel-group-stack {
+  display: flex;
+  flex-direction: column;
+  gap: 3px;
+  position: relative;
+}
+
+.parallel-group-bracket {
+  position: absolute;
+  left: -6px;
+  top: 0;
+  bottom: 0;
+  width: 3px;
+  border-radius: 2px;
+  background: rgba(108, 140, 255, 0.3);
+}
+
+.workflow-step-chip-arrow {
+  color: var(--text-dim);
+  font-size: 10px;
+  flex-shrink: 0;
+  display: flex;
+  align-items: center;
+}
+
+/* ── Parallel transcript tabs ──────────────────────────────────────────── */
+
+.parallel-transcript-tabs {
+  display: flex;
+  gap: 0;
+  border-bottom: 1px solid var(--border);
+  padding: 0 16px;
+}
+
+.parallel-tab {
+  padding: 7px 14px;
+  font-size: 11px;
+  color: var(--text-dim);
+  border: none;
+  border-bottom: 2px solid transparent;
+  background: none;
+  cursor: pointer;
+  display: flex;
+  align-items: center;
+  gap: 5px;
+  font-family: inherit;
+  transition: color 0.15s, border-color 0.15s;
+}
+
+.parallel-tab-active {
+  color: var(--accent);
+  border-bottom-color: var(--accent);
+}
+
+.parallel-tab-dot {
+  width: 6px;
+  height: 6px;
+  border-radius: 50%;
+  background: var(--text-dim);
+}
+
+.parallel-tab-dot-running {
+  background: var(--accent);
+  animation: think-pulse 1.2s infinite;
+}
+
+.parallel-tab-dot-done { background: var(--green); }
+.parallel-tab-dot-error { background: var(--red); }
+.parallel-tab-dot-awaiting-confirm { background: var(--yellow); }
+
+/* ── Route suggestion inline banner ────────────────────────────────────── */
+
+.route-suggestion-inline {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  margin: 6px 16px;
+  padding: 6px 10px;
+  border-radius: 6px;
+  background: rgba(180, 142, 173, 0.08);
+  border-left: 3px solid var(--purple);
+}
+
+.route-suggestion-icon {
+  font-size: 14px;
+  flex-shrink: 0;
+}
+
+.route-suggestion-inline-text {
+  flex: 1;
+  font-size: 11px;
+  color: var(--text-soft);
+}
+
+.route-suggestion-inline-text strong {
+  color: var(--purple);
+  font-weight: 600;
+}
+
+.route-suggestion-adopt {
+  padding: 4px 10px;
+  border-radius: 5px;
+  border: 1px solid var(--purple);
+  background: transparent;
+  color: var(--purple);
+  font-size: 10px;
+  font-weight: 600;
+  cursor: pointer;
+  white-space: nowrap;
+  font-family: inherit;
+}
+
+.route-suggestion-adopt:hover {
+  background: rgba(180, 142, 173, 0.12);
+}
+
+/* ── Goto step dropdown ────────────────────────────────────────────────── */
+
+.workflow-goto-select {
+  padding: 5px 8px;
+  border-radius: 6px;
+  border: 1px solid var(--border);
+  background: var(--bg-input);
+  color: var(--text-soft);
+  font-size: 11px;
+  cursor: pointer;
+  font-family: inherit;
+}
+
+.workflow-goto-select:focus {
+  outline: none;
+  border-color: var(--accent);
+}

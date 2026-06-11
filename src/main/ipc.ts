@@ -38,6 +38,7 @@ import { MemoryInjector } from './memory/MemoryInjector'
 import { ReflectionAgent } from './memory/ReflectionAgent'
 import { SignalCollector } from './memory/SignalCollector'
 import { AppSettingsStore } from './AppSettingsStore'
+import { getRecommendation } from './routeRecommendation'
 
 export interface AppManagers {
   abortAll(): void
@@ -263,8 +264,8 @@ export function registerIpc(
     workflowManager.inspectGitSafety(projectPath)
   )
 
-  ipcMain.handle(IPC.workflowConfirmStep, (_e, runId: string) =>
-    workflowManager.confirmStep(runId)
+  ipcMain.handle(IPC.workflowConfirmStep, (_e, runId: string, stepIndex?: number) =>
+    workflowManager.confirmStep(runId, stepIndex)
   )
 
   ipcMain.handle(IPC.workflowRerunStep, (_e, runId: string, stepIndex: number) =>
@@ -279,6 +280,18 @@ export function registerIpc(
 
   ipcMain.handle(IPC.workflowUpdatePrompt, (_e, runId: string, newPrompt: string): WorkflowRun =>
     workflowManager.updatePrompt(runId, newPrompt)
+  )
+
+  ipcMain.handle(IPC.workflowSkipStep, (_e, runId: string) =>
+    workflowManager.skipStep(runId)
+  )
+
+  ipcMain.handle(IPC.workflowGotoStep, (_e, runId: string, targetIndex: number) =>
+    workflowManager.gotoStep(runId, targetIndex)
+  )
+
+  ipcMain.handle(IPC.routeRecommend, (_e, role: string) =>
+    getRecommendation(role)
   )
 
   // ── Workflow schedules ───────────────────────────────────────────────

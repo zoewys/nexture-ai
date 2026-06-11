@@ -168,15 +168,13 @@ Artifacts:
 
 ### 1.6 UI 变更
 
-**Template 编辑器** (`TemplatesView.tsx`)：
-- 新增"创建并行组"按钮：选中多个 step → 点击 → 包裹为 parallel group
-- 并行组用虚线框包围，内部 step 可拖拽排序
-- 并行组有 join toggle（开关：汇合/独立）
-- 支持把 step 从并行组中拖出
+**Template 编辑器**：由 DAG 画布替代（见 Phase 4）。并行组在画布上通过框选节点 → 右键"创建并行组"操作，不使用包围框，仅通过连线分叉/汇合表达并行关系。属性面板中可配置 join toggle。
 
 **Run 详情 step chips** (`WorkflowRunDetail.tsx`)：
-- 并行 step 在 chip bar 中垂直堆叠（或用斜杠分隔显示）
-- 并行组用括号或颜色区分
+- 并行 step 在 chip bar 中**垂直堆叠**，左侧用蓝色竖条标识并行组
+- 点击 chip 切换查看对应步骤的转录
+
+**并行运行转录查看**：使用 **Tab 切换**模式，每个并行步骤一个 tab，tab 上带运行状态指示器（脉冲动画 = running，实心绿点 = done）。
 
 **IPC 无变更**：template 的 `steps` 字段类型变了，但 IPC 传输仍是 JSON，透明。
 
@@ -288,24 +286,28 @@ routeSuggestion: isValidRouteSuggestion(parsed.routeSuggestion)
 
 **文件**：`src/renderer/src/WorkflowRunDetail.tsx`
 
-当前 confirm 只有一个按钮"确认并继续"。扩展为：
+当前 confirm 只有一个按钮"确认并继续"。扩展为**按钮行 + 下拉**布局：
 
 ```tsx
-<div className="confirm-actions">
-  <button onClick={onConfirm}>确认并继续</button>
-  <button onClick={onRerun}>重跑当前步骤</button>
+<div className="confirm-btn-row">
+  <button className="primary" onClick={onConfirm}>▶ 确认并继续</button>
+  <button onClick={onRerun}>↻ 重跑当前步骤</button>
+  <button onClick={onSkipNext}>⏭ 跳过下一步</button>
   <select onChange={onGoto}>
-    <option value="">跳转到...</option>
+    <option value="">↗ 跳转到...</option>
     {run.steps.map((s, i) => <option key={i} value={i}>Step {i+1}: {s.displayName}</option>)}
   </select>
-  <button onClick={onSkipNext}>跳过下一步</button>
 </div>
 
+{/* Agent 路由建议：内联横幅样式 */}
 {execution.handoff?.routeSuggestion && (
-  <div className="route-suggestion">
-    <span>Agent 建议：{execution.handoff.routeSuggestion.reason}</span>
-    <button onClick={() => applyRouteSuggestion(execution.handoff.routeSuggestion)}>
-      采纳建议
+  <div className="route-suggestion-inline">
+    <span>💡</span>
+    <div className="route-suggestion-inline-text">
+      <strong>Agent 建议：</strong> {execution.handoff.routeSuggestion.reason}
+    </div>
+    <button className="apply-btn" onClick={() => applyRouteSuggestion(execution.handoff.routeSuggestion)}>
+      采纳
     </button>
   </div>
 )}
@@ -442,34 +444,48 @@ function templateToCanvas(steps: WorkflowStepNode[]): { nodes: Node[]; edges: Ed
 ```
 
 **节点类型**：
-- `agent-node`：对应一个 WorkflowTemplateStep
-- `parallel-group`：对应一个 WorkflowParallelGroup（包含子节点）
+- `agent-node`：对应一个 WorkflowTemplateStep，**详细卡片样式**——直接显示 vendor 图标、名称、角色、模型标签，左右两侧连接端口
+
+**并行组表示**：不使用独立的 ParallelGroupNode，采用**纯连线分叉/汇合**方式。画布上并行步骤通过 fan-out / fan-in 连线自然表达并行关系。序列化时，检测共享同一上游和下游的节点组，序列化为 `{ parallel: [...] }` 结构。
 
 **边类型**：
 - `default`：线性连接
-- `conditional`：条件边（附带 StepRule 信息）
+- `conditional`：条件边（黄色虚线，附带 StepRule 信息标签）
 
 ### 4.3 文件结构
 
 ```
 src/renderer/src/
   canvas/
-    WorkflowCanvas.tsx          # 画布主组件
-    AgentNode.tsx               # Agent 节点自定义渲染
-    ParallelGroupNode.tsx       # 并行组节点
-    ConditionalEdge.tsx         # 条件边
+    WorkflowCanvas.tsx          # 画布主组件（顶部居中工具栏 + 右侧属性面板 + 右下 minimap）
+    AgentNode.tsx               # Agent 节点：详细卡片（图标+名称+角色+模型标签）
+    ConditionalEdge.tsx         # 条件边（黄色虚线）
     canvasSerializer.ts         # 双向转换 canvas ↔ template
     useCanvasState.ts           # 画布状态管理 hook
 ```
 
 ### 4.4 交互
 
-- 左侧 Agent 列表可拖拽到画布
-- 画布中节点可连线
-- 右键节点：删除、编辑 agent、设置 rules
-- 框选多节点 → 右键"创建并行组"
+**工具栏**（顶部居中，浮于画布上方）：
+- 选择模式 / 连线模式切换
+- 撤销 / 重做
+- 适应画布 / 缩放控制
+
+**节点添加**（两种方式并存）：
+- **左侧可折叠 Agent 图标列表**：默认折叠为图标栏（每个 Agent 显示 vendor 图标），展开后显示完整名称，可拖拽到画布
+- **右键画布空白处**：弹出菜单，列出所有可用 Agent + "创建并行组"选项
+
+**节点编辑**（右侧属性面板）：
+- 选中节点后，右侧展开属性编辑面板
+- 面板内容：Agent 选择（下拉）、Role 输入、Rules 配置（内联列表 + 添加按钮）
+- 未选中节点时面板隐藏或显示画布总览信息
+
+**其他操作**：
+- 框选多节点 → 右键"创建并行组"（序列化时生成 parallel 结构）
+- 右键节点：删除、复制、编辑 rules
 - 条件边：双击边可设置触发条件
 - Cmd+S 保存（调用 `canvasToTemplate()` 后存入 WorkflowStore）
+- 右下角 minimap 显示全局缩略图
 
 ### 4.5 Lazy Loading
 
@@ -490,14 +506,33 @@ const WorkflowCanvas = lazy(() => import('./canvas/WorkflowCanvas'))
 
 ---
 
-## 任务列表（按优先级）
+## UI 交互方案选择结果
 
-### Phase 1：并行分支
+> 确认时间：2026-06-11
+
+| 决策点 | 选择 |
+|--------|------|
+| P4: 画布节点样式 | **方案 B** — 详细卡片（直接显示名称+角色+模型标签） |
+| P4: 并行组画布表示 | **方案 B** — 纯连线分叉（无包围框） |
+| P4: 画布工具栏 & 节点编辑 | **方案 A** — 顶部工具栏 + 右侧属性面板 |
+| P4: 节点添加方式 | **方案 C** — 两者兼备（折叠侧栏 + 右键菜单） |
+| P1: 并行步骤 Chips 显示 | **方案 A** — 垂直堆叠 + 蓝色竖条 |
+| P1: 并行运行转录查看 | **方案 A** — Tab 切换 |
+| P2: 确认面板操作布局 | **方案 A** — 按钮行 + 下拉 |
+| P2: Agent 路由建议展示 | **方案 B** — 内联横幅 |
+
+可视化 mockup 参见 `ui-decisions.html`。
+
+---
+
+## 任务列表（按优先级，DAG 画布直接替代线性编辑器）
+
+### Phase 1：并行分支（后端引擎）
 
 | # | 任务 | 依赖 | 预估 |
 |---|------|------|------|
 | P1-1 | `shared/types.ts` 新增 `WorkflowStepNode`、`WorkflowParallelGroup` 类型，修改 `WorkflowTemplate.steps` 类型 | 无 | 小 |
-| P1-2 | `shared/types.ts` 给 `WorkflowRun.steps` 的 item 新增 `parallelGroupId`、`worktreePath` 字段 | P1-1 | 小 |
+| P1-2 | `shared/types.ts` 给 `WorkflowRunStep` 新增 `parallelGroupId`、`worktreePath` 字段 | P1-1 | 小 |
 | P1-3 | 新建 `src/main/worktreeManager.ts`：create/remove/list/isGitRepo | 无 | 中 |
 | P1-4 | `WorkflowStore` 加载旧 template 时 normalize 为新类型（兼容迁移） | P1-1 | 小 |
 | P1-5 | `WorkflowManager.start()` 展平嵌套 steps 为 run steps，生成 parallelGroupId | P1-1, P1-2 | 中 |
@@ -508,28 +543,33 @@ const WorkflowCanvas = lazy(() => import('./canvas/WorkflowCanvas'))
 | P1-10 | `WorkflowManager.abort()` 支持 kill 并行组内所有活跃进程 | P1-7 | 小 |
 | P1-11 | `WorkflowManager.rerunStep()` 支持只重跑并行组内单个 step | P1-8 | 中 |
 | P1-12 | Worktree 清理：confirm 后删除、run 删除时删除、app 启动时清理孤立 | P1-3 | 小 |
-| P1-13 | `TemplatesView.tsx` 支持创建/解散并行组 | P1-1 | 中 |
-| P1-14 | `WorkflowRunDetail.tsx` step chips 支持并行显示 | P1-2 | 中 |
 | P1-15 | 测试：并行启动、独立完成、汇合推进、错误隔离、worktree | P1-8 | 中 |
+
+### Phase 1：并行分支（运行时 UI）
+
+| # | 任务 | 依赖 | UI 方案 | 预估 |
+|---|------|------|---------|------|
+| P1-14 | `WorkflowRunDetail.tsx` 并行 step chips 显示 | P1-2 | 垂直堆叠 + 蓝色竖条 | 中 |
+| P1-14b | 并行运行时转录 Tab 切换 | P1-7 | Tab 切换（每个并行步骤一个 tab，带状态指示器） | 中 |
 
 ### Phase 2：条件跳转
 
-| # | 任务 | 依赖 | 预估 |
-|---|------|------|------|
-| P2-1 | `shared/types.ts` 新增 `StepRule`、`RouteSuggestion` 类型 | 无 | 小 |
-| P2-2 | `shared/types.ts` `WorkflowTemplateStep` 新增 `rules` 字段 | P2-1 | 小 |
-| P2-3 | `shared/types.ts` `HandoffArtifact` 新增 `routeSuggestion` 字段 | P2-1 | 小 |
-| P2-4 | `WorkflowManager` 新增 `evaluateRules()`，在 error/done 时检查规则 | P2-2 | 中 |
-| P2-5 | `WorkflowManager` 新增 `skipStep()`、`gotoStep()` 方法 | P2-4 | 中 |
-| P2-6 | `WorkflowManager` 防循环逻辑（goto 上限、retry 上限） | P2-5 | 小 |
-| P2-7 | `parseHandoff()` 提取 `routeSuggestion` | P2-3 | 小 |
-| P2-8 | `HANDOFF_HINT` 追加 routeSuggestion 说明 | P2-3 | 小 |
-| P2-9 | IPC 新增 `workflowSkipStep`、`workflowGotoStep` 通道 | P2-5 | 小 |
-| P2-10 | `preload/index.ts` 暴露新 API | P2-9 | 小 |
-| P2-11 | `WorkflowRunDetail.tsx` confirm 面板扩展为多选项 | P2-9, P2-10 | 中 |
-| P2-12 | `WorkflowRunDetail.tsx` 展示 agent routeSuggestion | P2-7 | 小 |
-| P2-13 | `TemplatesView.tsx` step 编辑支持配置 rules | P2-2 | 中 |
-| P2-14 | 测试：自动 retry、skip、goto、防循环、routeSuggestion | P2-6 | 中 |
+| # | 任务 | 依赖 | UI 方案 | 预估 |
+|---|------|------|---------|------|
+| P2-1 | `shared/types.ts` 新增 `StepRule`、`RouteSuggestion` 类型 | 无 | — | 小 |
+| P2-2 | `shared/types.ts` `WorkflowTemplateStep` 新增 `rules` 字段 | P2-1 | — | 小 |
+| P2-3 | `shared/types.ts` `HandoffArtifact` 新增 `routeSuggestion` 字段 | P2-1 | — | 小 |
+| P2-4 | `WorkflowManager` 新增 `evaluateRules()`，在 error/done 时检查规则 | P2-2 | — | 中 |
+| P2-5 | `WorkflowManager` 新增 `skipStep()`、`gotoStep()` 方法 | P2-4 | — | 中 |
+| P2-6 | `WorkflowManager` 防循环逻辑（goto 上限、retry 上限） | P2-5 | — | 小 |
+| P2-7 | `parseHandoff()` 提取 `routeSuggestion` | P2-3 | — | 小 |
+| P2-8 | `HANDOFF_HINT` 追加 routeSuggestion 说明 | P2-3 | — | 小 |
+| P2-9 | IPC 新增 `workflowSkipStep`、`workflowGotoStep` 通道 | P2-5 | — | 小 |
+| P2-10 | `preload/index.ts` 暴露新 API | P2-9 | — | 小 |
+| P2-11 | `WorkflowRunDetail.tsx` confirm 面板多操作 | P2-9, P2-10 | 按钮行 + 下拉（主操作突出，次要操作普通按钮，跳转用下拉选择） | 中 |
+| P2-12 | `WorkflowRunDetail.tsx` 展示 agent routeSuggestion | P2-7 | 内联横幅（紫色竖线 + 文字 + "采纳"按钮） | 小 |
+| P2-13 | 节点 rules 配置（集成到画布右侧属性面板） | P2-2, P4-5 | 随画布属性面板编辑方式 | 中 |
+| P2-14 | 测试：自动 retry、skip、goto、防循环、routeSuggestion | P2-6 | — | 中 |
 
 ### Phase 3：智能路由
 
@@ -537,21 +577,22 @@ const WorkflowCanvas = lazy(() => import('./canvas/WorkflowCanvas'))
 |---|------|------|------|
 | P3-1 | 新建 `src/main/routeRecommendation.ts` | 无 | 小 |
 | P3-2 | IPC 新增 `routeRecommend` 通道 + preload 暴露 | P3-1 | 小 |
-| P3-3 | `TemplatesView.tsx` 每步新增"推荐"按钮 | P3-2 | 小 |
+| P3-3 | 画布属性面板新增"推荐"按钮 | P3-2, P4-5 | 小 |
 | P3-4 | 点击推荐后自动匹配或创建 agent | P3-3 | 中 |
 | P3-5 | 测试：推荐映射正确性 | P3-1 | 小 |
 
-### Phase 4：DAG 画布
+### Phase 4：DAG 画布编辑器（替代线性 TemplatesView）
 
-| # | 任务 | 依赖 | 预估 |
-|---|------|------|------|
-| P4-1 | 安装 `@xyflow/react` 依赖 | 无 | 小 |
-| P4-2 | 新建 `canvasSerializer.ts`：template ↔ canvas 双向转换 | P1-1 | 中 |
-| P4-3 | 新建 `AgentNode.tsx`、`ParallelGroupNode.tsx` 自定义节点 | P4-1 | 中 |
-| P4-4 | 新建 `ConditionalEdge.tsx` 条件边渲染 | P2-1, P4-1 | 小 |
-| P4-5 | 新建 `WorkflowCanvas.tsx` 主画布组件 | P4-2, P4-3, P4-4 | 大 |
-| P4-6 | 新建 `useCanvasState.ts` 画布状态 hook | P4-5 | 中 |
-| P4-7 | `TemplatesView.tsx` 切换为画布编辑器（lazy load） | P4-5, P4-6 | 中 |
-| P4-8 | 支持从 Agent 列表拖拽到画布 | P4-7 | 中 |
-| P4-9 | 支持框选 → 创建并行组 | P4-7 | 中 |
-| P4-10 | 测试：序列化往返、旧 template 渲染 | P4-2 | 中 |
+| # | 任务 | 依赖 | UI 方案 | 预估 |
+|---|------|------|---------|------|
+| P4-1 | 安装 `@xyflow/react` 依赖 | 无 | — | 小 |
+| P4-2 | 新建 `canvasSerializer.ts`：template ↔ canvas 双向转换 | P1-1 | — | 中 |
+| P4-3 | 新建 `AgentNode.tsx` 自定义节点 | P4-1 | 详细卡片：图标+名称+角色+模型标签，连接端口在左右两侧 | 中 |
+| P4-3b | 并行组表示（纯连线，无 ParallelGroupNode） | P4-3 | 纯连线分叉/汇合，不使用包围框 | 小 |
+| P4-4 | 新建 `ConditionalEdge.tsx` 条件边渲染 | P2-1, P4-1 | 黄色虚线，附带条件标签 | 小 |
+| P4-5 | 新建 `WorkflowCanvas.tsx` 主画布组件 | P4-2, P4-3, P4-4 | 顶部居中工具栏（选择/连线/撤销/重做/适应/缩放）+ 右侧属性面板 + 右下角 minimap | 大 |
+| P4-6 | 节点添加交互 | P4-5 | 左侧可折叠 Agent 图标列表（拖拽）+ 画布右键菜单 | 中 |
+| P4-7 | 新建 `useCanvasState.ts` 画布状态 hook | P4-5 | — | 中 |
+| P4-8 | `TemplatesView.tsx` 切换为画布编辑器（lazy load） | P4-5, P4-7 | — | 中 |
+| P4-9 | 支持框选 → 右键"创建并行组"（序列化为 parallel 结构） | P4-8 | — | 中 |
+| P4-10 | 测试：序列化往返、旧 template 渲染 | P4-2 | — | 中 |
