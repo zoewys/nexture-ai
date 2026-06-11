@@ -12,6 +12,7 @@ const detail = readFileSync(join(root, 'src/renderer/src/WorkflowRunDetail.tsx')
 const handoff = readFileSync(join(root, 'src/renderer/src/HandoffPanel.tsx'), 'utf8')
 const drawer = readFileSync(join(root, 'src/renderer/src/NewWorkflowRunDrawer.tsx'), 'utf8')
 const templatesView = readFileSync(join(root, 'src/renderer/src/TemplatesView.tsx'), 'utf8')
+const workflowCanvas = readFileSync(join(root, 'src/renderer/src/canvas/WorkflowCanvas.tsx'), 'utf8')
 const app = readFileSync(join(root, 'src/renderer/src/App.tsx'), 'utf8')
 const mainIndex = readFileSync(join(root, 'src/main/index.ts'), 'utf8')
 const fixture = readFileSync(join(root, 'src/renderer/src/uiReviewFixture.ts'), 'utf8')
@@ -108,6 +109,27 @@ test('templates screen matches sidebar and editor design', () => {
   assert.match(css, /\.templates-view\s*\{[\s\S]*display:\s*flex;/)
   assert.match(css, /\.templates-sidebar\s*\{[\s\S]*width:\s*300px;/)
   assert.match(css, /\.templates-editor\s*\{[\s\S]*display:\s*flex;[\s\S]*flex-direction:\s*column;/)
+})
+
+test('workflow canvas agent chooser exposes agent detail panel', () => {
+  assert.match(workflowCanvas, /openAgentDetail/)
+  assert.match(workflowCanvas, /rightPanelMode.*'agent-detail'/)
+  assert.match(workflowCanvas, /title=\{`View \$\{agent\.name\} details`\}/)
+  assert.match(workflowCanvas, /<Info size=\{13\} \/>/)
+  assert.match(workflowCanvas, /AgentDetailPanel/)
+  assert.match(workflowCanvas, /Agent Details/)
+  assert.match(workflowCanvas, /onOpenAgentDetail=\{openAgentDetail\}/)
+  assert.match(workflowCanvas, /Use for \{selectedNodeData\?\.agentName/)
+  assert.doesNotMatch(workflowCanvas, /AgentManager/)
+})
+
+test('templates save button uses the latest canvas steps snapshot', () => {
+  assert.match(templatesView, /pendingStepsRef\.current = selectedTemplate\?\.steps \?\? null/)
+  assert.match(templatesView, /void handleCanvasSave\(pendingStepsRef\.current \?\? selectedTemplate\.steps\)/)
+  assert.doesNotMatch(templatesView, /if \(pendingStepsRef\.current\) \{\s*void handleCanvasSave/)
+  assert.match(templatesView, /onStepsChange=\{\(steps\) => \{[\s\S]*pendingStepsRef\.current = steps/)
+  assert.match(workflowCanvas, /onStepsChange\?: \(steps: import\('@shared\/types'\)\.WorkflowStepNode\[\]\) => void/)
+  assert.match(workflowCanvas, /onStepsChangeRef\.current\?\.\(getSteps\(\)\)/)
 })
 
 test('electron main window is visible for local UI review', () => {

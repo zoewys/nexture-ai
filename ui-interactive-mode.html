@@ -1,0 +1,532 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="UTF-8">
+<title>Interactive Mode — UI 增量变更预览</title>
+<style>
+/* ══ 直接复用 agent-studio 的 CSS 变量 ══ */
+:root {
+  --bg: #17191f;
+  --bg-header: #191c23;
+  --bg-panel: #20232b;
+  --bg-surface: #151922;
+  --bg-input: #242833;
+  --border: #343946;
+  --border-soft: #2a2f3b;
+  --text-strong: #eef2f8;
+  --text: #eef2f8;
+  --text-soft: #c8d0df;
+  --text-dim: #9aa3b5;
+  --accent: #6c8cff;
+  --accent-dim: #3d4a7a;
+  --green: #4caf7d;
+  --yellow: #d4a548;
+  --red: #db6b6b;
+  --purple: #b48ead;
+  --blue: #60a5fa;
+  font-family: Inter, -apple-system, BlinkMacSystemFont, 'Segoe UI', system-ui, sans-serif;
+}
+* { box-sizing: border-box; margin: 0; padding: 0; }
+body { background: var(--bg); color: var(--text); font-size: 13px; -webkit-font-smoothing: antialiased; padding: 24px; }
+
+/* ══ 页面结构 ══ */
+.page-title { font-size: 18px; font-weight: 700; color: var(--text-strong); margin-bottom: 4px; }
+.page-desc { font-size: 12px; color: var(--text-dim); margin-bottom: 32px; }
+.section { margin-bottom: 48px; }
+.section-head { font-size: 14px; font-weight: 700; color: var(--accent); border-bottom: 1px solid var(--border); padding-bottom: 6px; margin-bottom: 16px; }
+.side-by-side { display: flex; gap: 24px; align-items: flex-start; flex-wrap: wrap; }
+.annotation {
+  background: var(--bg-panel); border: 1px dashed var(--border); border-radius: 8px;
+  padding: 14px; font-size: 12px; color: var(--text-dim); max-width: 320px; line-height: 1.7;
+}
+.annotation strong { color: var(--text-soft); }
+.new-badge {
+  display: inline-block; font-size: 9px; font-weight: 700; text-transform: uppercase;
+  background: rgba(108,140,255,0.15); color: var(--accent); border-radius: 3px;
+  padding: 2px 5px; margin-left: 6px; vertical-align: middle;
+}
+.changed-badge {
+  display: inline-block; font-size: 9px; font-weight: 700; text-transform: uppercase;
+  background: rgba(212,165,72,0.15); color: var(--yellow); border-radius: 3px;
+  padding: 2px 5px; margin-left: 6px; vertical-align: middle;
+}
+
+/* ══ 复用 agent-studio 的实际组件样式 ══ */
+.section-title { color: var(--text-dim); font-size: 11px; text-transform: uppercase; letter-spacing: 0.04em; display: inline-flex; align-items: center; gap: 6px; }
+.field { display: flex; flex-direction: column; gap: 5px; }
+.field > span { color: var(--text-dim); font-size: 11px; text-transform: uppercase; letter-spacing: 0.04em; }
+.field-hint { color: var(--text-dim); font-size: 11px; line-height: 1.35; }
+input, select {
+  background: var(--bg-input); border: 1px solid var(--border); color: var(--text); border-radius: 6px;
+  padding: 8px 10px; font-size: 13px; font-family: inherit; width: 100%;
+}
+select {
+  padding: 8px 28px 8px 10px; appearance: none;
+  background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='12' height='12' viewBox='0 0 12 12'%3E%3Cpath fill='%23888' d='M3 4.5l3 3 3-3'/%3E%3C/svg%3E");
+  background-repeat: no-repeat; background-position: right 8px center;
+}
+button {
+  background: var(--bg-input); border: 1px solid var(--border); color: var(--text); border-radius: 6px;
+  padding: 6px 12px; font-size: 12px; cursor: pointer; white-space: nowrap; min-height: 30px;
+  display: inline-flex; align-items: center; justify-content: center; gap: 6px; line-height: 1.2; font-family: inherit;
+}
+button:hover { border-color: var(--accent); }
+button.primary { background: var(--accent); border-color: var(--accent); color: #fff; font-weight: 600; }
+button.danger { border-color: rgba(219,107,107,0.72); background: rgba(219,107,107,0.1); color: #ffd0d0; font-weight: 600; }
+.panel-separator { border-top: 1px solid var(--border); margin: 4px 0; }
+
+/* ── Toggle (复用 schedule-toggle 样式) ── */
+.settings-switch {
+  width: 44px; height: 24px; border-radius: 12px; border: 1px solid var(--border);
+  background: var(--bg); cursor: pointer; position: relative; transition: .2s; flex-shrink: 0; padding: 0;
+}
+.settings-switch.on { background: var(--accent); border-color: var(--accent); }
+.settings-switch::after {
+  content: ''; position: absolute; top: 3px; left: 3px;
+  width: 16px; height: 16px; border-radius: 50%; background: #fff; transition: .2s;
+}
+.settings-switch.on::after { left: 23px; }
+
+/* ── Step chips (复用真实样式) ── */
+.workflow-step-nav {
+  display: flex; gap: 6px; padding: 8px 16px; border-bottom: 1px solid var(--border);
+  background: var(--bg-panel); overflow-x: auto; flex-shrink: 0;
+}
+.workflow-step-chip {
+  display: flex; align-items: center; gap: 5px; padding: 4px 8px;
+  border: 1px solid var(--border); border-radius: 6px; background: var(--bg-input);
+  color: var(--text-dim); cursor: pointer; white-space: nowrap; flex-shrink: 0;
+  transition: border-color 0.15s, background 0.15s, color 0.15s; min-height: auto; font-family: inherit;
+}
+.workflow-step-chip-num {
+  width: 18px; height: 18px; border-radius: 50%; background: rgba(255,255,255,0.08);
+  display: flex; align-items: center; justify-content: center; font-size: 10px; font-weight: 700; flex-shrink: 0;
+}
+.workflow-step-chip-name { font-weight: 500; max-width: 100px; overflow: hidden; text-overflow: ellipsis; }
+.workflow-step-chip-arrow { color: var(--text-dim); font-size: 10px; flex-shrink: 0; display: flex; align-items: center; }
+.workflow-step-chip-done { border-color: var(--green); background: rgba(76,175,125,0.1); }
+.workflow-step-chip-done .workflow-step-chip-num { background: var(--green); color: #fff; }
+.workflow-step-chip-running { border-color: var(--accent); background: rgba(108,140,255,0.1); }
+.workflow-step-chip-running .workflow-step-chip-num { background: var(--accent); color: #fff; animation: think-pulse 0.8s ease-in-out infinite; }
+
+/* ── 新增：awaiting-input 芯片样式 ── */
+.workflow-step-chip-awaiting-input { border-color: var(--blue); background: rgba(96,165,250,0.1); }
+.workflow-step-chip-awaiting-input .workflow-step-chip-num { background: var(--blue); color: #fff; animation: think-pulse 1.2s ease-in-out infinite; }
+
+@keyframes think-pulse { 0%, 100% { opacity: 0.3; } 50% { opacity: 1; } }
+
+/* ── Run detail header (复用真实样式) ── */
+.workflow-run-detail-header {
+  padding: 10px 16px; border-bottom: 1px solid var(--border); background: var(--bg-panel);
+  display: flex; align-items: center; justify-content: space-between; gap: 12px;
+}
+.workflow-detail-title { display: flex; align-items: baseline; gap: 10px; min-width: 0; overflow: hidden; }
+.workflow-detail-title h2 { margin: 0; font-size: 13px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.workflow-run-status { font-size: 11px; font-weight: 600; white-space: nowrap; flex-shrink: 0; }
+.workflow-run-status-running { color: var(--accent); }
+.workflow-run-status-awaiting-input { color: var(--blue); }
+.workflow-run-detail-actions { display: flex; gap: 8px; flex-wrap: wrap; justify-content: flex-end; flex-shrink: 0; }
+
+/* ── Composer (复用真实样式) ── */
+.composer-bar {
+  border-top: 1px solid var(--border); padding: 10px 14px 12px;
+  display: flex; flex-direction: column; gap: 8px; background: var(--bg-panel); flex-shrink: 0;
+}
+.composer-row { display: flex; align-items: center; gap: 8px; }
+.composer-input {
+  flex: 1; border: none; background: transparent; outline: none;
+  color: var(--text); font-size: 13px; font-family: inherit; line-height: 1.4; min-height: 20px; padding: 0; width: auto;
+}
+.composer-input::placeholder { color: var(--text-dim); }
+.composer-send-btn {
+  width: 32px; height: 32px; border-radius: 8px; border: none;
+  background: var(--accent); color: #fff; cursor: pointer;
+  display: flex; align-items: center; justify-content: center; flex-shrink: 0; padding: 0;
+}
+
+/* ── Transcript messages (复用真实样式) ── */
+.cli-msg {
+  position: relative; color: var(--text-strong); font-size: 13px; line-height: 1.65;
+  padding: 8px 0 8px 18px; margin: 8px 0 12px; white-space: normal; word-break: break-word;
+}
+.cli-msg::before {
+  content: ''; position: absolute; left: 1px; top: 19px;
+  width: 6px; height: 6px; border-radius: 50%; background: var(--text-strong); opacity: 0.9;
+}
+.cli-user-input {
+  display: flex; justify-content: flex-end; margin: 4px 0;
+}
+.cli-user-input::after {
+  content: attr(data-text); display: block; max-width: 75%;
+  background: var(--accent); color: #fff; padding: 8px 14px;
+  border-radius: 16px 16px 4px 16px; font-size: 13px; line-height: 1.5; white-space: pre-wrap;
+}
+
+/* ── Awaiting-input 提示条 ── */
+.awaiting-input-bar {
+  display: flex; align-items: center; justify-content: space-between;
+  padding: 6px 16px; border-bottom: 1px solid rgba(96,165,250,0.2);
+  background: rgba(96,165,250,0.06); font-size: 12px;
+}
+.awaiting-input-dot {
+  display: inline-block; width: 6px; height: 6px; border-radius: 50%;
+  background: var(--blue); animation: think-pulse 1.2s ease-in-out infinite; margin-right: 6px;
+}
+
+/* ── Property Panel (canvas 右侧) ── */
+.prop-panel {
+  width: 260px; background: var(--bg-panel); border-left: 1px solid var(--border);
+  padding: 12px; display: flex; flex-direction: column; gap: 12px; border-radius: 0;
+}
+.prop-panel-head {
+  display: flex; align-items: center; justify-content: space-between;
+  padding-bottom: 8px; border-bottom: 1px solid var(--border);
+}
+.prop-panel-head span { font-size: 11px; color: var(--text-dim); text-transform: uppercase; letter-spacing: 0.5px; }
+
+/* ── Toggle row ── */
+.toggle-row {
+  display: flex; align-items: center; justify-content: space-between; gap: 8px;
+}
+.toggle-label { font-size: 13px; color: var(--text); }
+
+/* ── Mock run detail container ── */
+.mock-run-detail {
+  width: 640px; background: var(--bg); border: 1px solid var(--border); border-radius: 8px; overflow: hidden;
+}
+.transcript-area { padding: 0 16px; font-family: 'SF Mono', Menlo, monospace; }
+</style>
+</head>
+<body>
+
+<div class="page-title">Interactive Mode — UI 增量变更预览</div>
+<p class="page-desc">仅展示在现有 agent-studio UI 上的新增/变更部分。所有样式直接复用项目 CSS 变量。</p>
+
+<!-- ═══════════════════════════════════════════════════ -->
+<div class="section">
+<div class="section-head">1. Canvas 属性面板 — 新增配置项 <span class="new-badge">NEW</span></div>
+<p style="font-size: 12px; color: var(--text-dim); margin-bottom: 16px;">
+  选中步骤节点时，右侧 NodePropertyPanel 底部新增两个配置区。位于现有「错误处理」和「Handoff 解析失败」之后。
+</p>
+
+<div class="side-by-side">
+  <div class="prop-panel">
+    <div class="prop-panel-head">
+      <span>Properties</span>
+    </div>
+
+    <!-- 现有：Agent 选择 -->
+    <div class="field">
+      <span>Agent</span>
+      <select><option>Senior PM — claude/sonnet</option></select>
+    </div>
+
+    <!-- 现有：错误处理（折叠展示，不展开） -->
+    <div class="field">
+      <span>错误处理</span>
+      <select><option>停止</option></select>
+    </div>
+
+    <div class="panel-separator"></div>
+
+    <!-- ★ 新增：交互模式开关 -->
+    <div class="field">
+      <span>交互模式 <span class="new-badge">NEW</span></span>
+      <div class="toggle-row">
+        <span class="toggle-label">允许步骤内对话</span>
+        <button class="settings-switch on" style="min-height: auto;"></button>
+      </div>
+      <div class="field-hint">开启后，Agent 未输出 handoff 时步骤暂停等待用户回复</div>
+    </div>
+
+    <div class="panel-separator"></div>
+
+    <!-- ★ 新增：失败策略 -->
+    <div class="field">
+      <span>失败策略 <span class="new-badge">NEW</span></span>
+      <select>
+        <option>停止（默认）</option>
+        <option>重试后通知</option>
+        <option selected>重试后跳转</option>
+      </select>
+    </div>
+    <div class="field" style="margin-top: -4px;">
+      <span>最大重试次数</span>
+      <input type="number" value="3" min="1" max="10" style="width: 80px;">
+    </div>
+    <div class="field" style="margin-top: -4px;">
+      <span>跳转目标</span>
+      <select><option>Step 2: Developer</option></select>
+    </div>
+    <div class="field-hint">StepRule 优先于此配置</div>
+  </div>
+
+  <div class="annotation">
+    <strong>新增位置：</strong><br>
+    在 NodePropertyPanel 现有的「错误处理」「Handoff 解析失败」区域下方<br><br>
+    <strong>交互方式：</strong><br>
+    • Toggle 开关复用 settings-switch 组件<br>
+    • 下拉/数字输入复用现有 field + select/input 样式<br>
+    • 「跳转目标」下拉只在选择「重试后跳转」时出现<br><br>
+    <strong>数据存储：</strong><br>
+    写入 node.data 的 interactive 和 failureStrategy 字段，通过 canvasSerializer 序列化到 WorkflowTemplateStep
+  </div>
+</div>
+</div>
+
+<!-- ═══════════════════════════════════════════════════ -->
+<div class="section">
+<div class="section-head">2. 运行视图 — awaiting-input 状态 <span class="new-badge">NEW</span></div>
+<p style="font-size: 12px; color: var(--text-dim); margin-bottom: 16px;">
+  Interactive 步骤的 Agent 输出问题后等待用户回复时。对比：现有的 awaiting-confirm 是黄色，这里用蓝色区分。
+</p>
+
+<div class="side-by-side">
+  <div class="mock-run-detail">
+    <!-- Header — 复用 workflow-run-detail-header -->
+    <div class="workflow-run-detail-header">
+      <div class="workflow-detail-title">
+        <h2>需求沟通 workflow</h2>
+        <span class="workflow-run-status workflow-run-status-awaiting-input">等待回复 <span class="changed-badge">变更</span></span>
+      </div>
+      <div class="workflow-run-detail-actions">
+        <!-- ★ 新增按钮 -->
+        <button>结束对话，进入下一步 →</button>
+        <button>Rerun Step</button>
+        <button class="danger">Stop</button>
+      </div>
+    </div>
+
+    <!-- Step nav — 复用 workflow-step-nav -->
+    <div class="workflow-step-nav">
+      <button class="workflow-step-chip workflow-step-chip-awaiting-input workflow-step-chip-active">
+        <span class="workflow-step-chip-num">1</span>
+        <span class="workflow-step-chip-name">PM</span>
+      </button>
+      <span class="workflow-step-chip-arrow">›</span>
+      <button class="workflow-step-chip">
+        <span class="workflow-step-chip-num">2</span>
+        <span class="workflow-step-chip-name">开发</span>
+      </button>
+      <span class="workflow-step-chip-arrow">›</span>
+      <button class="workflow-step-chip">
+        <span class="workflow-step-chip-num">3</span>
+        <span class="workflow-step-chip-name">测试</span>
+      </button>
+      <span class="workflow-step-chip-arrow">›</span>
+      <button class="workflow-step-chip">
+        <span class="workflow-step-chip-num">4</span>
+        <span class="workflow-step-chip-name">交付</span>
+      </button>
+    </div>
+
+    <!-- ★ 新增：awaiting-input 提示条 -->
+    <div class="awaiting-input-bar">
+      <span><span class="awaiting-input-dot"></span>Agent 正在等待你的回复</span>
+    </div>
+
+    <!-- Transcript — 复用 cli-msg / cli-user-input -->
+    <div class="transcript-area" style="max-height: 240px; overflow-y: auto; padding-bottom: 12px;">
+      <div class="cli-msg">好的，我来帮你梳理这个功能的需求。先确认几个关键问题：</div>
+      <div class="cli-msg">
+        1. 这个功能的目标用户是谁？内部团队还是外部客户？<br>
+        2. 有没有参考产品或竞品？<br>
+        3. 预期的上线时间是？
+      </div>
+      <div class="cli-user-input" data-text="内部运营团队用的，参考飞书多维表格，不急。"></div>
+      <div class="cli-msg">
+        明白了。再确认几个细节：<br><br>
+        1. 数据源是从哪里来的？API 接口还是手动导入？<br>
+        2. 需要支持哪些视图？表格视图是必须的，看板视图需要吗？<br>
+        3. 需要权限控制吗？比如只读/编辑角色区分？
+      </div>
+    </div>
+
+    <!-- Composer — 复用 composer-bar -->
+    <div class="composer-bar">
+      <div class="composer-row">
+        <input class="composer-input" placeholder="回复 Agent...">
+        <button class="composer-send-btn">
+          <svg width="14" height="14" viewBox="0 0 24 24" fill="#fff"><path d="M2 21l21-9L2 3v7l15 2-15 2v7z"/></svg>
+        </button>
+      </div>
+    </div>
+  </div>
+
+  <div class="annotation">
+    <strong>与现有 UI 的差异：</strong><br><br>
+    1. 状态文字：蓝色「等待回复」（非黄色「等待确认」）<br><br>
+    2. Step chip：蓝色边框 + 蓝色脉冲（新增 <code>.workflow-step-chip-awaiting-input</code> CSS 类）<br><br>
+    3. 提示条：「Agent 正在等待你的回复」（新增一行 div）<br><br>
+    4. 操作按钮：「结束对话，进入下一步」替代「确认并继续」<br><br>
+    5. Composer placeholder：「回复 Agent...」替代「向运行中的 agent 发送消息...」<br><br>
+    <strong>不变的部分：</strong><br>
+    Transcript 区域、ComposerBar 组件、Rerun/Stop 按钮、右侧文件预览面板 — 全部复用现有组件
+  </div>
+</div>
+</div>
+
+<!-- ═══════════════════════════════════════════════════ -->
+<div class="section">
+<div class="section-head">3. 对比 — 三种步骤状态的芯片样式</div>
+<p style="font-size: 12px; color: var(--text-dim); margin-bottom: 16px;">
+  展示 awaiting-input（新增）与现有 running、awaiting-confirm 的视觉区分。
+</p>
+
+<div style="display: flex; gap: 24px; flex-wrap: wrap;">
+  <div style="display: flex; flex-direction: column; gap: 8px; align-items: flex-start;">
+    <span style="font-size: 11px; color: var(--text-dim); text-transform: uppercase;">Running（现有）</span>
+    <button class="workflow-step-chip workflow-step-chip-running">
+      <span class="workflow-step-chip-num">1</span>
+      <span class="workflow-step-chip-name">开发</span>
+    </button>
+    <span style="font-size: 11px; color: var(--accent);">accent (#6c8cff) 边框 + 脉冲</span>
+  </div>
+
+  <div style="display: flex; flex-direction: column; gap: 8px; align-items: flex-start;">
+    <span style="font-size: 11px; color: var(--text-dim); text-transform: uppercase;">Awaiting-input <span class="new-badge">NEW</span></span>
+    <button class="workflow-step-chip workflow-step-chip-awaiting-input">
+      <span class="workflow-step-chip-num">1</span>
+      <span class="workflow-step-chip-name">PM</span>
+    </button>
+    <span style="font-size: 11px; color: var(--blue);">blue (#60a5fa) 边框 + 慢脉冲</span>
+  </div>
+
+  <div style="display: flex; flex-direction: column; gap: 8px; align-items: flex-start;">
+    <span style="font-size: 11px; color: var(--text-dim); text-transform: uppercase;">Awaiting-confirm（现有）</span>
+    <button class="workflow-step-chip" style="border-color: var(--yellow); background: rgba(212,165,72,0.1);">
+      <span class="workflow-step-chip-num" style="background: var(--yellow); color: #111;">1</span>
+      <span class="workflow-step-chip-name">测试</span>
+    </button>
+    <span style="font-size: 11px; color: var(--yellow);">yellow (#d4a548) 边框</span>
+  </div>
+
+  <div style="display: flex; flex-direction: column; gap: 8px; align-items: flex-start;">
+    <span style="font-size: 11px; color: var(--text-dim); text-transform: uppercase;">Done（现有）</span>
+    <button class="workflow-step-chip workflow-step-chip-done">
+      <span class="workflow-step-chip-num">1</span>
+      <span class="workflow-step-chip-name">PM</span>
+    </button>
+    <span style="font-size: 11px; color: var(--green);">green (#4caf7d) 边框</span>
+  </div>
+</div>
+</div>
+
+<!-- ═══════════════════════════════════════════════════ -->
+<div class="section">
+<div class="section-head">4. 运行视图 — 对话结束后自动推进 <span class="changed-badge">行为变更</span></div>
+<p style="font-size: 12px; color: var(--text-dim); margin-bottom: 16px;">
+  PM Agent 输出 handoff JSON 后，步骤自动完成并推进到下一步。UI 上无需任何人工操作。
+</p>
+
+<div class="side-by-side">
+  <div class="mock-run-detail">
+    <div class="workflow-run-detail-header">
+      <div class="workflow-detail-title">
+        <h2>需求沟通 workflow</h2>
+        <span class="workflow-run-status workflow-run-status-running">运行中</span>
+      </div>
+      <div class="workflow-run-detail-actions">
+        <button>Rerun Step</button>
+        <button class="danger">Stop</button>
+      </div>
+    </div>
+
+    <div class="workflow-step-nav">
+      <button class="workflow-step-chip workflow-step-chip-done">
+        <span class="workflow-step-chip-num">1</span>
+        <span class="workflow-step-chip-name">PM</span>
+      </button>
+      <span class="workflow-step-chip-arrow">›</span>
+      <button class="workflow-step-chip workflow-step-chip-running workflow-step-chip-active">
+        <span class="workflow-step-chip-num">2</span>
+        <span class="workflow-step-chip-name">开发</span>
+      </button>
+      <span class="workflow-step-chip-arrow">›</span>
+      <button class="workflow-step-chip">
+        <span class="workflow-step-chip-num">3</span>
+        <span class="workflow-step-chip-name">测试</span>
+      </button>
+      <span class="workflow-step-chip-arrow">›</span>
+      <button class="workflow-step-chip">
+        <span class="workflow-step-chip-num">4</span>
+        <span class="workflow-step-chip-name">交付</span>
+      </button>
+    </div>
+
+    <div class="transcript-area" style="padding: 12px 16px;">
+      <div class="cli-msg" style="color: var(--text-dim); font-size: 12px;">
+        ✓ PM 步骤完成 — 需求文档已生成 (docs/requirements.md)<br>
+        ✓ 自动推进到 Step 2: 开发
+      </div>
+      <div style="border-top: 1px solid var(--border); margin: 12px 0;"></div>
+      <div class="cli-msg">正在根据需求文档实现功能，分析依赖关系...</div>
+    </div>
+
+    <div class="composer-bar">
+      <div class="composer-row">
+        <input class="composer-input" placeholder="向运行中的 agent 发送消息..." disabled style="opacity: 0.4;">
+        <button class="composer-send-btn" disabled style="background: var(--bg-input); color: var(--text-dim);">
+          <svg width="14" height="14" viewBox="0 0 24 24" fill="currentColor"><path d="M2 21l21-9L2 3v7l15 2-15 2v7z"/></svg>
+        </button>
+      </div>
+    </div>
+  </div>
+
+  <div class="annotation">
+    <strong>行为变更：</strong><br><br>
+    Interactive 步骤的 Agent 输出 handoff JSON 后，跳过「确认并继续」环节，直接推进到下一步。<br><br>
+    等同于 autoConfirm = true 的行为，但仅对 interactive 步骤生效。<br><br>
+    <strong>理由：</strong><br>
+    用户已经在对话过程中跟 Agent 充分沟通过了，不需要再看一遍 handoff 确认。
+  </div>
+</div>
+</div>
+
+<!-- ═══════════════════════════════════════════════════ -->
+<div class="section">
+<div class="section-head">5. CSS 变更清单</div>
+<p style="font-size: 12px; color: var(--text-dim); margin-bottom: 12px;">仅需在 styles.css 中新增以下规则：</p>
+
+<pre style="background: var(--bg-input); border: 1px solid var(--border); border-radius: 6px; padding: 14px; font-size: 12px; font-family: 'SF Mono', Menlo, monospace; color: var(--text-soft); line-height: 1.7; overflow-x: auto;">
+<span style="color: var(--text-dim);">/* ── awaiting-input step chip (新增) ── */</span>
+
+<span style="color: var(--accent);">.workflow-step-chip-awaiting-input</span> {
+  border-color: #60a5fa;
+  background: rgba(96, 165, 250, 0.1);
+}
+
+<span style="color: var(--accent);">.workflow-step-chip-awaiting-input .workflow-step-chip-num</span> {
+  background: #60a5fa;
+  color: #fff;
+  animation: think-pulse 1.2s ease-in-out infinite;
+}
+
+<span style="color: var(--text-dim);">/* ── awaiting-input run status (新增) ── */</span>
+
+<span style="color: var(--accent);">.workflow-run-status-awaiting-input</span> { color: #60a5fa; }
+
+<span style="color: var(--text-dim);">/* ── awaiting-input 提示条 (新增) ── */</span>
+
+<span style="color: var(--accent);">.workflow-awaiting-input-bar</span> {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 6px 16px;
+  border-bottom: 1px solid rgba(96, 165, 250, 0.2);
+  background: rgba(96, 165, 250, 0.06);
+  font-size: 12px;
+  color: #60a5fa;
+}
+
+<span style="color: var(--text-dim);">/* ── run card / status dot (新增) ── */</span>
+
+<span style="color: var(--accent);">.workflow-run-card-segment-awaiting-input</span> { background: #60a5fa; }
+<span style="color: var(--accent);">.workflow-step-status-awaiting-input</span> { color: #60a5fa; }
+<span style="color: var(--accent);">.workflow-run-step-dot-awaiting-input,
+.workflow-step-status-dot-awaiting-input</span> { background: #60a5fa; }
+</pre>
+</div>
+
+</body>
+</html>

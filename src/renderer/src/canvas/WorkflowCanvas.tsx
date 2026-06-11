@@ -21,9 +21,12 @@ import {
   ChevronsRight,
   Bot,
   Code2,
+  Cpu,
+  FileText,
   Sparkles,
   GitFork,
-  Plus
+  Info,
+  Shield
 } from 'lucide-react'
 
 import type { AgentDefinition, WorkflowTemplate, StepRule } from '@shared/types'
@@ -63,6 +66,7 @@ interface WorkflowCanvasProps {
   agents: AgentDefinition[]
   template: WorkflowTemplate | null
   onMarkDirty: () => void
+  onStepsChange?: (steps: import('@shared/types').WorkflowStepNode[]) => void
   onSave?: (steps: import('@shared/types').WorkflowStepNode[]) => void
 }
 
@@ -79,7 +83,7 @@ const edgeTypes = { conditional: ConditionalEdge }
 
 // ── Inner Canvas (needs ReactFlowProvider ancestor) ───────────────────────────
 
-function CanvasInner({ agents, template, onMarkDirty, onSave }: WorkflowCanvasProps) {
+function CanvasInner({ agents, template, onMarkDirty, onStepsChange, onSave }: WorkflowCanvasProps) {
   const reactFlowInstance = useReactFlow()
 
   const {
@@ -111,12 +115,26 @@ function CanvasInner({ agents, template, onMarkDirty, onSave }: WorkflowCanvasPr
 
   // ── Right panel state ───────────────────────────────────────────────────────
   const [rightPanelOpen, setRightPanelOpen] = useState(false)
+  const [rightPanelMode, setRightPanelMode] = useState<'properties' | 'agent-detail'>('properties')
+  const [detailAgentId, setDetailAgentId] = useState<string | null>(null)
+
+  const detailAgent = useMemo(
+    () => agents.find((agent) => agent.id === detailAgentId) ?? null,
+    [agents, detailAgentId]
+  )
+
+  const openAgentDetail = useCallback((agentId: string) => {
+    setDetailAgentId(agentId)
+    setRightPanelMode('agent-detail')
+    setRightPanelOpen(true)
+  }, [])
 
   // Auto-open when node selected, but allow manual close
   const prevSelectedRef = useRef(selectedNodeId)
   useEffect(() => {
     if (selectedNodeId && selectedNodeId !== prevSelectedRef.current) {
       setRightPanelOpen(true)
+      setRightPanelMode('properties')
     }
     prevSelectedRef.current = selectedNodeId
   }, [selectedNodeId])
@@ -157,6 +175,12 @@ function CanvasInner({ agents, template, onMarkDirty, onSave }: WorkflowCanvasPr
   getStepsRef.current = getSteps
   const onSaveRef = useRef(onSave)
   onSaveRef.current = onSave
+  const onStepsChangeRef = useRef(onStepsChange)
+  onStepsChangeRef.current = onStepsChange
+
+  useEffect(() => {
+    onStepsChangeRef.current?.(getSteps())
+  }, [nodes, edges, getSteps])
 
   useEffect(() => {
     const handler = (e: KeyboardEvent) => {
@@ -249,7 +273,7 @@ function CanvasInner({ agents, template, onMarkDirty, onSave }: WorkflowCanvasPr
   const zoomOut = useCallback(() => reactFlowInstance.zoomOut(), [reactFlowInstance])
 
   // ── Render ──────────────────────────────────────────────────────────────────
-  const sidebarWidth = sidebarExpanded ? 160 : 40
+  const sidebarWidth = sidebarExpanded ? 220 : 40
 
   return (
     <div style={{ display: 'flex', width: '100%', height: '100%', background: colors.bg }}>
@@ -308,7 +332,8 @@ function CanvasInner({ agents, template, onMarkDirty, onSave }: WorkflowCanvasPr
                 e.dataTransfer.effectAllowed = 'move'
               }}
               style={{
-                display: 'flex',
+                display: 'grid',
+                gridTemplateColumns: sidebarExpanded ? '24px minmax(0, 1fr) 26px' : '24px',
                 alignItems: 'center',
                 gap: 8,
                 padding: sidebarExpanded ? '6px 10px' : '6px 0',
@@ -353,6 +378,36 @@ function CanvasInner({ agents, template, onMarkDirty, onSave }: WorkflowCanvasPr
                 >
                   {agent.name}
                 </span>
+              )}
+              {sidebarExpanded && (
+                <button
+                  type="button"
+                  draggable={false}
+                  onMouseDown={(e) => e.stopPropagation()}
+                  onClick={(e) => {
+                    e.preventDefault()
+                    e.stopPropagation()
+                    openAgentDetail(agent.id)
+                  }}
+                  title={`View ${agent.name} details`}
+                  aria-label={`View ${agent.name} details`}
+                  style={{
+                    width: 26,
+                    height: 26,
+                    minHeight: 26,
+                    padding: 0,
+                    borderRadius: 6,
+                    border: `1px solid ${colors.border}`,
+                    background: 'rgba(255,255,255,0.03)',
+                    color: colors.textMuted,
+                    display: 'flex',
+                    alignItems: 'center',
+                    justifyContent: 'center',
+                    cursor: 'pointer'
+                  }}
+                >
+                  <Info size={13} />
+                </button>
               )}
             </div>
           ))}
@@ -562,7 +617,7 @@ function CanvasInner({ agents, template, onMarkDirty, onSave }: WorkflowCanvasPr
             borderBottom: `1px solid ${colors.border}`
           }}>
             <span style={{ fontSize: 11, color: colors.textMuted, textTransform: 'uppercase', letterSpacing: 0.5 }}>
-              {selectedNode ? 'Properties' : 'Template'}
+              {rightPanelMode === 'agent-detail' ? 'Agent Details' : selectedNode ? 'Properties' : 'Template'}
             </span>
             <button
               onClick={() => setRightPanelOpen(false)}
@@ -573,12 +628,29 @@ function CanvasInner({ agents, template, onMarkDirty, onSave }: WorkflowCanvasPr
             </button>
           </div>
           <div style={{ flex: 1, overflowY: 'auto', padding: 12, display: 'flex', flexDirection: 'column', gap: 12 }}>
-            {selectedNode ? (
+            {rightPanelMode === 'agent-detail' ? (
+              <AgentDetailPanel
+                agent={detailAgent}
+                selectedNode={selectedNode}
+                onAssignToSelected={(agent) => {
+                  if (!selectedNode) return
+                  updateNodeData(selectedNode.id, {
+                    agentId: agent.id,
+                    agentName: agent.name,
+                    vendor: agent.vendor,
+                    model: agent.model ?? '',
+                    role: agent.role
+                  })
+                  setRightPanelMode('properties')
+                }}
+              />
+            ) : selectedNode ? (
               <NodePropertyPanel
                 node={selectedNode}
                 agents={agents}
                 allNodes={nodes}
                 updateNodeData={updateNodeData}
+                onOpenAgentDetail={openAgentDetail}
               />
             ) : (
               <TemplatePropertyPanel template={template} />
@@ -615,14 +687,17 @@ function NodePropertyPanel({
   node,
   agents,
   allNodes,
-  updateNodeData
+  updateNodeData,
+  onOpenAgentDetail
 }: {
   node: Node
   agents: AgentDefinition[]
   allNodes: Node[]
   updateNodeData: (nodeId: string, data: Partial<Record<string, unknown>>) => void
+  onOpenAgentDetail: (agentId: string) => void
 }) {
   const data = node.data as AgentNodeData
+  const currentAgent = agents.find((agent) => agent.id === data.agentId) ?? null
   const rules: StepRule[] = (data as unknown as { rules?: StepRule[] }).rules ?? []
 
   const getRule = (trigger: StepRule['on']): StepRule | undefined =>
@@ -718,6 +793,34 @@ function NodePropertyPanel({
           ))}
         </select>
       </label>
+
+      {currentAgent && (
+        <button
+          type="button"
+          onClick={() => onOpenAgentDetail(currentAgent.id)}
+          style={{
+            width: '100%',
+            padding: '7px 9px',
+            borderRadius: 6,
+            border: `1px solid ${colors.border}`,
+            background: colors.bg,
+            color: colors.textMuted,
+            fontSize: 11,
+            cursor: 'pointer',
+            display: 'grid',
+            gridTemplateColumns: '18px minmax(0, 1fr) auto',
+            alignItems: 'center',
+            gap: 7,
+            textAlign: 'left'
+          }}
+        >
+          <Info size={14} />
+          <span style={{ minWidth: 0, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
+            {currentAgent.vendor} · {currentAgent.model || 'default model'}
+          </span>
+          <span style={{ color: colors.accent, fontWeight: 650 }}>Details</span>
+        </button>
+      )}
 
       {/* Role input */}
       <label style={{ fontSize: 11, color: colors.textMuted }}>
@@ -871,6 +974,164 @@ function NodePropertyPanel({
       </button>
     </>
   )
+}
+
+// ── Agent Detail Panel ───────────────────────────────────────────────────────
+
+function AgentDetailPanel({
+  agent,
+  selectedNode,
+  onAssignToSelected
+}: {
+  agent: AgentDefinition | null
+  selectedNode: Node | null
+  onAssignToSelected: (agent: AgentDefinition) => void
+}) {
+  if (!agent) {
+    return (
+      <div style={{ fontSize: 12, color: colors.textDim, fontStyle: 'italic', lineHeight: 1.5 }}>
+        Select an agent from the workflow agent list to inspect its details.
+      </div>
+    )
+  }
+
+  const meta = vendorMeta[agent.vendor] ?? { icon: Bot, color: colors.textMuted }
+  const selectedNodeData = selectedNode?.data as AgentNodeData | undefined
+
+  return (
+    <>
+      <div style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
+        <div
+          style={{
+            width: 38,
+            height: 38,
+            borderRadius: 8,
+            border: `1px solid ${meta.color}66`,
+            background: `${meta.color}22`,
+            display: 'flex',
+            alignItems: 'center',
+            justifyContent: 'center',
+            flexShrink: 0
+          }}
+        >
+          <VendorIcon vendor={agent.vendor} size={18} />
+        </div>
+        <div style={{ minWidth: 0 }}>
+          <div style={{ fontSize: 14, fontWeight: 750, color: colors.text, lineHeight: 1.25, overflowWrap: 'anywhere' }}>
+            {agent.name}
+          </div>
+          <div style={{ fontSize: 11, color: colors.textMuted, lineHeight: 1.4, overflowWrap: 'anywhere' }}>
+            {agent.role || 'No role'} · {agent.vendor}
+          </div>
+        </div>
+      </div>
+
+      <div style={{ display: 'grid', gap: 8 }}>
+        <AgentDetailRow icon={<Cpu size={14} />} label="Model" value={agent.model || 'Default'} />
+        <AgentDetailRow icon={<Shield size={14} />} label="Permission" value={permissionModeLabel(agent.permissionMode)} />
+        {agent.vendor === 'codex' && (
+          <>
+            <AgentDetailRow icon={<Sparkles size={14} />} label="Reasoning" value={agent.codexReasoningEffort || 'Model default'} />
+            <AgentDetailRow icon={<Code2 size={14} />} label="Tier" value={agent.codexServiceTier || 'Default'} />
+          </>
+        )}
+      </div>
+
+      <div style={{ height: 1, background: colors.border }} />
+
+      <div>
+        <div style={{
+          display: 'flex',
+          alignItems: 'center',
+          gap: 6,
+          marginBottom: 8,
+          fontSize: 10,
+          color: colors.textDim,
+          textTransform: 'uppercase',
+          letterSpacing: 0.5,
+          fontWeight: 700
+        }}>
+          <FileText size={13} />
+          System Prompt
+        </div>
+        <div style={{
+          maxHeight: 230,
+          overflowY: 'auto',
+          padding: 10,
+          borderRadius: 8,
+          border: `1px solid ${colors.border}`,
+          background: colors.bg,
+          color: colors.textMuted,
+          fontSize: 11,
+          lineHeight: 1.55,
+          whiteSpace: 'pre-wrap',
+          overflowWrap: 'anywhere'
+        }}>
+          {agent.systemPrompt || 'No system prompt configured.'}
+        </div>
+      </div>
+
+      {selectedNode && (
+        <button
+          type="button"
+          onClick={() => onAssignToSelected(agent)}
+          style={{
+            width: '100%',
+            padding: '8px 10px',
+            borderRadius: 6,
+            border: `1px solid ${colors.accent}66`,
+            background: `${colors.accent}22`,
+            color: colors.text,
+            fontSize: 12,
+            fontWeight: 700,
+            cursor: 'pointer'
+          }}
+        >
+          Use for {selectedNodeData?.agentName || 'selected step'}
+        </button>
+      )}
+    </>
+  )
+}
+
+function AgentDetailRow({ icon, label, value }: { icon: JSX.Element; label: string; value: string }) {
+  return (
+    <div style={{
+      display: 'grid',
+      gridTemplateColumns: '20px 72px minmax(0, 1fr)',
+      alignItems: 'center',
+      gap: 7,
+      fontSize: 11,
+      color: colors.textMuted
+    }}>
+      <span style={{ display: 'flex', color: colors.textDim }}>{icon}</span>
+      <span>{label}</span>
+      <strong style={{
+        minWidth: 0,
+        color: colors.text,
+        fontWeight: 650,
+        overflow: 'hidden',
+        textOverflow: 'ellipsis',
+        whiteSpace: 'nowrap'
+      }}>
+        {value}
+      </strong>
+    </div>
+  )
+}
+
+function permissionModeLabel(mode: AgentDefinition['permissionMode']): string {
+  switch (mode) {
+    case 'default':
+      return 'Default'
+    case 'acceptEdits':
+      return 'Accept Edits'
+    case 'bypassPermissions':
+    case undefined:
+      return 'Bypass Permissions'
+    case 'plan':
+      return 'Plan Mode'
+  }
 }
 
 // ── Template Property Panel (no node selected) ────────────────────────────────

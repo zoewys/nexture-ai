@@ -54,6 +54,10 @@ export function TemplatesView({
     }
   }, [selectedId, templates, sortedTemplates])
 
+  useEffect(() => {
+    pendingStepsRef.current = selectedTemplate?.steps ?? null
+  }, [selectedTemplate])
+
   const handleSelect = useCallback(
     (id: string) => {
       if (isDirty && !window.confirm('You have unsaved changes. Discard?')) return
@@ -120,10 +124,9 @@ export function TemplatesView({
   }, [selectedTemplate, onSave, saving, editName])
 
   const handleCanvasSaveFromButton = useCallback(() => {
-    if (pendingStepsRef.current) {
-      void handleCanvasSave(pendingStepsRef.current)
-    }
-  }, [handleCanvasSave])
+    if (!selectedTemplate) return
+    void handleCanvasSave(pendingStepsRef.current ?? selectedTemplate.steps)
+  }, [handleCanvasSave, selectedTemplate])
 
   return (
     <section className="templates-view">
@@ -253,6 +256,9 @@ export function TemplatesView({
                   agents={agents}
                   template={selectedTemplate}
                   onMarkDirty={markDirty}
+                  onStepsChange={(steps) => {
+                    pendingStepsRef.current = steps
+                  }}
                   onSave={(steps) => {
                     pendingStepsRef.current = steps
                     void handleCanvasSave(steps)
