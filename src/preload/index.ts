@@ -19,7 +19,10 @@ import {
   type AgentMemoryMeta,
   type MemoryEntry,
   type ReflectionEngineConfig,
-  type AppSettings
+  type AppSettings,
+  type ExportOptions,
+  type ImportPreview,
+  type ImportOptions
 } from '@shared/types'
 
 /**
@@ -157,7 +160,19 @@ const api = {
     const listener = (_e: unknown, envelope: WorkflowEventEnvelope): void => cb(envelope)
     ipcRenderer.on(IPC.workflowEvent, listener)
     return () => ipcRenderer.removeListener(IPC.workflowEvent, listener)
-  }
+  },
+
+  exportData: (options: ExportOptions): Promise<{ ok: boolean; path?: string }> =>
+    ipcRenderer.invoke(IPC.dataExport, options),
+
+  exportTemplate: (templateId: string): Promise<{ ok: boolean; path?: string }> =>
+    ipcRenderer.invoke(IPC.dataExportTemplate, templateId),
+
+  previewImport: (filePath: string): Promise<ImportPreview> =>
+    ipcRenderer.invoke(IPC.dataImportPreview, filePath),
+
+  importData: (filePath: string, options: ImportOptions): Promise<{ ok: boolean }> =>
+    ipcRenderer.invoke(IPC.dataImport, filePath, options)
 }
 
 contextBridge.exposeInMainWorld('api', api)

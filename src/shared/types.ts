@@ -449,6 +449,10 @@ export const IPC = {
   pickDir: 'dialog:pickDir',
   /** renderer → main: open a native file picker, returns chosen file paths or null. */
   pickFiles: 'dialog:pickFiles',
+  dataExport: 'data:export',
+  dataExportTemplate: 'data:export-template',
+  dataImportPreview: 'data:import-preview',
+  dataImport: 'data:import',
   /** renderer → main: list all saved agent definitions. */
   agentsList: 'agents:list',
   /** renderer → main: create or update an agent definition. */
@@ -536,4 +540,31 @@ export interface CliCheckResult {
 export interface CliVersionResult {
   claude: string | null
   codex: string | null
+}
+
+export interface ExportOptions {
+  agents: true
+  workflows: true
+  workflowRuns: true
+  schedules?: boolean
+  settings?: boolean
+  memories?: boolean
+}
+
+export interface ImportPreview {
+  agents: { total: number; new: number; existing: number }
+  workflows: { total: number; new: number; existing: number }
+  workflowRuns: { total: number; new: number; existing: number }
+  schedules?: { total: number; new: number; existing: number }
+  settings?: boolean
+  memories?: { total: number; new: number; existing: number }
+}
+
+export interface ImportOptions {
+  agents: true
+  workflows: true
+  workflowRuns: true
+  schedules?: boolean
+  settings?: boolean
+  memories?: boolean
 }
