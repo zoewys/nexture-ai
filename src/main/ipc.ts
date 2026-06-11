@@ -20,7 +20,9 @@ import {
   type AgentMemoryMeta,
   type MemoryEntry,
   type ReflectionEngineConfig,
-  type AppSettings
+  type AppSettings,
+  type ExportOptions,
+  type ImportOptions
 } from '@shared/types'
 import { RunManager } from './RunManager'
 import { TranscriptStore } from './TranscriptStore'
@@ -35,6 +37,7 @@ import { installClaudeCode, installCodexCli } from './cliInstall'
 import { listCliModels } from './cliModels'
 import { MemoryStore } from './memory/MemoryStore'
 import { MemoryInjector } from './memory/MemoryInjector'
+import { createExportZip, createTemplateExportZip, executeImport, previewImportZip } from './dataPortability'
 import { ReflectionAgent } from './memory/ReflectionAgent'
 import { SignalCollector } from './memory/SignalCollector'
 import { AppSettingsStore } from './AppSettingsStore'
@@ -225,6 +228,38 @@ export function registerIpc(
   ipcMain.handle(IPC.fileRead, (_e, absPath: string) => {
     if (!existsSync(absPath)) throw new Error(`File not found: ${absPath}`)
     return readFileSync(absPath, 'utf8')
+  })
+
+  // ── Data Import / Export ───────────────────────────────────────────────
+
+  ipcMain.handle(IPC.dataExport, async (_e, options: ExportOptions) => {
+    const win = getWindow()
+    const result = await dialog.showSaveDialog(win ?? undefined!, {
+      defaultPath: `agent-studio-export-${new Date().toISOString().slice(0, 10)}.zip`,
+      filters: [{ name: 'ZIP files', extensions: ['zip'] }]
+    })
+    if (result.canceled || !result.filePath) return { ok: false }
+    return createExportZip(result.filePath, options)
+  })
+
+  ipcMain.handle(IPC.dataExportTemplate, async (_e, templateId: string) => {
+    const win = getWindow()
+    const result = await dialog.showSaveDialog(win ?? undefined!, {
+      defaultPath: `template-export-${new Date().toISOString().slice(0, 10)}.zip`,
+      filters: [{ name: 'ZIP files', extensions: ['zip'] }]
+    })
+    if (result.canceled || !result.filePath) return { ok: false }
+    return createTemplateExportZip(result.filePath, templateId)
+  })
+
+  ipcMain.handle(IPC.dataImportPreview, async (_e, filePath: string) =>
+    previewImportZip(filePath)
+  )
+
+  ipcMain.handle(IPC.dataImport, async (_e, filePath: string, options: ImportOptions) => {
+    const result = await executeImport(filePath, options)
+    if (result.ok) { setTimeout(() => { app.relaunch(); app.exit(0) }, 500) }
+    return result
   })
 
   // ── Agent CRUD ─────────────────────────────────────────────────────────
