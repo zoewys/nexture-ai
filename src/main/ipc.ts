@@ -258,7 +258,13 @@ export function registerIpc(
 
   ipcMain.handle(IPC.dataImport, async (_e, filePath: string, options: ImportOptions) => {
     const result = await executeImport(filePath, options)
-    if (result.ok) { setTimeout(() => { app.relaunch(); app.exit(0) }, 500) }
+    if (result.ok) {
+      const win = getWindow()
+      if (win && !win.isDestroyed()) {
+        win.webContents.send(IPC.cliInstallProgress, 'system' as any, 'import-complete')
+      }
+      setTimeout(() => { app.relaunch(); app.exit(0) }, 500)
+    }
     return result
   })
 

@@ -449,10 +449,16 @@ export const IPC = {
   pickDir: 'dialog:pickDir',
   /** renderer → main: open a native file picker, returns chosen file paths or null. */
   pickFiles: 'dialog:pickFiles',
+  /** renderer → main: export data to a zip file. */
   dataExport: 'data:export',
+  /** renderer → main: export a single template to a zip file. */
   dataExportTemplate: 'data:export-template',
+  /** renderer → main: preview contents of an import zip file. */
   dataImportPreview: 'data:import-preview',
+  /** renderer → main: import data from a zip file. */
   dataImport: 'data:import',
+  /** renderer → main: restart the app. */
+  appRestart: 'app:restart',
   /** renderer → main: list all saved agent definitions. */
   agentsList: 'agents:list',
   /** renderer → main: create or update an agent definition. */
@@ -541,6 +547,8 @@ export interface CliVersionResult {
   claude: string | null
   codex: string | null
 }
+
+// ── Data Import / Export ───────────────────────────────────────────────────
 
 export interface ExportOptions {
   agents: true

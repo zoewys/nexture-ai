@@ -130,6 +130,8 @@ function showNotification(title: string, body: string): void {
   new Notification({ title, body }).show()
 }
 
+app.commandLine.appendSwitch('remote-debugging-port', '9223')
+
 app.whenReady().then(() => {
   if (process.platform === 'darwin') {
     const dockIcon = nativeImage.createFromPath(appIconPath)

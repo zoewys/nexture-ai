@@ -104,7 +104,9 @@ export function SettingsPanel({ settings, loading, onSave }: SettingsPanelProps)
                 </div>
 
                 {isInstalling && (
-                  <div className="cli-progress-bar"><div className="cli-progress-fill" /></div>
+                  <div className="cli-progress-bar">
+                    <div className="cli-progress-fill" />
+                  </div>
                 )}
                 {isInstalling && info?.message && (
                   <div className="cli-progress-log">{info.message}</div>
@@ -114,7 +116,12 @@ export function SettingsPanel({ settings, loading, onSave }: SettingsPanelProps)
                   {isInstalled ? (
                     <button type="button" className="cli-install-btn" disabled>已安装</button>
                   ) : (
-                    <button type="button" className="cli-install-btn primary" disabled={isInstalling} onClick={() => void handleInstall(def.key)}>
+                    <button
+                      type="button"
+                      className="cli-install-btn primary"
+                      disabled={isInstalling}
+                      onClick={() => void handleInstall(def.key)}
+                    >
                       {isInstalling ? '安装中…' : '安装'}
                     </button>
                   )}
@@ -137,7 +144,7 @@ export function SettingsPanel({ settings, loading, onSave }: SettingsPanelProps)
             <p className="settings-section-desc">导出 Agent、模板、运行历史和设置，方便迁移到新机器或备份。</p>
           </div>
         </div>
-        <div className="settings-btn-group" style={{ marginTop: 8 }}>
+        <div className="settings-btn-group">
           <button type="button" className="btn primary" onClick={() => setShowExport(true)}>
             <Download size={14} /> 导出数据
           </button>
@@ -155,6 +162,7 @@ export function SettingsPanel({ settings, loading, onSave }: SettingsPanelProps)
         </div>
       </section>
 
+      {/* ── divider ── */}
       <hr className="settings-divider" />
 
       {/* ── Memory ── */}
@@ -165,20 +173,25 @@ export function SettingsPanel({ settings, loading, onSave }: SettingsPanelProps)
             <p className="settings-section-desc">Agent 跨 workflow 积累经验，越用越懂你的项目。</p>
           </div>
         </div>
+
         <div className="settings-toggle-row">
           <div className="settings-toggle-info">
             <h4>在会话中展示记忆引用</h4>
-            <p>开启后，每次运行 agent 时会展示注入的历史记忆列表。</p>
+            <p>开启后，每次运行 agent 时会展示注入的历史记忆列表，帮助你了解 agent 基于哪些经验在行动。</p>
           </div>
-          <button type="button" className={`settings-switch${settings.showMemoryReferences ? ' on' : ''}`} disabled={loading}
+          <button
+            type="button"
+            className={`settings-switch${settings.showMemoryReferences ? ' on' : ''}`}
+            disabled={loading}
             onClick={() => onSave({ ...settings, showMemoryReferences: !settings.showMemoryReferences })}
-            role="switch" aria-checked={settings.showMemoryReferences} />
+            role="switch"
+            aria-checked={settings.showMemoryReferences}
+          />
         </div>
       </section>
 
       <hr className="settings-divider" />
 
-      {/* ── Tray ── */}
       <section className="settings-section">
         <div className="settings-section-head">
           <div>
@@ -186,17 +199,22 @@ export function SettingsPanel({ settings, loading, onSave }: SettingsPanelProps)
             <p className="settings-section-desc">关闭窗口后保留 Tray 中的定时任务调度器。</p>
           </div>
         </div>
+
         <div className="settings-toggle-row">
           <div className="settings-toggle-info">
             <h4>关闭窗口时最小化到 Tray</h4>
             <p>开启后，定时 workflow 会在后台继续触发。</p>
           </div>
-          <button type="button" className={`settings-switch${settings.minimizeToTray ? ' on' : ''}`} disabled={loading}
+          <button
+            type="button"
+            className={`settings-switch${settings.minimizeToTray ? ' on' : ''}`}
+            disabled={loading}
             onClick={() => onSave({ ...settings, minimizeToTray: !settings.minimizeToTray })}
-            role="switch" aria-checked={settings.minimizeToTray} />
+            role="switch"
+            aria-checked={settings.minimizeToTray}
+          />
         </div>
       </section>
-
       {showExport && (
         <ExportDialog
           items={[
@@ -208,7 +226,13 @@ export function SettingsPanel({ settings, loading, onSave }: SettingsPanelProps)
             { key: 'memories', label: '记忆库', desc: 'Agent 学习的历史经验', count: '', required: false }
           ]}
           onExport={async (selected) => {
-            const result = await window.api.exportData(makeExportOptions(selected))
+            const options = {
+              agents: true as const, workflows: true as const, workflowRuns: true as const,
+              schedules: selected.has('schedules'),
+              settings: selected.has('settings'),
+              memories: selected.has('memories')
+            }
+            const result = await window.api.exportData(options)
             if (result.ok) setShowExport(false)
           }}
           onClose={() => setShowExport(false)}
@@ -220,7 +244,13 @@ export function SettingsPanel({ settings, loading, onSave }: SettingsPanelProps)
           filePath={importFilePath}
           preview={importPreview}
           onImport={async (selected) => {
-            await window.api.importData(importFilePath, makeExportOptions(selected))
+            const options = {
+              agents: true as const, workflows: true as const, workflowRuns: true as const,
+              schedules: selected.has('schedules'),
+              settings: selected.has('settings'),
+              memories: selected.has('memories')
+            }
+            await window.api.importData(importFilePath, options)
             setShowImport(false)
           }}
           onClose={() => { setShowImport(false); setImportPreview(null) }}
@@ -228,13 +258,4 @@ export function SettingsPanel({ settings, loading, onSave }: SettingsPanelProps)
       )}
     </div>
   )
-}
-
-function makeExportOptions(selected: Set<string>) {
-  return {
-    agents: true as const, workflows: true as const, workflowRuns: true as const,
-    schedules: selected.has('schedules'),
-    settings: selected.has('settings'),
-    memories: selected.has('memories')
-  }
 }

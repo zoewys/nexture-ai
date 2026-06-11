@@ -8,7 +8,7 @@
 import { lazy, Suspense, useCallback, useEffect, useMemo, useRef, useState } from 'react'
 import type { AgentDefinition, WorkflowTemplate, WorkflowStepNode } from '@shared/types'
 import type { WorkflowDraft } from './useWorkflows'
-import { ChevronsLeft, ChevronsRight, Copy, Download, Trash2 } from 'lucide-react'
+import { ChevronsLeft, ChevronsRight, Download, Copy, Trash2 } from 'lucide-react'
 
 const WorkflowCanvas = lazy(() => import('./canvas/WorkflowCanvas'))
 
@@ -32,7 +32,6 @@ export function TemplatesView({
   const [editName, setEditName] = useState('')
   const pendingStepsRef = useRef<WorkflowStepNode[] | null>(null)
   const [contextMenu, setContextMenu] = useState<{ templateId: string; x: number; y: number } | null>(null)
-  const contextMenuTemplate = contextMenu ? templates.find(t => t.id === contextMenu.templateId) : null
 
   const selectedTemplate = useMemo(
     () => templates.find((t) => t.id === selectedId) ?? null,
@@ -181,7 +180,10 @@ export function TemplatesView({
                       selectedId === template.id ? 'selected' : ''
                     ].filter(Boolean).join(' ')}
                     onClick={() => handleSelect(template.id)}
-                    onContextMenu={(e) => { e.preventDefault(); setContextMenu({ templateId: template.id, x: e.clientX, y: e.clientY }) }}
+                    onContextMenu={(e) => {
+                      e.preventDefault()
+                      setContextMenu({ templateId: template.id, x: e.clientX, y: e.clientY })
+                    }}
                   >
                     <div className="templates-sidebar-item-name">{template.name}</div>
                     <div className="templates-sidebar-item-desc">
@@ -273,32 +275,37 @@ export function TemplatesView({
         )}
       </main>
 
-      {contextMenu && contextMenuTemplate && (
-        <>
-          <div className="context-menu-backdrop" onClick={() => setContextMenu(null)} />
-          <div className="context-menu-dropdown" style={{ left: contextMenu.x, top: contextMenu.y }}>
-            <button type="button" className="context-menu-item" onClick={() => {
-              void window.api.exportTemplate(contextMenuTemplate.id)
-              setContextMenu(null)
-            }}>
-              <Download size={14} /> 导出此模板
-            </button>
-            <div className="context-menu-divider" />
-            <button type="button" className="context-menu-item" onClick={() => {
-              void handleDuplicate()
-              setContextMenu(null)
-            }}>
-              <Copy size={14} /> 复制模板
-            </button>
-            <button type="button" className="context-menu-item context-menu-danger" onClick={() => {
-              void handleDelete()
-              setContextMenu(null)
-            }}>
-              <Trash2 size={14} /> 删除模板
-            </button>
-          </div>
-        </>
-      )}
+      {/* ── Context Menu ── */}
+      {contextMenu && (() => {
+        const template = templates.find(t => t.id === contextMenu.templateId)
+        if (!template) { setContextMenu(null); return null }
+        return (
+          <>
+            <div className="context-menu-backdrop" onClick={() => setContextMenu(null)} />
+            <div className="context-menu-dropdown" style={{ left: contextMenu.x, top: contextMenu.y }}>
+              <button type="button" className="context-menu-item" onClick={() => {
+                void window.api.exportTemplate(contextMenu.templateId)
+                setContextMenu(null)
+              }}>
+                <Download size={14} /> 导出此模板
+              </button>
+              <div className="context-menu-divider" />
+              <button type="button" className="context-menu-item" onClick={() => {
+                void handleDuplicate()
+                setContextMenu(null)
+              }}>
+                <Copy size={14} /> 复制模板
+              </button>
+              <button type="button" className="context-menu-item context-menu-danger" onClick={() => {
+                void handleDelete()
+                setContextMenu(null)
+              }}>
+                <Trash2 size={14} /> 删除模板
+              </button>
+            </div>
+          </>
+        )
+      })()}
     </section>
   )
 }

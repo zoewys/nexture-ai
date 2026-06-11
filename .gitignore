@@ -37,3 +37,4 @@ pnpm-debug.log*
 
 # Local git worktrees
 .worktrees/
+.claude/worktrees/
