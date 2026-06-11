@@ -31,6 +31,7 @@
     "lucide-react": "^1.17.0"
   },
   "devDependencies": {
+    "@types/adm-zip": "^0.5.8",
     "@types/archiver": "^8.0.0",
     "@types/node": "^20.11.0",
     "@types/react": "^18.2.48",

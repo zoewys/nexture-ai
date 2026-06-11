@@ -1,5 +1,5 @@
 import { readFileSync, existsSync } from 'node:fs'
-import { ipcMain, dialog, type BrowserWindow } from 'electron'
+import { app, ipcMain, dialog, type BrowserWindow } from 'electron'
 import {
   IPC,
   type RunConfig,
