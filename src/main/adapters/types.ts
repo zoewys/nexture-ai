@@ -15,6 +15,7 @@ export interface RunTurnInput {
   model?: string
   codexReasoningEffort?: CodexReasoningEffort
   codexServiceTier?: string
+  apiMaxSteps?: number
   addDirs?: string[]
   appendSystemPrompt?: string
   outputSchema?: JSONSchema

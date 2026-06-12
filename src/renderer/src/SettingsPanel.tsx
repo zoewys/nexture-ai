@@ -3,6 +3,8 @@ import { Bot, Code2, Download, RefreshCw, Upload } from 'lucide-react'
 import type { AppSettings } from '@shared/types'
 import { ExportDialog } from './ExportDialog'
 import { ImportDialog } from './ImportDialog'
+import { ProviderSettings } from './ProviderSettings'
+import { useProviders } from './useProviders'
 
 interface SettingsPanelProps {
   settings: AppSettings
@@ -29,6 +31,7 @@ export function SettingsPanel({ settings, loading, onSave }: SettingsPanelProps)
   const [showImport, setShowImport] = useState(false)
   const [importPreview, setImportPreview] = useState<any>(null)
   const [importFilePath, setImportFilePath] = useState('')
+  const providerState = useProviders()
 
   const refresh = useCallback(async () => {
     setRefreshing(true)
@@ -134,6 +137,18 @@ export function SettingsPanel({ settings, loading, onSave }: SettingsPanelProps)
       </section>
 
       {/* ── divider ── */}
+      <hr className="settings-divider" />
+
+      <section className="settings-section">
+        <div className="settings-section-head">
+          <div>
+            <h3 className="settings-section-title">API 供应商</h3>
+            <p className="settings-section-desc">配置 API Key 直接调用大模型，无需安装 CLI。</p>
+          </div>
+        </div>
+        <ProviderSettings {...providerState} />
+      </section>
+
       <hr className="settings-divider" />
 
       {/* ── Data Management ── */}

@@ -11,7 +11,26 @@
  * 支持自动滚动跟随和手动滚动锁定。
  */
 
-import { useEffect, useMemo, useRef, useState } from 'react'
+import { useCallback, useEffect, useMemo, useRef, useState } from 'react'
+import {
+  BookOpen,
+  Check,
+  CheckCheck,
+  Circle,
+  CircleAlert,
+  CircleCheck,
+  CircleX,
+  FileMinus2,
+  FilePenLine,
+  FilePlus2,
+  ListTodo,
+  LockKeyhole,
+  PencilLine,
+  Search,
+  SquareTerminal,
+  X,
+  type LucideIcon
+} from 'lucide-react'
 import type { AgentEvent } from '@shared/types'
 import { isNearTranscriptBottom, shouldAutoFollowTranscriptEvent } from './transcriptScroll'
 
@@ -108,13 +127,13 @@ function categorize(name: string): ToolCategory {
   return 'other'
 }
 
-const CAT_ICON: Record<ToolCategory, string> = {
-  read: '\u{1F4D6}',
-  write: '\u{270F1}\u{FE0F}',
-  exec: '\u{26A1}',
-  search: '\u{1F50D}',
-  task: '\u{1F3AF}',
-  other: '\u{23FA}\u{FE0F}'
+const CAT_ICON: Record<ToolCategory, LucideIcon> = {
+  read: BookOpen,
+  write: PencilLine,
+  exec: SquareTerminal,
+  search: Search,
+  task: ListTodo,
+  other: Circle
 }
 
 function toolTarget(input: unknown): string {
@@ -146,6 +165,16 @@ function resultSummary(output: unknown): string {
   if (obj?.lines !== undefined) return `${obj.lines} lines`
   if (obj?.count !== undefined) return `${obj.count} results`
   return ''
+}
+
+function ToolCategoryIcon({ category, className }: { category: ToolCategory; className: string }): JSX.Element {
+  const Icon = CAT_ICON[category]
+  return <Icon size={14} className={className} aria-hidden="true" />
+}
+
+function FileChangeIcon({ op }: { op: Extract<AgentEvent, { kind: 'file-changed' }>['op'] }): JSX.Element {
+  const Icon = op === 'create' ? FilePlus2 : op === 'delete' ? FileMinus2 : FilePenLine
+  return <Icon size={13} className="cli-file-icon" aria-hidden="true" />
 }
 
 // ── activity detection ───────────────────────────────────────────────────
@@ -215,6 +244,15 @@ type Block =
   | { kind: 'tool'; id: string; name: string; input: unknown }
   | { kind: 'tool-result'; id: string; ok: boolean; output: unknown }
   | { kind: 'stderr'; text: string }
+
+type PermissionStatus = 'pending' | 'allowed' | 'denied'
+
+interface PermissionRequestPayload {
+  type: 'permission-request'
+  requestId: string
+  toolName: string
+  description: string
+}
 
 function groupEvents(events: AgentEvent[]): Block[] {
   const blocks: Block[] = []
@@ -306,7 +344,7 @@ function StatusBar({ activity }: { activity: Activity }): JSX.Element | null {
       return (
         <div className={`status-bar status-bar-tool status-bar-${cat}`}>
           <span className="status-dot status-dot-tool" />
-          <span className="status-icon">{CAT_ICON[cat]}</span>
+          <ToolCategoryIcon category={cat} className="status-icon" />
           <span className="status-tool-name">{activity.name}</span>
           {target ? <span className="status-tool-target">{target}</span> : null}
         </div>
@@ -319,8 +357,10 @@ function StatusBar({ activity }: { activity: Activity }): JSX.Element | null {
       const summary = resultSummary(activity.output)
       return (
         <div className={`status-bar status-bar-result ${activity.ok ? '' : 'status-bar-err'}`}>
-          <span className="status-marker">{activity.ok ? '⏎' : '✗'}</span>
-          <span className="status-icon">{CAT_ICON[cat]}</span>
+          {activity.ok
+            ? <CircleCheck size={13} className="status-marker status-marker-ok" aria-hidden="true" />
+            : <CircleX size={13} className="status-marker status-marker-error" aria-hidden="true" />}
+          <ToolCategoryIcon category={cat} className="status-icon" />
           <span className="status-tool-name">{activity.name}</span>
           {target ? <span className="status-tool-target">{target}</span> : null}
           {summary ? <> &middot; {summary}</> : null}
@@ -331,7 +371,7 @@ function StatusBar({ activity }: { activity: Activity }): JSX.Element | null {
     case 'error':
       return (
         <div className="status-bar status-bar-err">
-          <span className="status-marker">!</span>
+          <CircleAlert size={13} className="status-marker status-marker-error" aria-hidden="true" />
           <span>{activity.message}</span>
         </div>
       )
@@ -343,7 +383,17 @@ function StatusBar({ activity }: { activity: Activity }): JSX.Element | null {
 
 // ── block renderer ───────────────────────────────────────────────────────
 
-function BlockView({ block }: { block: Block }): JSX.Element | null {
+function BlockView({
+  block,
+  permissionStatuses,
+  respondPermission,
+  allowAllPermissions
+}: {
+  block: Block
+  permissionStatuses: Map<string, PermissionStatus>
+  respondPermission: (requestId: string, allowed: boolean) => void
+  allowAllPermissions: (requestId: string) => void
+}): JSX.Element | null {
   const [thinkExp, setThinkExp] = useState(false)
 
   switch (block.kind) {
@@ -384,7 +434,7 @@ function BlockView({ block }: { block: Block }): JSX.Element | null {
       return (
         <div className={`cli-tool cli-tool-${cat}`}>
           <div className="cli-tool-head">
-            <span className="cli-tool-icon">{CAT_ICON[cat]}</span>
+            <ToolCategoryIcon category={cat} className="cli-tool-icon" />
             <span className="cli-tool-name">{block.name}</span>
             {target ? <span className="cli-tool-target">{target}</span> : null}
           </div>
@@ -403,7 +453,9 @@ function BlockView({ block }: { block: Block }): JSX.Element | null {
       const errDetail = block.ok ? null : brief(block.output)
       return (
         <div className={`cli-result ${block.ok ? '' : 'cli-result-err'}`}>
-          <span className="cli-result-marker">{block.ok ? '⏎' : '✗'}</span>
+          {block.ok
+            ? <CircleCheck size={12} className="cli-result-marker" aria-hidden="true" />
+            : <CircleX size={12} className="cli-result-marker" aria-hidden="true" />}
           <span className="cli-result-status">
             {block.ok ? 'Done' : 'Failed'}
             {summary ? <> &middot; {summary}</> : null}
@@ -427,7 +479,7 @@ function BlockView({ block }: { block: Block }): JSX.Element | null {
         case 'error':
           return (
             <div className="cli-err">
-              <span className="cli-err-icon">!</span> {ev.message}
+              <CircleAlert size={14} className="cli-err-icon" aria-hidden="true" /> {ev.message}
             </div>
           )
         case 'turn-done':
@@ -442,10 +494,22 @@ function BlockView({ block }: { block: Block }): JSX.Element | null {
         case 'file-changed':
           return (
             <div className="cli-file">
-              {ev.op === 'create' ? '+' : ev.op === 'delete' ? '−' : '~'} {ev.path}
+              <FileChangeIcon op={ev.op} />
+              <span>{ev.path}</span>
             </div>
           )
         case 'system':
+          const permissionRequest = parsePermissionRequest(ev.text)
+          if (permissionRequest) {
+            return (
+              <PermissionRequestBlock
+                request={permissionRequest}
+                status={permissionStatuses.get(permissionRequest.requestId) ?? 'pending'}
+                respondPermission={respondPermission}
+                allowAllPermissions={allowAllPermissions}
+              />
+            )
+          }
           return ev.text.includes('↳') ? (
             <div className="cli-user-input" data-text={ev.text.replace(/^↳\s*/, '')} />
           ) : (
@@ -458,6 +522,66 @@ function BlockView({ block }: { block: Block }): JSX.Element | null {
 
     default:
       return null
+  }
+}
+
+function PermissionRequestBlock({
+  request,
+  status,
+  respondPermission,
+  allowAllPermissions
+}: {
+  request: PermissionRequestPayload
+  status: PermissionStatus
+  respondPermission: (requestId: string, allowed: boolean) => void
+  allowAllPermissions: (requestId: string) => void
+}): JSX.Element {
+  const resolved = status !== 'pending'
+  return (
+    <div className={`perm-block ${resolved ? 'perm-block-resolved' : 'perm-block-pending'}`}>
+      <div className="perm-header">
+        <LockKeyhole size={14} className="perm-icon" />
+        <span className={`perm-title ${resolved ? 'perm-title-resolved' : 'perm-title-pending'}`}>权限请求</span>
+        {resolved && (
+          <span className={`perm-badge ${status === 'allowed' ? 'perm-badge-allowed' : 'perm-badge-denied'}`}>
+            {status === 'allowed' ? '已允许' : '已拒绝'}
+          </span>
+        )}
+      </div>
+      <div className="perm-tool">{request.toolName} 请求执行</div>
+      <div className="perm-cmd">{request.description}</div>
+      {!resolved && (
+        <div className="perm-btns">
+          <button className="pf-btn success" type="button" onClick={() => respondPermission(request.requestId, true)}>
+            <Check size={13} /> 允许
+          </button>
+          <button className="pf-btn pf-btn-danger" type="button" onClick={() => respondPermission(request.requestId, false)}>
+            <X size={13} /> 拒绝
+          </button>
+          <button className="pf-btn" type="button" onClick={() => allowAllPermissions(request.requestId)}>
+            <CheckCheck size={13} /> 本次全部允许
+          </button>
+        </div>
+      )}
+    </div>
+  )
+}
+
+function parsePermissionRequest(text: string): PermissionRequestPayload | null {
+  try {
+    const parsed: unknown = JSON.parse(text)
+    if (!parsed || typeof parsed !== 'object') return null
+    const value = parsed as Record<string, unknown>
+    if (value.type !== 'permission-request') return null
+    if (typeof value.requestId !== 'string' || typeof value.toolName !== 'string' || typeof value.description !== 'string') return null
+    return {
+      type: 'permission-request',
+      requestId: value.requestId,
+      toolName: value.toolName,
+      description: value.description
+    }
+  } catch {
+    return null
   }
 }
 
@@ -480,8 +604,24 @@ export function TranscriptViewer({ events }: { events: AgentEvent[] }): JSX.Elem
   const scrollerRef = useRef<HTMLDivElement>(null)
   const endRef = useRef<HTMLDivElement>(null)
   const shouldFollowOutputRef = useRef(true)
+  const [permissionStatuses, setPermissionStatuses] = useState<Map<string, PermissionStatus>>(() => new Map())
+  const [allowAllForRun, setAllowAllForRun] = useState(false)
   const blocks = useMemo(() => groupEvents(events), [events])
   const activity = useMemo(() => detectActivity(events), [events])
+
+  const respondPermission = useCallback((requestId: string, allowed: boolean): void => {
+    setPermissionStatuses((prev) => {
+      const next = new Map(prev)
+      next.set(requestId, allowed ? 'allowed' : 'denied')
+      return next
+    })
+    void window.api.respondPermission(requestId, allowed)
+  }, [])
+
+  const allowAllPermissions = useCallback((requestId: string): void => {
+    setAllowAllForRun(true)
+    respondPermission(requestId, true)
+  }, [respondPermission])
 
   useEffect(() => {
     shouldFollowOutputRef.current = shouldAutoFollowTranscriptEvent(
@@ -492,6 +632,16 @@ export function TranscriptViewer({ events }: { events: AgentEvent[] }): JSX.Elem
     if (!shouldFollowOutputRef.current) return
     endRef.current?.scrollIntoView({ behavior: 'auto', block: 'end' })
   }, [events.length])
+
+  useEffect(() => {
+    if (!allowAllForRun) return
+    for (const event of events) {
+      if (event.kind !== 'system') continue
+      const request = parsePermissionRequest(event.text)
+      if (!request || permissionStatuses.has(request.requestId)) continue
+      respondPermission(request.requestId, true)
+    }
+  }, [allowAllForRun, events, permissionStatuses, respondPermission])
 
   const updateAutoFollow = (): void => {
     const scroller = scrollerRef.current
@@ -507,7 +657,13 @@ export function TranscriptViewer({ events }: { events: AgentEvent[] }): JSX.Elem
     <div className="transcript" ref={scrollerRef} onScroll={updateAutoFollow}>
       <StatusBar activity={activity} />
       {blocks.map((block, i) => (
-        <BlockView key={i} block={block} />
+        <BlockView
+          key={i}
+          block={block}
+          permissionStatuses={permissionStatuses}
+          respondPermission={respondPermission}
+          allowAllPermissions={allowAllPermissions}
+        />
       ))}
       <div ref={endRef} />
     </div>

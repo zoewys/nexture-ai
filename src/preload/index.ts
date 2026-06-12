@@ -20,6 +20,7 @@ import {
   type MemoryEntry,
   type ReflectionEngineConfig,
   type AppSettings,
+  type ApiProviderConfig,
   type ExportOptions,
   type ImportPreview,
   type ImportOptions
@@ -52,6 +53,20 @@ const api = {
   },
 
   listModels: (): Promise<ModelCatalog> => ipcRenderer.invoke(IPC.listModels),
+
+  listProviders: (): Promise<ApiProviderConfig[]> =>
+    ipcRenderer.invoke(IPC.providersList),
+
+  saveProvider: (input: Omit<ApiProviderConfig, 'id'> & { id?: string }): Promise<ApiProviderConfig> =>
+    ipcRenderer.invoke(IPC.providersSave, input),
+
+  deleteProvider: (id: string): Promise<void> => ipcRenderer.invoke(IPC.providersDelete, id),
+
+  testProvider: (id: string): Promise<{ ok: boolean; message: string }> =>
+    ipcRenderer.invoke(IPC.providersTest, id),
+
+  respondPermission: (requestId: string, allowed: boolean): Promise<void> =>
+    ipcRenderer.invoke(IPC.permissionRespond, requestId, allowed),
 
   listAgents: (): Promise<AgentDefinition[]> => ipcRenderer.invoke(IPC.agentsList),
 

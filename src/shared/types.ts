@@ -7,9 +7,21 @@
 
 // ── Vendors ────────────────────────────────────────────────────────────────
 
-export type AgentVendor = 'claude' | 'codex'
+export type AgentVendor = 'claude' | 'codex' | 'api'
 
-export const ALL_VENDORS: AgentVendor[] = ['claude', 'codex']
+export const ALL_VENDORS: AgentVendor[] = ['claude', 'codex', 'api']
+
+export type ApiProviderFormat = 'anthropic' | 'openai-compatible'
+
+export interface ApiProviderConfig {
+  id: string
+  name: string
+  format: ApiProviderFormat
+  apiKey: string
+  baseUrl?: string
+  models: string[]
+  defaultModel?: string
+}
 
 // ── CLI model catalogs ──────────────────────────────────────────────────────
 
@@ -111,6 +123,10 @@ export interface RunConfig {
   codexReasoningEffort?: CodexReasoningEffort
   /** Codex-only: passed as `-c service_tier="<value>"`. */
   codexServiceTier?: string
+  /** API-only: saved provider config id. */
+  apiProviderId?: string
+  /** API-only: maximum tool-calling steps for the AI SDK loop. */
+  apiMaxSteps?: number
   addDirs?: string[]
   appendSystemPrompt?: string
   outputSchema?: JSONSchema
@@ -140,6 +156,7 @@ export interface AgentDefinition {
   model?: string
   codexReasoningEffort?: CodexReasoningEffort
   codexServiceTier?: string
+  apiProviderId?: string
   /** System prompt injected via --append-system-prompt at run time. */
   systemPrompt: string
   /** CLI permission mode for this agent. Defaults to bypassPermissions. */
@@ -544,7 +561,19 @@ export const IPC = {
   /** renderer → main: jump to a specific step in a workflow run. */
   workflowGotoStep: 'workflow:goto-step',
   /** renderer → main: get a vendor/model recommendation for a role. */
-  routeRecommend: 'route:recommend'
+  routeRecommend: 'route:recommend',
+  /** renderer → main: list saved API providers. */
+  providersList: 'providers:list',
+  /** renderer → main: create or update an API provider. */
+  providersSave: 'providers:save',
+  /** renderer → main: delete an API provider. */
+  providersDelete: 'providers:delete',
+  /** renderer → main: test an API provider connection. */
+  providersTest: 'providers:test',
+  /** main → renderer: request tool permission. */
+  permissionRequest: 'permission:request',
+  /** renderer → main: respond to a tool permission request. */
+  permissionRespond: 'permission:respond'
 } as const
 
 export interface RunStartResult {
@@ -561,6 +590,7 @@ export interface RunEventEnvelope {
 export interface CliCheckResult {
   claude: boolean
   codex: boolean
+  api: boolean
 }
 
 export interface CliVersionResult {
