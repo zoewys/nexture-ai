@@ -1,0 +1,776 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="UTF-8">
+<title>Agent Studio — API 模式 UI 方案选择</title>
+<style>
+:root {
+  --bg: #17191f;
+  --bg-header: #191c23;
+  --bg-panel: #20232b;
+  --bg-input: #242833;
+  --bg-card: #161b22;
+  --border: #343946;
+  --border-soft: #2a2f3b;
+  --text-strong: #eef2f8;
+  --text: #eef2f8;
+  --text-soft: #c8d0df;
+  --text-dim: #9aa3b5;
+  --accent: #6c8cff;
+  --accent-dim: #3d4a7a;
+  --green: #4caf7d;
+  --yellow: #d4a548;
+  --red: #db6b6b;
+  --purple: #b48ead;
+  --orange: #d4874d;
+  --blue: #60a5fa;
+  --cyan: #5cb8d4;
+}
+
+* { margin: 0; padding: 0; box-sizing: border-box; }
+body {
+  font-family: Inter, -apple-system, BlinkMacSystemFont, 'Segoe UI', system-ui, sans-serif;
+  background: var(--bg);
+  color: var(--text);
+  font-size: 13px;
+  line-height: 1.5;
+  overflow-x: hidden;
+}
+
+.page-header {
+  background: var(--bg-header);
+  border-bottom: 1px solid var(--border);
+  padding: 16px 32px;
+  position: sticky;
+  top: 0;
+  z-index: 100;
+}
+.page-header h1 { font-size: 18px; font-weight: 750; }
+.page-header p { font-size: 12px; color: var(--text-dim); margin-top: 4px; }
+
+.container { max-width: 1200px; margin: 0 auto; padding: 24px 32px 80px; }
+
+/* Decision Section */
+.decision-section {
+  margin-bottom: 48px;
+  border: 1px solid var(--border);
+  border-radius: 10px;
+  overflow: hidden;
+}
+.decision-header {
+  background: var(--bg-panel);
+  padding: 16px 20px;
+  border-bottom: 1px solid var(--border);
+  display: flex;
+  align-items: center;
+  gap: 10px;
+}
+.decision-header .badge {
+  font-size: 10px;
+  font-weight: 800;
+  text-transform: uppercase;
+  letter-spacing: 0.06em;
+  padding: 2px 7px;
+  border-radius: 4px;
+  border: 1px solid;
+}
+.badge-task16 { border-color: rgba(108,140,255,0.5); background: rgba(108,140,255,0.12); color: var(--accent); }
+.badge-task18 { border-color: rgba(76,175,125,0.5); background: rgba(76,175,125,0.12); color: var(--green); }
+.badge-task21 { border-color: rgba(212,165,72,0.5); background: rgba(212,165,72,0.12); color: var(--yellow); }
+.decision-header h2 { font-size: 15px; font-weight: 700; }
+.decision-desc {
+  padding: 12px 20px;
+  font-size: 12px;
+  color: var(--text-dim);
+  background: var(--bg-panel);
+  border-bottom: 1px solid var(--border);
+  line-height: 1.6;
+}
+
+/* Options Grid */
+.options-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(340px, 1fr));
+  gap: 1px;
+  background: var(--border);
+}
+.option-card {
+  background: var(--bg);
+  padding: 20px;
+  cursor: pointer;
+  transition: background 0.15s, border-color 0.15s;
+  position: relative;
+}
+.option-card:hover { background: var(--bg-panel); }
+.option-card.selected { background: rgba(108,140,255,0.06); }
+.option-card.selected::before {
+  content: '';
+  position: absolute;
+  top: 0; left: 0; right: 0;
+  height: 2px;
+  background: var(--accent);
+}
+.option-card-header {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  margin-bottom: 10px;
+}
+.option-radio {
+  width: 16px; height: 16px; border-radius: 50%;
+  border: 2px solid var(--border);
+  display: flex; align-items: center; justify-content: center;
+  flex-shrink: 0;
+  transition: border-color 0.15s;
+}
+.selected .option-radio { border-color: var(--accent); }
+.selected .option-radio::after {
+  content: '';
+  width: 8px; height: 8px; border-radius: 50%;
+  background: var(--accent);
+}
+.option-label { font-size: 13px; font-weight: 700; color: var(--text-strong); }
+.option-sublabel { font-size: 11px; color: var(--text-dim); margin-bottom: 12px; line-height: 1.5; }
+
+/* Mockup Area */
+.mockup {
+  border: 1px solid var(--border);
+  border-radius: 8px;
+  overflow: hidden;
+  background: var(--bg-card);
+}
+.mockup-title-bar {
+  font-size: 10px;
+  text-transform: uppercase;
+  letter-spacing: 0.05em;
+  color: var(--text-dim);
+  padding: 6px 10px;
+  border-bottom: 1px solid var(--border);
+  background: var(--bg-panel);
+}
+.mockup-body { padding: 16px; }
+
+/* ═══════════════════════════════════════════════ */
+/* SHARED UI COMPONENTS                           */
+/* ═══════════════════════════════════════════════ */
+
+/* Provider cards */
+.provider-grid { display: flex; flex-direction: column; gap: 8px; }
+.provider-card {
+  display: flex; align-items: center; gap: 12px;
+  padding: 12px 14px; border-radius: 9px;
+  background: rgba(36,40,51,.6); border: 1px solid var(--border-soft);
+}
+.provider-card-icon {
+  width: 34px; height: 34px; border-radius: 8px;
+  display: flex; align-items: center; justify-content: center;
+  font-size: 14px; font-weight: 700; flex-shrink: 0;
+}
+.icon-anthropic { background: rgba(232,164,90,.15); color: var(--orange); }
+.icon-deepseek { background: rgba(96,165,250,.15); color: var(--blue); }
+.icon-kimi { background: rgba(180,142,173,.15); color: var(--purple); }
+.icon-openai { background: rgba(108,140,248,.15); color: var(--accent); }
+.icon-custom { background: rgba(154,163,181,.1); color: var(--text-dim); }
+
+.provider-card-body { flex: 1; min-width: 0; }
+.provider-card-name { font-size: 12px; font-weight: 600; color: var(--text-strong); }
+.provider-card-meta { font-size: 10px; color: var(--text-dim); margin-top: 2px; }
+
+.key-badge {
+  font-family: ui-monospace, SFMono, monospace;
+  font-size: 9px; color: var(--text-dim);
+  background: rgba(154,163,181,.1); padding: 1px 5px; border-radius: 3px;
+}
+.model-tag {
+  font-size: 9px; padding: 1px 6px; border-radius: 3px;
+  background: rgba(108,140,255,.1); color: var(--accent);
+  font-family: ui-monospace, SFMono, monospace;
+  display: inline-block; margin: 2px 2px 0 0;
+}
+
+.add-btn {
+  width: 100%; padding: 9px; border-radius: 7px;
+  border: 1px dashed var(--border); background: transparent;
+  color: var(--text-dim); cursor: pointer; font-size: 11px;
+  display: flex; align-items: center; justify-content: center; gap: 5px;
+}
+
+/* Provider form */
+.provider-form {
+  border: 1px solid var(--accent-dim); border-radius: 9px;
+  background: rgba(108,140,255,.03); padding: 14px;
+  display: flex; flex-direction: column; gap: 10px;
+}
+.pf-title { font-size: 12px; font-weight: 600; color: var(--text-strong); }
+.pf-row { display: flex; gap: 8px; }
+.pf-row > * { flex: 1; }
+.pf-field { display: flex; flex-direction: column; gap: 3px; }
+.pf-label { font-size: 10px; color: var(--text-dim); text-transform: uppercase; letter-spacing: 0.04em; }
+.pf-input {
+  background: var(--bg-input); border: 1px solid var(--border); color: var(--text);
+  border-radius: 5px; padding: 7px 9px; font-size: 12px; font-family: inherit; width: 100%;
+}
+.pf-select {
+  background: var(--bg-input); border: 1px solid var(--border); color: var(--text);
+  border-radius: 5px; padding: 7px 9px; font-size: 12px; width: 100%; appearance: none;
+}
+.pf-hint { font-size: 10px; color: var(--text-dim); }
+.pf-actions { display: flex; gap: 6px; justify-content: flex-end; }
+.pf-btn {
+  padding: 5px 12px; border-radius: 5px; font-size: 11px; cursor: pointer;
+  border: 1px solid var(--border); background: var(--bg-input); color: var(--text);
+}
+.pf-btn.primary { background: var(--accent); border-color: var(--accent); color: #fff; font-weight: 600; }
+.pf-btn.success { background: var(--green); border-color: var(--green); color: #fff; }
+
+.preset-row { display: flex; gap: 3px; margin-top: 3px; }
+.preset-chip {
+  font-size: 9px; padding: 2px 7px; border-radius: 3px;
+  border: 1px solid var(--border-soft); background: transparent;
+  color: var(--text-dim); cursor: pointer;
+}
+
+/* Vendor tabs */
+.vendor-tabs { display: flex; gap: 4px; }
+.vendor-tab {
+  padding: 5px 12px; border-radius: 5px; font-size: 11px; font-weight: 600;
+  border: 1px solid var(--border); background: transparent; color: var(--text-dim); cursor: pointer;
+}
+.vendor-tab.active { background: rgba(108,140,255,.14); border-color: rgba(108,140,255,.58); color: #fff; }
+
+/* Config panel fields */
+.field { display: flex; flex-direction: column; gap: 4px; }
+.field-label { color: var(--text-dim); font-size: 10px; text-transform: uppercase; letter-spacing: 0.04em; }
+
+/* Permission block */
+.perm-block {
+  border-radius: 7px; padding: 11px 13px;
+}
+.perm-block-pending { background: rgba(212,165,72,.08); border: 1px solid rgba(212,165,72,.3); }
+.perm-block-resolved { background: rgba(76,175,125,.05); border: 1px solid rgba(76,175,125,.2); opacity: 0.7; }
+.perm-header { display: flex; align-items: center; gap: 7px; margin-bottom: 7px; }
+.perm-icon { font-size: 14px; }
+.perm-title { font-size: 11px; font-weight: 700; text-transform: uppercase; letter-spacing: 0.04em; }
+.perm-title-pending { color: var(--yellow); }
+.perm-title-resolved { color: var(--green); }
+.perm-tool { font-size: 12px; font-weight: 600; color: var(--text-strong); margin-bottom: 3px; }
+.perm-cmd {
+  font-size: 11px; color: var(--text-soft); font-family: ui-monospace, SFMono, monospace;
+  background: rgba(0,0,0,.25); padding: 5px 9px; border-radius: 4px; margin-bottom: 9px;
+}
+.perm-btns { display: flex; gap: 6px; }
+.perm-badge {
+  font-size: 10px; font-weight: 600; padding: 2px 8px; border-radius: 3px;
+  background: rgba(76,175,125,.15); color: var(--green);
+}
+
+/* ev blocks (transcript) */
+.ev { font-size: 12px; line-height: 1.5; border-radius: 5px; padding: 7px 10px; }
+.ev-msg { background: var(--bg-panel); white-space: pre-wrap; color: var(--text-soft); }
+.ev-tool { background: rgba(108,140,255,.07); border-left: 2px solid var(--accent); font-size: 11px; color: var(--text-dim); }
+.ev-result { background: rgba(76,175,125,.06); border-left: 2px solid var(--green); font-size: 11px; color: var(--text-dim); }
+
+/* Summary panel */
+.summary-panel {
+  position: fixed; bottom: 0; left: 0; right: 0;
+  background: var(--bg-header); border-top: 1px solid var(--border);
+  padding: 14px 32px; z-index: 100;
+  display: flex; align-items: center; justify-content: space-between;
+}
+.summary-count { font-size: 12px; color: var(--text-dim); }
+.summary-count strong { color: var(--accent); }
+.summary-btn {
+  padding: 8px 20px; border-radius: 6px; border: none; background: var(--accent);
+  color: #fff; font-size: 13px; font-weight: 700; cursor: pointer;
+}
+.summary-btn:disabled { opacity: 0.4; cursor: not-allowed; }
+
+/* Export modal */
+.export-modal {
+  display: none; position: fixed; inset: 0; background: rgba(0,0,0,.6);
+  z-index: 200; align-items: center; justify-content: center;
+}
+.export-modal.visible { display: flex; }
+.export-box {
+  background: var(--bg-panel); border: 1px solid var(--border); border-radius: 10px;
+  padding: 20px; width: 600px; max-height: 80vh; overflow-y: auto;
+}
+.export-box h3 { font-size: 15px; font-weight: 700; color: var(--text-strong); margin-bottom: 12px; }
+.export-box pre {
+  font-size: 11px; background: var(--bg-card); border: 1px solid var(--border-soft);
+  border-radius: 6px; padding: 12px; white-space: pre-wrap; color: var(--text-soft);
+  max-height: 400px; overflow-y: auto;
+}
+.export-box .pf-actions { margin-top: 12px; }
+</style>
+</head>
+<body>
+
+<div class="page-header">
+  <h1>Agent Studio — API 模式 UI 方案选择</h1>
+  <p>每个 UI 界面有 2 个可视化方案（A/B），点击选择偏好。选完后"导出选择"会生成确认后的 UI spec，使对应任务可直接交给 AI Agent 执行。</p>
+</div>
+
+<div class="container">
+
+<!-- ═══════════════════════════════════════════════════════════════════════ -->
+<!-- DECISION 1: 供应商列表样式                                             -->
+<!-- ═══════════════════════════════════════════════════════════════════════ -->
+<div class="decision-section" data-decision="provider-list">
+  <div class="decision-header">
+    <span class="badge badge-task16">任务 16</span>
+    <h2>供应商列表样式</h2>
+  </div>
+  <div class="decision-desc">
+    设置页中已配置的 API 供应商如何展示？用户需一目了然看到：名称、API 格式、API Key（脱敏）、模型列表。
+  </div>
+  <div class="options-grid">
+    <!-- Option A: Compact rows -->
+    <div class="option-card" onclick="selectOption(this)">
+      <div class="option-card-header">
+        <div class="option-radio"></div>
+        <span class="option-label">A. 紧凑行</span>
+      </div>
+      <div class="option-sublabel">每个供应商一行，图标 + 名称 + meta 信息紧凑排列，模型以 tag 显示</div>
+      <div class="mockup">
+        <div class="mockup-title-bar">设置 › API 供应商</div>
+        <div class="mockup-body">
+          <div class="provider-grid">
+            <div class="provider-card">
+              <div class="provider-card-icon icon-anthropic">A</div>
+              <div class="provider-card-body">
+                <div class="provider-card-name">Anthropic</div>
+                <div class="provider-card-meta"><span class="key-badge">sk-ant-****m4Kx</span> · 3 个模型</div>
+                <div><span class="model-tag">claude-sonnet-4-6</span><span class="model-tag">claude-opus-4-6</span><span class="model-tag">claude-haiku-4-5</span></div>
+              </div>
+            </div>
+            <div class="provider-card">
+              <div class="provider-card-icon icon-deepseek">D</div>
+              <div class="provider-card-body">
+                <div class="provider-card-name">DeepSeek</div>
+                <div class="provider-card-meta"><span class="key-badge">sk-****7f2a</span> · https://api.deepseek.com</div>
+                <div><span class="model-tag">deepseek-chat</span><span class="model-tag">deepseek-coder</span></div>
+              </div>
+            </div>
+            <div class="provider-card">
+              <div class="provider-card-icon icon-kimi">K</div>
+              <div class="provider-card-body">
+                <div class="provider-card-name">Kimi</div>
+                <div class="provider-card-meta"><span class="key-badge">sk-****9d1e</span> · https://api.moonshot.cn/v1</div>
+                <div><span class="model-tag">moonshot-v1-128k</span></div>
+              </div>
+            </div>
+            <button class="add-btn">＋ 添加供应商</button>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <!-- Option B: Grid cards -->
+    <div class="option-card" onclick="selectOption(this)">
+      <div class="option-card-header">
+        <div class="option-radio"></div>
+        <span class="option-label">B. 网格卡片</span>
+      </div>
+      <div class="option-sublabel">两列网格布局（类似现有 CLI 卡片），每个供应商占一张独立卡片，信息更分散但更醒目</div>
+      <div class="mockup">
+        <div class="mockup-title-bar">设置 › API 供应商</div>
+        <div class="mockup-body">
+          <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 10px;">
+            <div style="border: 1px solid var(--border); border-radius: 10px; padding: 14px; background: var(--bg-card);">
+              <div style="display: flex; align-items: center; gap: 8px; margin-bottom: 8px;">
+                <div class="provider-card-icon icon-anthropic" style="width:30px;height:30px;font-size:12px;">A</div>
+                <div>
+                  <div style="font-size: 13px; font-weight: 600; color: var(--text-strong);">Anthropic</div>
+                  <div style="font-size: 9px; color: var(--text-dim);">Anthropic 格式</div>
+                </div>
+              </div>
+              <div style="font-size: 10px; color: var(--text-dim); margin-bottom: 6px;"><span class="key-badge">sk-ant-****m4Kx</span></div>
+              <div><span class="model-tag">claude-sonnet-4-6</span><span class="model-tag">claude-opus-4-6</span><span class="model-tag">claude-haiku-4-5</span></div>
+            </div>
+            <div style="border: 1px solid var(--border); border-radius: 10px; padding: 14px; background: var(--bg-card);">
+              <div style="display: flex; align-items: center; gap: 8px; margin-bottom: 8px;">
+                <div class="provider-card-icon icon-deepseek" style="width:30px;height:30px;font-size:12px;">D</div>
+                <div>
+                  <div style="font-size: 13px; font-weight: 600; color: var(--text-strong);">DeepSeek</div>
+                  <div style="font-size: 9px; color: var(--text-dim);">OpenAI 兼容</div>
+                </div>
+              </div>
+              <div style="font-size: 10px; color: var(--text-dim); margin-bottom: 6px;"><span class="key-badge">sk-****7f2a</span> · api.deepseek.com</div>
+              <div><span class="model-tag">deepseek-chat</span><span class="model-tag">deepseek-coder</span></div>
+            </div>
+            <div style="border: 1px dashed var(--border); border-radius: 10px; padding: 14px; display: flex; align-items: center; justify-content: center; color: var(--text-dim); font-size: 11px; cursor: pointer;">＋ 添加供应商</div>
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- ═══════════════════════════════════════════════════════════════════════ -->
+<!-- DECISION 2: 添加供应商表单                                             -->
+<!-- ═══════════════════════════════════════════════════════════════════════ -->
+<div class="decision-section" data-decision="provider-form">
+  <div class="decision-header">
+    <span class="badge badge-task16">任务 16</span>
+    <h2>添加供应商表单</h2>
+  </div>
+  <div class="decision-desc">
+    点击"添加供应商"后的表单交互方式。需要收集：API 格式、名称、API Key、Base URL、模型列表。
+  </div>
+  <div class="options-grid">
+    <!-- Option A: Inline expand -->
+    <div class="option-card" onclick="selectOption(this)">
+      <div class="option-card-header">
+        <div class="option-radio"></div>
+        <span class="option-label">A. 列表底部内联展开</span>
+      </div>
+      <div class="option-sublabel">表单在供应商列表底部原地展开，不遮挡已有内容，填完直接收起</div>
+      <div class="mockup">
+        <div class="mockup-title-bar">添加表单（内联）</div>
+        <div class="mockup-body">
+          <div class="provider-card" style="opacity: 0.4; margin-bottom: 8px;">
+            <div class="provider-card-icon icon-anthropic">A</div>
+            <div class="provider-card-body"><div class="provider-card-name">Anthropic</div></div>
+          </div>
+          <div class="provider-form">
+            <div class="pf-title">添加新供应商</div>
+            <div class="pf-row">
+              <div class="pf-field"><span class="pf-label">格式</span><select class="pf-select"><option>OpenAI 兼容</option></select></div>
+              <div class="pf-field"><span class="pf-label">名称</span><input class="pf-input" value="DeepSeek" /></div>
+            </div>
+            <div class="pf-field"><span class="pf-label">API Key</span><input class="pf-input" type="password" value="••••••••••" /></div>
+            <div class="pf-field">
+              <span class="pf-label">Base URL</span>
+              <input class="pf-input" value="https://api.deepseek.com" />
+              <div class="preset-row">
+                <span class="preset-chip">DeepSeek</span>
+                <span class="preset-chip">Kimi</span>
+                <span class="preset-chip">硅基流动</span>
+              </div>
+            </div>
+            <div class="pf-field"><span class="pf-label">模型</span><input class="pf-input" value="deepseek-chat, deepseek-coder" /><span class="pf-hint">逗号分隔</span></div>
+            <div class="pf-actions">
+              <button class="pf-btn success">测试连接</button>
+              <button class="pf-btn">取消</button>
+              <button class="pf-btn primary">保存</button>
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <!-- Option B: Modal dialog -->
+    <div class="option-card" onclick="selectOption(this)">
+      <div class="option-card-header">
+        <div class="option-radio"></div>
+        <span class="option-label">B. 弹窗对话框</span>
+      </div>
+      <div class="option-sublabel">居中弹出模态框，与列表页分离，适合表单内容较多时不挤占空间</div>
+      <div class="mockup">
+        <div class="mockup-title-bar">添加表单（弹窗）</div>
+        <div class="mockup-body" style="position: relative; min-height: 280px; background: rgba(0,0,0,.3);">
+          <div style="position: absolute; inset: 10px; background: var(--bg-panel); border: 1px solid var(--border); border-radius: 10px; padding: 16px; display: flex; flex-direction: column; gap: 10px;">
+            <div style="font-size: 14px; font-weight: 700; color: var(--text-strong); padding-bottom: 8px; border-bottom: 1px solid var(--border);">添加 API 供应商</div>
+            <div class="pf-row">
+              <div class="pf-field"><span class="pf-label">格式</span><select class="pf-select"><option>OpenAI 兼容</option></select></div>
+              <div class="pf-field"><span class="pf-label">名称</span><input class="pf-input" value="DeepSeek" /></div>
+            </div>
+            <div class="pf-field"><span class="pf-label">API Key</span><input class="pf-input" type="password" value="••••••••••" /></div>
+            <div class="pf-field"><span class="pf-label">Base URL</span><input class="pf-input" value="https://api.deepseek.com" /></div>
+            <div class="pf-field"><span class="pf-label">模型</span><input class="pf-input" value="deepseek-chat, deepseek-coder" /></div>
+            <div class="pf-actions" style="padding-top: 8px; border-top: 1px solid var(--border);">
+              <button class="pf-btn success">测试连接</button>
+              <button class="pf-btn">取消</button>
+              <button class="pf-btn primary">保存</button>
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- ═══════════════════════════════════════════════════════════════════════ -->
+<!-- DECISION 3: 运行面板供应商选择                                          -->
+<!-- ═══════════════════════════════════════════════════════════════════════ -->
+<div class="decision-section" data-decision="vendor-selector">
+  <div class="decision-header">
+    <span class="badge badge-task18">任务 18</span>
+    <h2>运行面板供应商选择方式</h2>
+  </div>
+  <div class="decision-desc">
+    SingleRunPanel 左侧配置区中如何选择 "API 模式"？选择后需要再选具体供应商和模型。
+  </div>
+  <div class="options-grid">
+    <!-- Option A: Tab bar -->
+    <div class="option-card" onclick="selectOption(this)">
+      <div class="option-card-header">
+        <div class="option-radio"></div>
+        <span class="option-label">A. 标签页切换</span>
+      </div>
+      <div class="option-sublabel">三个平级 tab（Claude CLI / Codex CLI / API），选中 API 后下方显示供应商和模型下拉</div>
+      <div class="mockup">
+        <div class="mockup-title-bar">配置面板</div>
+        <div class="mockup-body" style="display: flex; flex-direction: column; gap: 12px;">
+          <div class="field">
+            <span class="field-label">供应商</span>
+            <div class="vendor-tabs">
+              <button class="vendor-tab">Claude CLI</button>
+              <button class="vendor-tab">Codex CLI</button>
+              <button class="vendor-tab active">API</button>
+            </div>
+          </div>
+          <div class="field">
+            <span class="field-label">API 供应商</span>
+            <select class="pf-select"><option>DeepSeek (api.deepseek.com)</option></select>
+          </div>
+          <div class="field">
+            <span class="field-label">模型</span>
+            <select class="pf-select"><option>deepseek-chat</option></select>
+          </div>
+          <div class="field">
+            <span class="field-label">权限模式</span>
+            <select class="pf-select"><option>Default（危险操作需确认）</option></select>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <!-- Option B: Single dropdown -->
+    <div class="option-card" onclick="selectOption(this)">
+      <div class="option-card-header">
+        <div class="option-radio"></div>
+        <span class="option-label">B. 统一下拉菜单</span>
+      </div>
+      <div class="option-sublabel">用一个下拉菜单统一选择供应商（含 CLI 和 API），选项分组显示，减少一层操作</div>
+      <div class="mockup">
+        <div class="mockup-title-bar">配置面板</div>
+        <div class="mockup-body" style="display: flex; flex-direction: column; gap: 12px;">
+          <div class="field">
+            <span class="field-label">供应商</span>
+            <div style="border: 1px solid var(--accent); border-radius: 5px; background: var(--bg-input); padding: 0; overflow: hidden;">
+              <div style="padding: 7px 9px; font-size: 12px; color: var(--text-strong); border-bottom: 1px solid var(--border);">▾ DeepSeek (API)</div>
+              <div style="font-size: 10px; color: var(--text-dim); padding: 5px 9px; background: rgba(0,0,0,.15);">── CLI 模式 ──</div>
+              <div style="font-size: 11px; color: var(--text-soft); padding: 5px 9px;">Claude CLI</div>
+              <div style="font-size: 11px; color: var(--text-soft); padding: 5px 9px;">Codex CLI</div>
+              <div style="font-size: 10px; color: var(--text-dim); padding: 5px 9px; background: rgba(0,0,0,.15);">── API 模式 ──</div>
+              <div style="font-size: 11px; color: var(--accent); padding: 5px 9px; background: rgba(108,140,255,.08);">DeepSeek ✓</div>
+              <div style="font-size: 11px; color: var(--text-soft); padding: 5px 9px;">Anthropic</div>
+              <div style="font-size: 11px; color: var(--text-soft); padding: 5px 9px;">Kimi</div>
+            </div>
+          </div>
+          <div class="field">
+            <span class="field-label">模型</span>
+            <select class="pf-select"><option>deepseek-chat</option></select>
+          </div>
+          <div class="field">
+            <span class="field-label">权限模式</span>
+            <select class="pf-select"><option>Default（危险操作需确认）</option></select>
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- ═══════════════════════════════════════════════════════════════════════ -->
+<!-- DECISION 4: 权限请求 UI                                                -->
+<!-- ═══════════════════════════════════════════════════════════════════════ -->
+<div class="decision-section" data-decision="permission-ui">
+  <div class="decision-header">
+    <span class="badge badge-task21">任务 21</span>
+    <h2>权限请求审批 UI</h2>
+  </div>
+  <div class="decision-desc">
+    API 模式下工具执行前需用户确认（如执行危险命令、写文件）。在 TranscriptViewer 中如何展示待审批和已审批状态？
+  </div>
+  <div class="options-grid">
+    <!-- Option A: Prominent block -->
+    <div class="option-card" onclick="selectOption(this)">
+      <div class="option-card-header">
+        <div class="option-radio"></div>
+        <span class="option-label">A. 醒目卡片式</span>
+      </div>
+      <div class="option-sublabel">黄色边框独立卡片，工具名 + 命令内容 + 三按钮（允许/拒绝/本次全允许），通过后变绿灰色</div>
+      <div class="mockup">
+        <div class="mockup-title-bar">Transcript</div>
+        <div class="mockup-body" style="display: flex; flex-direction: column; gap: 7px;">
+          <div class="ev ev-msg">我需要执行构建命令来检查编译是否通过。</div>
+          <div class="ev ev-tool">🔧 bash · command: "rm -rf dist && npm run build"</div>
+          <!-- Pending -->
+          <div class="perm-block perm-block-pending">
+            <div class="perm-header">
+              <span class="perm-icon">🔒</span>
+              <span class="perm-title perm-title-pending">权限请求</span>
+            </div>
+            <div class="perm-tool">bash 请求执行命令</div>
+            <div class="perm-cmd">rm -rf dist && npm run build</div>
+            <div class="perm-btns">
+              <button class="pf-btn success">✓ 允许</button>
+              <button class="pf-btn" style="border-color: rgba(219,107,107,.5); color: var(--red);">✗ 拒绝</button>
+              <button class="pf-btn" style="color: var(--text-dim);">本次全部允许</button>
+            </div>
+          </div>
+          <!-- Resolved -->
+          <div class="perm-block perm-block-resolved">
+            <div class="perm-header">
+              <span class="perm-icon">🔒</span>
+              <span class="perm-title perm-title-resolved">权限请求</span>
+              <span class="perm-badge">✓ 已允许</span>
+            </div>
+            <div class="perm-tool">file_edit · src/main/adapters/factory.ts</div>
+          </div>
+          <div class="ev ev-result">✓ 文件编辑成功</div>
+        </div>
+      </div>
+    </div>
+
+    <!-- Option B: Compact inline -->
+    <div class="option-card" onclick="selectOption(this)">
+      <div class="option-card-header">
+        <div class="option-radio"></div>
+        <span class="option-label">B. 紧凑内联式</span>
+      </div>
+      <div class="option-sublabel">集成到 tool-call 事件行中，仅在右侧追加"允许/拒绝"按钮，通过后行内显示 badge，不额外占空间</div>
+      <div class="mockup">
+        <div class="mockup-title-bar">Transcript</div>
+        <div class="mockup-body" style="display: flex; flex-direction: column; gap: 7px;">
+          <div class="ev ev-msg">我需要执行构建命令来检查编译是否通过。</div>
+          <!-- Pending: inline in tool-call -->
+          <div class="ev ev-tool" style="display: flex; align-items: center; justify-content: space-between; gap: 8px;">
+            <div style="flex: 1; min-width: 0;">
+              <span style="color: var(--accent); font-size: 10px; font-weight: 700; text-transform: uppercase; margin-right: 6px;">TOOL</span>
+              bash · <span style="font-family: monospace; font-size: 10px;">rm -rf dist && npm run build</span>
+            </div>
+            <div style="display: flex; gap: 4px; flex-shrink: 0;">
+              <button class="pf-btn success" style="padding: 3px 8px; font-size: 10px;">✓</button>
+              <button class="pf-btn" style="padding: 3px 8px; font-size: 10px; border-color: rgba(219,107,107,.5); color: var(--red);">✗</button>
+            </div>
+          </div>
+          <!-- Resolved: badge in tool-call -->
+          <div class="ev ev-tool" style="display: flex; align-items: center; justify-content: space-between; gap: 8px;">
+            <div style="flex: 1; min-width: 0;">
+              <span style="color: var(--accent); font-size: 10px; font-weight: 700; text-transform: uppercase; margin-right: 6px;">TOOL</span>
+              file_edit · factory.ts
+            </div>
+            <span class="perm-badge">✓ 允许</span>
+          </div>
+          <div class="ev ev-result">✓ 文件编辑成功，替换 1 处</div>
+          <!-- Another pending -->
+          <div class="ev ev-tool" style="display: flex; align-items: center; justify-content: space-between; gap: 8px;">
+            <div style="flex: 1; min-width: 0;">
+              <span style="color: var(--accent); font-size: 10px; font-weight: 700; text-transform: uppercase; margin-right: 6px;">TOOL</span>
+              bash · <span style="font-family: monospace; font-size: 10px;">git add -A && git commit -m "feat: add api adapter"</span>
+            </div>
+            <div style="display: flex; gap: 4px; flex-shrink: 0;">
+              <button class="pf-btn success" style="padding: 3px 8px; font-size: 10px;">✓</button>
+              <button class="pf-btn" style="padding: 3px 8px; font-size: 10px; border-color: rgba(219,107,107,.5); color: var(--red);">✗</button>
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+</div>
+
+</div><!-- /container -->
+
+<!-- Summary Bar -->
+<div class="summary-panel">
+  <span class="summary-count" id="summaryCount">已选择 <strong>0</strong> / 4 个方案</span>
+  <button class="summary-btn" id="exportBtn" disabled onclick="exportSelections()">导出选择</button>
+</div>
+
+<!-- Export Modal -->
+<div class="export-modal" id="exportModal">
+  <div class="export-box">
+    <h3>UI 方案选择结果</h3>
+    <pre id="exportContent"></pre>
+    <div class="pf-actions">
+      <button class="pf-btn" onclick="document.getElementById('exportModal').classList.remove('visible')">关闭</button>
+      <button class="pf-btn primary" onclick="copyExport()">复制到剪贴板</button>
+    </div>
+  </div>
+</div>
+
+<script>
+const TOTAL = 4;
+const selections = {};
+
+const decisionMeta = {
+  'provider-list': { title: '供应商列表样式', options: ['紧凑行', '网格卡片'] },
+  'provider-form': { title: '添加供应商表单', options: ['列表底部内联展开', '弹窗对话框'] },
+  'vendor-selector': { title: '运行面板供应商选择', options: ['标签页切换', '统一下拉菜单'] },
+  'permission-ui': { title: '权限请求审批 UI', options: ['醒目卡片式', '紧凑内联式'] }
+};
+
+function selectOption(card) {
+  const section = card.closest('.decision-section');
+  const decision = section.dataset.decision;
+  const cards = section.querySelectorAll('.option-card');
+  const index = Array.from(cards).indexOf(card);
+  cards.forEach(c => c.classList.remove('selected'));
+  card.classList.add('selected');
+  selections[decision] = index;
+  updateSummary();
+}
+
+function updateSummary() {
+  const count = Object.keys(selections).length;
+  document.getElementById('summaryCount').innerHTML = `已选择 <strong>${count}</strong> / ${TOTAL} 个方案`;
+  document.getElementById('exportBtn').disabled = count < TOTAL;
+}
+
+function exportSelections() {
+  const L = String.fromCharCode;
+  let o = '# API 模式 UI 方案选择结果\n\n';
+  o += '> 时间：' + new Date().toLocaleString('zh-CN') + '\n\n';
+
+  for (const [key, meta] of Object.entries(decisionMeta)) {
+    const idx = selections[key];
+    const choice = idx !== undefined ? meta.options[idx] : '未选择';
+    const letter = idx !== undefined ? L(65 + idx) : '?';
+    o += `## ${meta.title}\n`;
+    o += `选择：**方案 ${letter}** — ${choice}\n\n`;
+  }
+
+  o += '---\n\n';
+  o += '## 对应任务 UI 实现规格\n\n';
+
+  // Task 16
+  const listStyle = selections['provider-list'] !== undefined ? decisionMeta['provider-list'].options[selections['provider-list']] : '未选';
+  const formStyle = selections['provider-form'] !== undefined ? decisionMeta['provider-form'].options[selections['provider-form']] : '未选';
+  o += '### 任务 16: ProviderSettings.tsx\n';
+  o += `- 列表样式: ${listStyle}\n`;
+  o += `- 表单交互: ${formStyle}\n`;
+  o += '- 按照对应方案的 mockup 实现组件结构和 CSS class\n\n';
+
+  // Task 18
+  const vendorStyle = selections['vendor-selector'] !== undefined ? decisionMeta['vendor-selector'].options[selections['vendor-selector']] : '未选';
+  o += '### 任务 18: SingleRunPanel + AgentManager 供应商选择\n';
+  o += `- 选择方式: ${vendorStyle}\n`;
+  o += '- 按照对应方案的 mockup 实现 vendor 切换 UI\n\n';
+
+  // Task 21
+  const permStyle = selections['permission-ui'] !== undefined ? decisionMeta['permission-ui'].options[selections['permission-ui']] : '未选';
+  o += '### 任务 21: TranscriptViewer 权限审批\n';
+  o += `- 审批样式: ${permStyle}\n`;
+  o += '- 按照对应方案的 mockup 实现权限请求渲染\n\n';
+
+  document.getElementById('exportContent').textContent = o;
+  document.getElementById('exportModal').classList.add('visible');
+}
+
+function copyExport() {
+  const text = document.getElementById('exportContent').textContent;
+  navigator.clipboard.writeText(text).then(() => {
+    const btn = event.target;
+    btn.textContent = '已复制 ✓';
+    setTimeout(() => { btn.textContent = '复制到剪贴板'; }, 1500);
+  });
+}
+</script>
+
+</body>
+</html>
