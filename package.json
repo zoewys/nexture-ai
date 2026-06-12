@@ -23,13 +23,17 @@
     "dist:win:dir": "npm run build && electron-builder --win --x64 --dir"
   },
   "dependencies": {
+    "@ai-sdk/anthropic": "^3.0.83",
+    "@ai-sdk/openai": "^3.0.70",
     "@larksuiteoapi/node-sdk": "^1.66.1",
     "@radix-ui/react-select": "^2.3.0",
     "@xyflow/react": "^12.11.0",
     "adm-zip": "^0.5.17",
+    "ai": "^6.0.202",
     "archiver": "^8.0.0",
     "electron-updater": "^6.1.7",
-    "lucide-react": "^1.17.0"
+    "lucide-react": "^1.17.0",
+    "zod": "^4.4.3"
   },
   "devDependencies": {
     "@types/adm-zip": "^0.5.8",

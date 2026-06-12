@@ -24,6 +24,7 @@ import { CodexOptions } from './CodexOptions'
 import { ModelSelect } from './ModelSelect'
 import { ReflectionSettingsPanel } from './ReflectionSettingsPanel'
 import { Select } from './Select'
+import { useProviders } from './useProviders'
 
 export interface AgentManagerProps {
   agents: AgentDefinition[]
@@ -41,10 +42,22 @@ function emptyDraft(): AgentDraft {
 export function AgentManager({ agents, clis, modelCatalog, onSave, onDelete, onClose }: AgentManagerProps): JSX.Element {
   const [editingId, setEditingId] = useState<string | null>(null)
   const [draft, setDraft] = useState<AgentDraft>(emptyDraft)
+  const providerState = useProviders()
 
   const isNew = editingId === null
   const cliAvailable = (v: AgentVendor) => (clis ? clis[v] : true)
   const modelInfo = modelCatalog?.[draft.vendor] ?? null
+  const selectedProvider = providerState.providers.find((provider) => provider.id === draft.apiProviderId) ?? providerState.providers[0] ?? null
+  const apiModels = selectedProvider?.models ?? []
+
+  const setVendor = (vendor: AgentVendor): void => {
+    setDraft((d) => ({
+      ...d,
+      vendor,
+      model: '',
+      apiProviderId: vendor === 'api' ? d.apiProviderId || providerState.providers[0]?.id : undefined
+    }))
+  }
 
   const select = (agent: AgentDefinition) => {
     setEditingId(agent.id)
@@ -135,29 +148,65 @@ export function AgentManager({ agents, clis, modelCatalog, onSave, onDelete, onC
 
             <div className="field-row">
               <label className="field field-grow">
-                <span>CLI</span>
-                <Select
-                  value={draft.vendor}
-                  onChange={(v) => setDraft((d) => ({ ...d, vendor: v as AgentVendor }))}
-                >
+                <span>Mode</span>
+                <div className="vendor-tabs">
                   {ALL_VENDORS.map((v) => (
-                    <Select.Item key={v} value={v}>
-                      {v}
+                    <button
+                      key={v}
+                      type="button"
+                      className={`vendor-tab${draft.vendor === v ? ' active' : ''}`}
+                      onClick={() => setVendor(v)}
+                    >
+                      {v === 'claude' ? 'Claude CLI' : v === 'codex' ? 'Codex CLI' : 'API'}
                       {!cliAvailable(v) ? ' (not installed)' : ''}
-                    </Select.Item>
+                    </button>
                   ))}
-                </Select>
+                </div>
               </label>
 
-              <label className="field field-grow">
-                <span>Model</span>
-                <ModelSelect
-                  value={draft.model ?? ''}
-                  modelInfo={modelInfo}
-                  onChange={(model) => setDraft((d) => ({ ...d, model }))}
-                />
-              </label>
+              {draft.vendor !== 'api' && (
+                <label className="field field-grow">
+                  <span>Model</span>
+                  <ModelSelect
+                    value={draft.model ?? ''}
+                    modelInfo={modelInfo}
+                    onChange={(model) => setDraft((d) => ({ ...d, model }))}
+                  />
+                </label>
+              )}
             </div>
+
+            {draft.vendor === 'api' && (
+              <div className="field-row">
+                <label className="field field-grow">
+                  <span>API 供应商</span>
+                  <Select
+                    value={selectedProvider?.id ?? ''}
+                    onChange={(apiProviderId) => {
+                      const provider = providerState.providers.find((item) => item.id === apiProviderId)
+                      setDraft((d) => ({ ...d, apiProviderId, model: provider?.defaultModel ?? provider?.models[0] ?? '' }))
+                    }}
+                    disabled={providerState.loading || providerState.providers.length === 0}
+                  >
+                    {providerState.providers.map((provider) => (
+                      <Select.Item key={provider.id} value={provider.id}>{provider.name}</Select.Item>
+                    ))}
+                  </Select>
+                </label>
+                <label className="field field-grow">
+                  <span>Model</span>
+                  <Select
+                    value={draft.model || selectedProvider?.defaultModel || apiModels[0] || ''}
+                    onChange={(model) => setDraft((d) => ({ ...d, model }))}
+                    disabled={apiModels.length === 0}
+                  >
+                    {apiModels.map((apiModel) => (
+                      <Select.Item key={apiModel} value={apiModel}>{apiModel}</Select.Item>
+                    ))}
+                  </Select>
+                </label>
+              </div>
+            )}
 
             {draft.vendor === 'codex' && (
               <CodexOptions

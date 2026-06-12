@@ -55,7 +55,7 @@ function version(cmd: string): Promise<string | null> {
 
 export async function checkClis(): Promise<CliCheckResult> {
   const [claude, codex] = await Promise.all([probe('claude'), probe('codex')])
-  return { claude, codex }
+  return { claude, codex, api: true }
 }
 
 export async function getCliVersions(): Promise<CliVersionResult> {

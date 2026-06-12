@@ -9,6 +9,7 @@ import type {
 } from '@shared/types'
 import { CODEX_REASONING_EFFORTS } from '@shared/types'
 import { withCliPath } from './cliEnv'
+import type { ProviderStore } from './ProviderStore'
 
 interface CommandResult {
   code: number | null
@@ -29,20 +30,38 @@ interface CodexRawModel {
 
 const PROBE_MODEL = '__agent_studio_model_probe__'
 
-export async function listCliModels(): Promise<ModelCatalog> {
-  const [claude, codex] = await Promise.all([
+export async function listCliModels(providerStore?: ProviderStore): Promise<ModelCatalog> {
+  const [claude, codex, api] = await Promise.all([
     listVendorModels('claude'),
-    listVendorModels('codex')
+    listVendorModels('codex'),
+    listApiModels(providerStore)
   ])
-  return { claude, codex }
+  return { claude, codex, api }
 }
 
-async function listVendorModels(vendor: AgentVendor): Promise<VendorModelCatalog> {
+async function listVendorModels(vendor: Exclude<AgentVendor, 'api'>): Promise<VendorModelCatalog> {
   switch (vendor) {
     case 'claude':
       return listClaudeModels()
     case 'codex':
       return listCodexModels()
+  }
+}
+
+export async function listApiModels(store?: ProviderStore): Promise<VendorModelCatalog> {
+  if (!store) return unavailable('No API provider store is available')
+
+  const models = store.list().flatMap((provider) =>
+    provider.models.map((model): ModelOption => ({
+      id: `${provider.id}:${model}`,
+      label: `${model} (${provider.name})`
+    }))
+  )
+
+  return {
+    models,
+    source: models.length > 0 ? 'cli' : 'unavailable',
+    message: models.length > 0 ? 'Read from API provider settings' : 'No API provider models configured'
   }
 }
 

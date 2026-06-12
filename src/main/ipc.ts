@@ -1,5 +1,6 @@
 import { readFileSync, existsSync } from 'node:fs'
 import { app, ipcMain, dialog, type BrowserWindow } from 'electron'
+import { generateText } from 'ai'
 import {
   IPC,
   type RunConfig,
@@ -21,6 +22,7 @@ import {
   type MemoryEntry,
   type ReflectionEngineConfig,
   type AppSettings,
+  type ApiProviderConfig,
   type ExportOptions,
   type ImportOptions
 } from '@shared/types'
@@ -42,6 +44,9 @@ import { ReflectionAgent } from './memory/ReflectionAgent'
 import { SignalCollector } from './memory/SignalCollector'
 import { AppSettingsStore } from './AppSettingsStore'
 import { getRecommendation } from './routeRecommendation'
+import { ProviderStore } from './ProviderStore'
+import { respondToPermissionRequest } from './adapters/api-tools/PermissionGuard'
+import { resolveModel } from './adapters/apiAdapter'
 import { FeishuNotifier } from './FeishuNotifier'
 
 export interface AppManagers {
@@ -66,7 +71,8 @@ export function registerIpc(
   const workflowStore = new WorkflowStore()
   const scheduleStore = new ScheduleStore()
   const appSettingsStore = new AppSettingsStore()
-  const runManager = new RunManager(transcriptStore)
+  const providerStore = new ProviderStore()
+  const runManager = new RunManager(transcriptStore, providerStore)
   const memoryStore = new MemoryStore()
   const reflectionAgent = new ReflectionAgent(runManager, memoryStore)
   const signalCollector = new SignalCollector(reflectionAgent, memoryStore, agentStore)
@@ -225,7 +231,33 @@ export function registerIpc(
     return cli === 'claude' ? installClaudeCode(onProgress) : installCodexCli(onProgress)
   })
 
-  ipcMain.handle(IPC.listModels, (): Promise<ModelCatalog> => listCliModels())
+  ipcMain.handle(IPC.listModels, (): Promise<ModelCatalog> => listCliModels(providerStore))
+
+  ipcMain.handle(IPC.providersList, (): ApiProviderConfig[] => providerStore.list())
+
+  ipcMain.handle(IPC.providersSave, (_e, input): ApiProviderConfig => providerStore.save(input))
+
+  ipcMain.handle(IPC.providersDelete, (_e, id: string): void => providerStore.remove(id))
+
+  ipcMain.handle(IPC.providersTest, async (_e, id: string): Promise<{ ok: boolean; message: string }> => {
+    try {
+      const provider = providerStore.getDecrypted(id)
+      const modelId = provider.defaultModel ?? provider.models[0]
+      if (!modelId) return { ok: false, message: '未配置模型' }
+      await generateText({
+        model: resolveModel(provider, modelId) as any,
+        prompt: 'Reply with OK.',
+        maxOutputTokens: 8
+      })
+      return { ok: true, message: '连接成功' }
+    } catch (err) {
+      return { ok: false, message: err instanceof Error ? err.message : String(err) }
+    }
+  })
+
+  ipcMain.handle(IPC.permissionRespond, (_e, requestId: string, allowed: boolean): void => {
+    respondToPermissionRequest(requestId, allowed)
+  })
 
   ipcMain.handle(IPC.pickDir, async (): Promise<string | null> => {
     const win = getWindow()

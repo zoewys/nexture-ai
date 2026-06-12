@@ -3,6 +3,7 @@ import type { AgentEvent, RunConfig } from '@shared/types'
 import type { CliAdapter } from './adapters/types'
 import { createAdapter } from './adapters/factory'
 import type { TranscriptStore } from './TranscriptStore'
+import type { ProviderStore } from './ProviderStore'
 
 interface LiveRun {
   id: string
@@ -28,7 +29,10 @@ interface TurnSummary {
 export class RunManager {
   private runs = new Map<string, LiveRun>()
 
-  constructor(private readonly transcripts: TranscriptStore) {}
+  constructor(
+    private readonly transcripts: TranscriptStore,
+    private readonly providerStore?: ProviderStore
+  ) {}
 
   /**
    * Start a run. Events are delivered via `onEvent`; the method returns the
@@ -36,7 +40,11 @@ export class RunManager {
    */
   start(config: RunConfig, onEvent: (runId: string, event: AgentEvent) => void): string {
     const id = randomUUID()
-    const adapter = createAdapter(config.vendor)
+    const adapter = createAdapter(config.vendor, {
+      providerStore: this.providerStore,
+      runConfig: config,
+      emitEvent: (ev) => onEvent(id, ev)
+    })
     const abort = new AbortController()
     this.runs.set(id, { id, adapter, abort })
 
@@ -75,7 +83,11 @@ export class RunManager {
 
       // Swap in a fresh adapter (claude keeps per-process state) but keep the
       // same AbortController so a user abort still targets the live process.
-      const retryAdapter = createAdapter(config.vendor)
+      const retryAdapter = createAdapter(config.vendor, {
+        providerStore: this.providerStore,
+        runConfig: retryConfig,
+        emitEvent: (ev) => onEvent(id, ev)
+      })
       const live = this.runs.get(id)
       if (live) live.adapter = retryAdapter
 
@@ -103,6 +115,7 @@ export class RunManager {
       model: config.model,
       codexReasoningEffort: config.codexReasoningEffort,
       codexServiceTier: config.codexServiceTier,
+      apiMaxSteps: config.apiMaxSteps,
       addDirs: config.addDirs,
       appendSystemPrompt: config.appendSystemPrompt,
       outputSchema: config.outputSchema,

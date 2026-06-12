@@ -28,6 +28,7 @@ import { MemoryReferences } from './MemoryReferences'
 import { ComposerBar } from './ComposerBar'
 import { readLastProjectPath, rememberProjectPath } from './projectPathMemory'
 import { FolderOpen, ChevronLeft, ChevronRight, SlidersHorizontal } from 'lucide-react'
+import { useProviders } from './useProviders'
 
 interface SingleRunPanelProps {
   agents: AgentDefinition[]
@@ -70,7 +71,9 @@ export function SingleRunPanel({
   const [codexServiceTier, setCodexServiceTier] = useState<string | undefined>()
   const [interjection, setInterjection] = useState('')
   const [selectedAgentId, setSelectedAgentId] = useState<string | null>(null)
+  const [selectedProviderId, setSelectedProviderId] = useState('')
   const [attachedFiles, setAttachedFiles] = useState<string[]>([])
+  const providerState = useProviders()
 
   const handlePickFiles = async () => {
     const files = await window.api.pickFiles()
@@ -83,8 +86,16 @@ export function SingleRunPanel({
   )
 
   const modelInfo = modelCatalog?.[vendor] ?? null
+  const selectedProvider = useMemo(
+    () => providerState.providers.find((provider) => provider.id === selectedProviderId) ?? providerState.providers[0] ?? null,
+    [providerState.providers, selectedProviderId]
+  )
+  const apiModels = selectedProvider?.models ?? []
+  const effectiveModel = vendor === 'api'
+    ? (model || selectedProvider?.defaultModel || apiModels[0] || '')
+    : model
 
-  const canStart = !state.running && cwd.trim() !== '' && prompt.trim() !== ''
+  const canStart = !state.running && cwd.trim() !== '' && prompt.trim() !== '' && (vendor !== 'api' || !!selectedProvider)
   const canFollowUp = !state.running && state.events.length > 0
   const canResume = canFollowUp && state.sessionId !== null
   const canInterject = state.running && vendor === 'claude'
@@ -97,9 +108,22 @@ export function SingleRunPanel({
     if (agent) {
       setVendor(agent.vendor)
       setModel(agent.model ?? '')
+      setSelectedProviderId(agent.apiProviderId ?? '')
       setCodexReasoningEffort(agent.codexReasoningEffort)
       setCodexServiceTier(agent.codexServiceTier)
     }
+  }
+
+  const handleVendorChange = (nextVendor: AgentVendor): void => {
+    setVendor(nextVendor)
+    setModel('')
+    if (nextVendor !== 'api') setSelectedProviderId('')
+  }
+
+  const handleProviderChange = (providerId: string): void => {
+    setSelectedProviderId(providerId)
+    const provider = providerState.providers.find((item) => item.id === providerId)
+    setModel(provider?.defaultModel ?? provider?.models[0] ?? '')
   }
 
   const handleStart = async (): Promise<void> => {
@@ -108,9 +132,10 @@ export function SingleRunPanel({
       prompt: prompt.trim(),
       cwd: cwd.trim(),
       agentId: selectedAgent?.id,
-      model: model.trim() || undefined,
+      model: effectiveModel.trim() || undefined,
       codexReasoningEffort: vendor === 'codex' ? codexReasoningEffort : undefined,
       codexServiceTier: vendor === 'codex' ? codexServiceTier : undefined,
+      apiProviderId: vendor === 'api' ? selectedProviderId || selectedProvider?.id : undefined,
       appendSystemPrompt: selectedAgent?.systemPrompt,
       permissionMode: selectedAgent?.permissionMode
     }
@@ -143,7 +168,8 @@ export function SingleRunPanel({
         prompt: resumeFrom ? fullText : buildSingleRunFollowUpPrompt(prompt, state.events, fullText),
         cwd: cwd.trim(),
         agentId: selectedAgent?.id,
-        model: model.trim() || undefined,
+        model: effectiveModel.trim() || undefined,
+        apiProviderId: vendor === 'api' ? selectedProviderId || selectedProvider?.id : undefined,
         resumeFrom,
         appendSystemPrompt: selectedAgent?.systemPrompt,
         permissionMode: selectedAgent?.permissionMode
@@ -197,29 +223,52 @@ export function SingleRunPanel({
               </label>
 
               <label className="field">
-                <span>CLI</span>
-                <Select
-                  value={vendor}
-                  onChange={(v) => setVendor(v as AgentVendor)}
-                >
+                <span>Mode</span>
+                <div className="vendor-tabs">
                   {ALL_VENDORS.map((v) => (
-                    <Select.Item key={v} value={v}>
-                      {v}
+                    <button
+                      key={v}
+                      type="button"
+                      className={`vendor-tab${vendor === v ? ' active' : ''}`}
+                      onClick={() => handleVendorChange(v)}
+                    >
+                      {v === 'claude' ? 'Claude CLI' : v === 'codex' ? 'Codex CLI' : 'API'}
                       {clis && !clis[v] ? ' (not installed)' : ''}
-                    </Select.Item>
+                    </button>
                   ))}
-                </Select>
+                </div>
               </label>
 
-              <label className="field">
-                <span>Model</span>
-                <ModelSelect
-                  value={model}
-                  loading={modelsLoading}
-                  modelInfo={modelInfo}
-                  onChange={setModel}
-                />
-              </label>
+              {vendor === 'api' ? (
+                <>
+                  <label className="field">
+                    <span>API 供应商</span>
+                    <Select value={selectedProvider?.id ?? ''} onChange={handleProviderChange} disabled={providerState.loading || providerState.providers.length === 0}>
+                      {providerState.providers.map((provider) => (
+                        <Select.Item key={provider.id} value={provider.id}>{provider.name}</Select.Item>
+                      ))}
+                    </Select>
+                  </label>
+                  <label className="field">
+                    <span>Model</span>
+                    <Select value={effectiveModel} onChange={setModel} disabled={apiModels.length === 0}>
+                      {apiModels.map((apiModel) => (
+                        <Select.Item key={apiModel} value={apiModel}>{apiModel}</Select.Item>
+                      ))}
+                    </Select>
+                  </label>
+                </>
+              ) : (
+                <label className="field">
+                  <span>Model</span>
+                  <ModelSelect
+                    value={model}
+                    loading={modelsLoading}
+                    modelInfo={modelInfo}
+                    onChange={setModel}
+                  />
+                </label>
+              )}
 
               {vendor === 'codex' && (
                 <CodexOptions
