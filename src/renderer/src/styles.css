@@ -4647,6 +4647,116 @@ button.icon-only {
 
 .settings-switch.on::after { left: 23px; }
 
+.feishu-status-badge {
+  display: inline-flex;
+  align-items: center;
+  gap: 5px;
+  padding: 4px 8px;
+  border-radius: 999px;
+  border: 1px solid var(--border);
+  color: var(--text-dim);
+  background: var(--bg, #1e1f28);
+  font-size: 11px;
+  font-weight: 600;
+  white-space: nowrap;
+}
+
+.feishu-status-badge.connecting {
+  color: var(--yellow);
+  border-color: rgba(212, 165, 72, .32);
+  background: rgba(212, 165, 72, .1);
+}
+
+.feishu-status-badge.connected {
+  color: var(--green);
+  border-color: rgba(76, 175, 125, .32);
+  background: rgba(76, 175, 125, .1);
+}
+
+.feishu-status-badge.error {
+  color: var(--red);
+  border-color: rgba(219, 107, 107, .35);
+  background: rgba(219, 107, 107, .1);
+}
+
+.feishu-config-fields {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 12px;
+  margin-top: 14px;
+  padding: 14px;
+  border: 1px solid var(--border);
+  border-radius: 8px;
+  background: var(--bg-card, #2a2b37);
+}
+
+.feishu-field {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  min-width: 0;
+  color: var(--text-soft);
+  font-size: 11px;
+  font-weight: 600;
+}
+
+.feishu-field small {
+  color: var(--text-dim);
+  font-size: 10px;
+  font-weight: 500;
+}
+
+.feishu-field input {
+  width: 100%;
+  min-width: 0;
+  height: 34px;
+  padding: 0 10px;
+  border: 1px solid var(--border);
+  border-radius: 7px;
+  background: var(--bg-input);
+  color: var(--text);
+  outline: none;
+}
+
+.feishu-field input:focus {
+  border-color: var(--accent);
+}
+
+.feishu-actions {
+  grid-column: 1 / -1;
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  flex-wrap: wrap;
+  margin-top: 2px;
+}
+
+.feishu-test-result {
+  grid-column: 1 / -1;
+  padding: 8px 10px;
+  border-radius: 7px;
+  font-size: 12px;
+  border: 1px solid var(--border);
+}
+
+.feishu-test-result.ok {
+  color: var(--green);
+  border-color: rgba(76, 175, 125, .32);
+  background: rgba(76, 175, 125, .08);
+}
+
+.feishu-test-result.error {
+  color: var(--red);
+  border-color: rgba(219, 107, 107, .35);
+  background: rgba(219, 107, 107, .08);
+}
+
+@media (max-width: 760px) {
+  .feishu-config-fields {
+    grid-template-columns: 1fr;
+  }
+}
+
 /* ═══════════════════════════════════════════════════════════════════════════
    Composer with file attachment
    ═══════════════════════════════════════════════════════════════════════════ */

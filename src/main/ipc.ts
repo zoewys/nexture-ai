@@ -42,6 +42,7 @@ import { ReflectionAgent } from './memory/ReflectionAgent'
 import { SignalCollector } from './memory/SignalCollector'
 import { AppSettingsStore } from './AppSettingsStore'
 import { getRecommendation } from './routeRecommendation'
+import { FeishuNotifier } from './FeishuNotifier'
 
 export interface AppManagers {
   abortAll(): void
@@ -70,6 +71,7 @@ export function registerIpc(
   const reflectionAgent = new ReflectionAgent(runManager, memoryStore)
   const signalCollector = new SignalCollector(reflectionAgent, memoryStore, agentStore)
   const memoryInjector = new MemoryInjector(memoryStore)
+  const feishuNotifier = new FeishuNotifier()
 
   // ── message-delta batching ───────────────────────────────────────────
   // Token streaming produces 50-100 message-delta events per second. Sending
@@ -136,6 +138,9 @@ export function registerIpc(
     if (win && !win.isDestroyed()) {
       win.webContents.send(IPC.workflowEvent, envelope)
     }
+    if (envelope.event.kind === 'run-updated') {
+      void feishuNotifier.handleRunUpdate(envelope.event.run)
+    }
   }
 
   const workflowManager = new WorkflowManager(
@@ -159,6 +164,29 @@ export function registerIpc(
   )
   workflowManager.setRunSettledHandler((run) => scheduler.handleWorkflowRunUpdated(run))
   scheduler.start()
+  const initFeishu = (): void => {
+    const settings = appSettingsStore.get()
+    void feishuNotifier.configure(
+      settings.feishu,
+      (status) => {
+        const win = getWindow()
+        if (win && !win.isDestroyed()) {
+          win.webContents.send(IPC.feishuStatusChanged, status)
+        }
+      },
+      (runId, action, stepIndex) => {
+        try {
+          if (action === 'approve') workflowManager.confirmStep(runId, stepIndex)
+          else if (action === 'reject') workflowManager.abort(runId)
+          else if (action === 'rerun') workflowManager.rerunStep(runId, stepIndex)
+        } catch (err) {
+          console.error('[Feishu] card action failed:', err)
+          throw err
+        }
+      }
+    )
+  }
+  initFeishu()
   void signalCollector.drainRawSignals()
 
   ipcMain.handle(IPC.runStart, (_e, config: RunConfig): RunStartResult => {
@@ -395,15 +423,21 @@ export function registerIpc(
     appSettingsStore.get()
   )
 
-  ipcMain.handle(IPC.appSettingsSave, (_e, settings: AppSettings): void =>
+  ipcMain.handle(IPC.appSettingsSave, (_e, settings: AppSettings): void => {
     appSettingsStore.save(settings)
-  )
+    initFeishu()
+  })
+
+  ipcMain.handle(IPC.feishuTest, () => feishuNotifier.sendTestNotification())
+
+  ipcMain.handle(IPC.feishuStatus, () => feishuNotifier.getStatus())
 
   return {
     abortAll() {
       scheduler.stopAll()
       workflowManager.abortAll()
       runManager.abortAll()
+      feishuNotifier.destroy()
     }
   }
 }

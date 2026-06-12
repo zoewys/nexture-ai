@@ -1,6 +1,6 @@
 import { useCallback, useEffect, useState } from 'react'
 import type { AppSettings } from '@shared/types'
-import { DEFAULT_APP_SETTINGS } from '@shared/types'
+import { DEFAULT_APP_SETTINGS, DEFAULT_FEISHU_CONFIG } from '@shared/types'
 
 export interface AppSettingsState {
   settings: AppSettings
@@ -17,7 +17,13 @@ export function useAppSettings(): AppSettingsState {
     setLoading(true)
     window.api.appSettingsGet()
       .then((next) => {
-        if (!cancelled) setSettings({ ...DEFAULT_APP_SETTINGS, ...next })
+        if (!cancelled) {
+          setSettings({
+            ...DEFAULT_APP_SETTINGS,
+            ...next,
+            feishu: { ...DEFAULT_FEISHU_CONFIG, ...next.feishu }
+          })
+        }
       })
       .finally(() => {
         if (!cancelled) setLoading(false)

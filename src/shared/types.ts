@@ -427,14 +427,34 @@ export const DEFAULT_REFLECTION_CONFIG: ReflectionEngineConfig = {
 
 // ── App Settings ─────────────────────────────────────────────────────────────
 
+export interface FeishuConfig {
+  appId: string
+  appSecret: string
+  chatId?: string
+  userId?: string
+  enabled: boolean
+}
+
+export const DEFAULT_FEISHU_CONFIG: FeishuConfig = {
+  appId: '',
+  appSecret: '',
+  chatId: '',
+  userId: '',
+  enabled: false
+}
+
+export type FeishuConnectionStatus = 'disconnected' | 'connecting' | 'connected' | 'error'
+
 export interface AppSettings {
   showMemoryReferences: boolean
   minimizeToTray: boolean
+  feishu: FeishuConfig
 }
 
 export const DEFAULT_APP_SETTINGS: AppSettings = {
   showMemoryReferences: false,
-  minimizeToTray: true
+  minimizeToTray: true,
+  feishu: DEFAULT_FEISHU_CONFIG
 }
 
 // ── IPC channel names + payloads ─────────────────────────────────────────────
@@ -544,7 +564,13 @@ export const IPC = {
   /** renderer → main: jump to a specific step in a workflow run. */
   workflowGotoStep: 'workflow:goto-step',
   /** renderer → main: get a vendor/model recommendation for a role. */
-  routeRecommend: 'route:recommend'
+  routeRecommend: 'route:recommend',
+  /** renderer → main: send a Feishu test notification. */
+  feishuTest: 'feishu:test',
+  /** renderer → main: get current Feishu websocket status. */
+  feishuStatus: 'feishu:status',
+  /** main → renderer: Feishu websocket status changed. */
+  feishuStatusChanged: 'feishu:status-changed'
 } as const
 
 export interface RunStartResult {

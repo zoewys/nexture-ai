@@ -1,6 +1,7 @@
 import { useCallback, useEffect, useState } from 'react'
-import { Bot, Code2, Download, RefreshCw, Upload } from 'lucide-react'
-import type { AppSettings } from '@shared/types'
+import { Bot, Code2, Download, MessageSquare, RefreshCw, Upload } from 'lucide-react'
+import type { AppSettings, FeishuConnectionStatus, FeishuConfig } from '@shared/types'
+import { DEFAULT_FEISHU_CONFIG } from '@shared/types'
 import { ExportDialog } from './ExportDialog'
 import { ImportDialog } from './ImportDialog'
 
@@ -29,6 +30,14 @@ export function SettingsPanel({ settings, loading, onSave }: SettingsPanelProps)
   const [showImport, setShowImport] = useState(false)
   const [importPreview, setImportPreview] = useState<any>(null)
   const [importFilePath, setImportFilePath] = useState('')
+  const [feishuDraft, setFeishuDraft] = useState<FeishuConfig>({
+    ...DEFAULT_FEISHU_CONFIG,
+    ...settings.feishu
+  })
+  const [feishuStatus, setFeishuStatus] = useState<FeishuConnectionStatus>('disconnected')
+  const [feishuTesting, setFeishuTesting] = useState(false)
+  const [feishuSaving, setFeishuSaving] = useState(false)
+  const [feishuTestResult, setFeishuTestResult] = useState<{ ok: boolean; error?: string } | null>(null)
 
   const refresh = useCallback(async () => {
     setRefreshing(true)
@@ -51,11 +60,65 @@ export function SettingsPanel({ settings, loading, onSave }: SettingsPanelProps)
     })
   }, [])
 
+  useEffect(() => {
+    let cancelled = false
+    void window.api.feishuStatus().then((status) => {
+      if (!cancelled) setFeishuStatus(status)
+    })
+    const unsubscribe = window.api.onFeishuStatusChanged((status) => {
+      setFeishuStatus(status)
+    })
+    return () => {
+      cancelled = true
+      unsubscribe()
+    }
+  }, [])
+
+  useEffect(() => {
+    setFeishuDraft({ ...DEFAULT_FEISHU_CONFIG, ...settings.feishu })
+  }, [settings.feishu])
+
   const handleInstall = useCallback(async (cli: 'claude' | 'codex') => {
     setClis(prev => ({ ...prev, [cli]: { ...prev[cli], installing: true, message: '准备安装…' } }))
     await window.api.installCli(cli)
     await refresh()
   }, [refresh])
+
+  const handleFeishuField = useCallback((field: keyof FeishuConfig, value: string | boolean) => {
+    setFeishuDraft(prev => ({ ...prev, [field]: value }))
+    setFeishuTestResult(null)
+  }, [])
+
+  const handleToggleFeishu = useCallback(async () => {
+    const nextFeishu = {
+      ...DEFAULT_FEISHU_CONFIG,
+      ...settings.feishu,
+      enabled: !settings.feishu.enabled
+    }
+    setFeishuDraft(nextFeishu)
+    setFeishuTestResult(null)
+    await onSave({ ...settings, feishu: nextFeishu })
+  }, [onSave, settings])
+
+  const handleSaveFeishu = useCallback(async () => {
+    setFeishuSaving(true)
+    setFeishuTestResult(null)
+    try {
+      await onSave({ ...settings, feishu: { ...DEFAULT_FEISHU_CONFIG, ...feishuDraft } })
+    } finally {
+      setFeishuSaving(false)
+    }
+  }, [feishuDraft, onSave, settings])
+
+  const handleTestFeishu = useCallback(async () => {
+    setFeishuTesting(true)
+    setFeishuTestResult(null)
+    try {
+      setFeishuTestResult(await window.api.feishuTest())
+    } finally {
+      setFeishuTesting(false)
+    }
+  }, [])
 
   return (
     <div className="settings-panel">
@@ -215,6 +278,100 @@ export function SettingsPanel({ settings, loading, onSave }: SettingsPanelProps)
           />
         </div>
       </section>
+
+      <hr className="settings-divider" />
+
+      <section className="settings-section">
+        <div className="settings-section-head">
+          <div>
+            <h3 className="settings-section-title">飞书机器人</h3>
+            <p className="settings-section-desc">配置飞书自建应用后，workflow 审批、完成、出错会推送到飞书。</p>
+          </div>
+          <span className={`feishu-status-badge ${feishuStatus}`}>
+            <MessageSquare size={13} />
+            {feishuStatusLabel(feishuStatus)}
+          </span>
+        </div>
+
+        <div className="settings-toggle-row">
+          <div className="settings-toggle-info">
+            <h4>启用飞书通知</h4>
+            <p>开启后，工作流审批、完成和出错状态会发送到配置的群聊或用户。</p>
+          </div>
+          <button
+            type="button"
+            className={`settings-switch${settings.feishu.enabled ? ' on' : ''}`}
+            disabled={loading}
+            onClick={() => void handleToggleFeishu()}
+            role="switch"
+            aria-checked={settings.feishu.enabled}
+          />
+        </div>
+
+        {settings.feishu.enabled && (
+          <div className="feishu-config-fields">
+            <label className="feishu-field">
+              <span>App ID</span>
+              <input
+                value={feishuDraft.appId}
+                onChange={(event) => handleFeishuField('appId', event.target.value)}
+                placeholder="cli_xxxxxxxx"
+              />
+            </label>
+            <label className="feishu-field">
+              <span>App Secret</span>
+              <input
+                type="password"
+                value={feishuDraft.appSecret}
+                onChange={(event) => handleFeishuField('appSecret', event.target.value)}
+                placeholder="输入飞书应用密钥"
+              />
+            </label>
+            <label className="feishu-field">
+              <span>Chat ID</span>
+              <input
+                value={feishuDraft.chatId ?? ''}
+                onChange={(event) => handleFeishuField('chatId', event.target.value)}
+                placeholder="oc_xxxxxxxx"
+              />
+            </label>
+            <label className="feishu-field">
+              <span>User ID <small>可选</small></span>
+              <input
+                value={feishuDraft.userId ?? ''}
+                onChange={(event) => handleFeishuField('userId', event.target.value)}
+                placeholder="ou_xxxxxxxx"
+              />
+            </label>
+
+            <div className="feishu-actions">
+              <button
+                type="button"
+                className="btn primary"
+                disabled={loading || feishuSaving}
+                onClick={() => void handleSaveFeishu()}
+              >
+                {feishuSaving ? '保存中…' : '保存配置'}
+              </button>
+              <button
+                type="button"
+                className="btn"
+                disabled={loading || feishuTesting}
+                onClick={() => void handleTestFeishu()}
+              >
+                <MessageSquare size={14} />
+                {feishuTesting ? '发送中…' : '发送测试通知'}
+              </button>
+            </div>
+
+            {feishuTestResult && (
+              <div className={`feishu-test-result ${feishuTestResult.ok ? 'ok' : 'error'}`}>
+                {feishuTestResult.ok ? '测试通知已发送' : `发送失败：${feishuTestResult.error ?? '未知错误'}`}
+              </div>
+            )}
+          </div>
+        )}
+      </section>
       {showExport && (
         <ExportDialog
           items={[
@@ -258,4 +415,17 @@ export function SettingsPanel({ settings, loading, onSave }: SettingsPanelProps)
       )}
     </div>
   )
+}
+
+function feishuStatusLabel(status: FeishuConnectionStatus): string {
+  switch (status) {
+    case 'connecting':
+      return '连接中'
+    case 'connected':
+      return '已连接'
+    case 'error':
+      return '连接失败'
+    default:
+      return '未连接'
+  }
 }

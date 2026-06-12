@@ -2,7 +2,7 @@ import { app } from 'electron'
 import { readFileSync, writeFileSync, mkdirSync, existsSync } from 'node:fs'
 import { join } from 'node:path'
 import type { AppSettings } from '@shared/types'
-import { DEFAULT_APP_SETTINGS } from '@shared/types'
+import { DEFAULT_APP_SETTINGS, DEFAULT_FEISHU_CONFIG } from '@shared/types'
 
 export class AppSettingsStore {
   private readonly path: string
@@ -19,7 +19,12 @@ export class AppSettingsStore {
       const raw = readFileSync(this.path, 'utf8')
       const parsed: unknown = JSON.parse(raw)
       if (typeof parsed !== 'object' || parsed === null) return { ...DEFAULT_APP_SETTINGS }
-      return { ...DEFAULT_APP_SETTINGS, ...(parsed as Partial<AppSettings>) }
+      const partial = parsed as Partial<AppSettings>
+      return {
+        ...DEFAULT_APP_SETTINGS,
+        ...partial,
+        feishu: { ...DEFAULT_FEISHU_CONFIG, ...partial.feishu }
+      }
     } catch {
       return { ...DEFAULT_APP_SETTINGS }
     }

@@ -20,6 +20,7 @@ import {
   type MemoryEntry,
   type ReflectionEngineConfig,
   type AppSettings,
+  type FeishuConnectionStatus,
   type ExportOptions,
   type ImportPreview,
   type ImportOptions
@@ -175,7 +176,19 @@ const api = {
     ipcRenderer.invoke(IPC.dataImportPreview, filePath),
 
   importData: (filePath: string, options: ImportOptions): Promise<{ ok: boolean }> =>
-    ipcRenderer.invoke(IPC.dataImport, filePath, options)
+    ipcRenderer.invoke(IPC.dataImport, filePath, options),
+
+  feishuTest: (): Promise<{ ok: boolean; error?: string }> =>
+    ipcRenderer.invoke(IPC.feishuTest),
+
+  feishuStatus: (): Promise<FeishuConnectionStatus> =>
+    ipcRenderer.invoke(IPC.feishuStatus),
+
+  onFeishuStatusChanged: (cb: (status: FeishuConnectionStatus) => void): (() => void) => {
+    const handler = (_e: Electron.IpcRendererEvent, status: FeishuConnectionStatus) => cb(status)
+    ipcRenderer.on(IPC.feishuStatusChanged, handler)
+    return () => ipcRenderer.removeListener(IPC.feishuStatusChanged, handler)
+  }
 }
 
 contextBridge.exposeInMainWorld('api', api)
