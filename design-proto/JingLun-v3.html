@@ -13,30 +13,30 @@
       --text-primary: #2a2720;
       --text-secondary: #6b665d;
       --text-tertiary: #9a958d;
-      --accent: #2e4e6e;
-      --accent-soft: rgba(46, 78, 110, 0.10);
-      --accent-warm: #b54a3f;
-      --accent-warm-soft: rgba(181, 74, 63, 0.12);
-      --accent-gold: #b8933f;
-      --accent-gold-soft: rgba(184, 147, 63, 0.14);
+      --accent: #2e5c6e;
+      --accent-soft: rgba(46, 92, 110, 0.10);
+      --accent-warm: #a84a3f;
+      --accent-warm-soft: rgba(168, 74, 63, 0.12);
+      --accent-gold: #a88a3a;
+      --accent-gold-soft: rgba(168, 138, 58, 0.14);
       --border: rgba(42, 39, 32, 0.08);
       --shadow: rgba(42, 39, 32, 0.05);
       --divider: rgba(42, 39, 32, 0.07);
-      --glow-running: rgba(46, 78, 110, 0.15);
-      --glow-confirm: rgba(181, 74, 63, 0.15);
+      --glow-running: rgba(46, 92, 110, 0.15);
+      --glow-confirm: rgba(168, 74, 63, 0.15);
       --glow-done: rgba(80, 140, 100, 0.14);
     }
 
     [data-theme="dark"] {
-      --bg-primary: #131210;
+      --bg-primary: #121410;
       --bg-secondary: #1a1916;
       --bg-tertiary: #22211e;
       --bg-panel: rgba(26, 25, 22, 0.72);
       --text-primary: #e8e4dc;
       --text-secondary: #9a958d;
       --text-tertiary: #6a6560;
-      --accent: #7a9db8;
-      --accent-soft: rgba(122, 157, 184, 0.15);
+      --accent: #6a9db0;
+      --accent-soft: rgba(106, 157, 176, 0.15);
       --accent-warm: #c97b73;
       --accent-warm-soft: rgba(201, 123, 115, 0.15);
       --accent-gold: #c4a35a;
@@ -44,7 +44,7 @@
       --border: rgba(232, 228, 220, 0.07);
       --shadow: rgba(0, 0, 0, 0.3);
       --divider: rgba(232, 228, 220, 0.08);
-      --glow-running: rgba(122, 157, 184, 0.2);
+      --glow-running: rgba(106, 157, 176, 0.2);
       --glow-confirm: rgba(201, 123, 115, 0.2);
       --glow-done: rgba(120, 200, 150, 0.16);
     }
@@ -61,33 +61,19 @@
       position: relative;
     }
 
-    /* 水墨水波纹背景 */
+    /* ═══ 水墨角落装饰 ═══ */
     body::before {
       content: '';
       position: fixed;
       inset: 0;
       background-image:
-        repeating-radial-gradient(
-          ellipse 80% 30% at 20% 40%,
-          transparent 0px,
-          transparent 60px,
-          rgba(46, 78, 110, 0.04) 61px,
-          transparent 62px
-        ),
-        repeating-radial-gradient(
-          ellipse 70% 25% at 70% 60%,
-          transparent 0px,
-          transparent 80px,
-          rgba(46, 78, 110, 0.03) 81px,
-          transparent 82px
-        ),
-        repeating-radial-gradient(
-          ellipse 90% 20% at 50% 80%,
-          transparent 0px,
-          transparent 100px,
-          rgba(46, 78, 110, 0.025) 101px,
-          transparent 102px
-        );
+        /* 左下角淡墨山峦 */
+        radial-gradient(ellipse 120% 80% at -10% 110%, rgba(46, 92, 110, 0.08) 0%, transparent 50%),
+        radial-gradient(ellipse 100% 60% at 5% 100%, rgba(46, 92, 110, 0.05) 0%, transparent 40%),
+        /* 右下角淡墨竹枝感 */
+        radial-gradient(ellipse 80% 100% at 105% 90%, rgba(46, 92, 110, 0.06) 0%, transparent 45%),
+        /* 顶部淡墨横向晕染 */
+        radial-gradient(ellipse 80% 40% at 50% -10%, rgba(46, 92, 110, 0.04) 0%, transparent 50%);
       pointer-events: none;
       z-index: 0;
       transition: all 0.5s ease;
@@ -95,27 +81,77 @@
 
     [data-theme="dark"] body::before {
       background-image:
-        repeating-radial-gradient(
-          ellipse 80% 30% at 20% 40%,
-          transparent 0px,
-          transparent 60px,
-          rgba(122, 157, 184, 0.05) 61px,
-          transparent 62px
-        ),
-        repeating-radial-gradient(
-          ellipse 70% 25% at 70% 60%,
-          transparent 0px,
-          transparent 80px,
-          rgba(122, 157, 184, 0.04) 81px,
-          transparent 82px
-        ),
-        repeating-radial-gradient(
-          ellipse 90% 20% at 50% 80%,
-          transparent 0px,
-          transparent 100px,
-          rgba(122, 157, 184, 0.03) 101px,
-          transparent 102px
-        );
+        radial-gradient(ellipse 120% 80% at -10% 110%, rgba(106, 157, 176, 0.10) 0%, transparent 50%),
+        radial-gradient(ellipse 100% 60% at 5% 100%, rgba(106, 157, 176, 0.07) 0%, transparent 40%),
+        radial-gradient(ellipse 80% 100% at 105% 90%, rgba(106, 157, 176, 0.08) 0%, transparent 45%),
+        radial-gradient(ellipse 80% 40% at 50% -10%, rgba(106, 157, 176, 0.05) 0%, transparent 50%);
+    }
+
+    /* 竹子底纹 - 左侧 */
+    .ink-bamboo {
+      position: fixed;
+      bottom: 0;
+      left: 0;
+      width: 180px;
+      height: 100vh;
+      pointer-events: none;
+      z-index: 0;
+      opacity: 0.7;
+      transition: opacity 0.5s ease;
+    }
+
+    .ink-bamboo svg {
+      width: 100%;
+      height: 100%;
+    }
+
+    .ink-bamboo path {
+      fill: none;
+      stroke: var(--accent);
+      stroke-linecap: round;
+      opacity: 0.4;
+      transition: stroke 0.5s ease;
+    }
+
+    .ink-bamboo .bamboo-stem {
+      stroke-width: 2.5;
+    }
+
+    .ink-bamboo .bamboo-joint {
+      stroke-width: 2;
+    }
+
+    .ink-bamboo .bamboo-leaf {
+      stroke-width: 1.2;
+      opacity: 0.35;
+    }
+
+    /* 右侧角落竹叶点缀 */
+    .ink-bamboo-tr {
+      position: fixed;
+      top: 50px;
+      right: 0;
+      width: 150px;
+      height: 200px;
+      pointer-events: none;
+      z-index: 0;
+      opacity: 0.5;
+    }
+
+    .ink-bamboo-tr svg {
+      width: 100%;
+      height: 100%;
+    }
+
+    .ink-bamboo-tr path {
+      fill: none;
+      stroke: var(--accent-gold);
+      stroke-linecap: round;
+      opacity: 0.4;
+    }
+
+    .ink-bamboo-tr .bamboo-leaf {
+      stroke-width: 1;
     }
 
     .app {
@@ -126,7 +162,7 @@
       z-index: 1;
     }
 
-    /* ═══ 顶部画轴线 ═══ */
+    /* ═══ 顶部画轴线 + 淡墨晕染 ═══ */
     .top-accent-line {
       height: 2px;
       background: linear-gradient(90deg,
@@ -337,7 +373,6 @@
       overflow: hidden;
       transition: all 0.4s ease;
       animation: fadeInUp 0.6s cubic-bezier(0.16, 1, 0.3, 1) backwards;
-      /* 装裱感：subtle 内发光 */
       box-shadow:
         inset 0 1px 1px rgba(255,255,255,0.5),
         0 4px 24px var(--shadow);
@@ -452,7 +487,6 @@
       color: var(--text-tertiary);
     }
 
-    /* 令牌风格徽章 */
     .run-badge {
       padding: 3px 10px;
       border-radius: 4px;
@@ -490,8 +524,6 @@
       animation-delay: 0.16s;
     }
 
-    /* 印章风格步骤 */
-    /* 水墨分割线 */
     .steps-scroll {
       display: flex;
       align-items: center;
@@ -591,7 +623,6 @@
       letter-spacing: 0.02em;
     }
 
-    /* Transcript */
     .transcript {
       flex: 1;
       overflow: auto;
@@ -614,7 +645,7 @@
       max-width: 70%;
       padding: 10px 16px;
       border-radius: 16px 16px 4px 16px;
-      background: linear-gradient(135deg, var(--accent), #3d6080);
+      background: linear-gradient(135deg, var(--accent), #3d7080);
       color: #fff;
       font-size: 13px;
       box-shadow: 0 2px 8px rgba(0,0,0,0.1);
@@ -722,7 +753,6 @@
       color: var(--text-secondary);
     }
 
-    /* Composer */
     .composer {
       padding: 14px 20px;
       border-top: 1px solid var(--border);
@@ -756,7 +786,7 @@
     }
 
     .btn-primary {
-      background: linear-gradient(135deg, var(--accent), #3d6080);
+      background: linear-gradient(135deg, var(--accent), #3d7080);
       color: #fff;
       box-shadow: 0 2px 8px var(--glow-running);
     }
@@ -843,7 +873,6 @@
       box-shadow: 0 4px 20px var(--glow-running);
     }
 
-    /* ═══ 右栏 ═══ */
     .col-right {
       width: 280px;
       flex-shrink: 0;
@@ -852,7 +881,6 @@
       overflow: hidden;
     }
 
-    /* 右栏水墨晕染 */
     .col-right::before {
       content: '';
       position: absolute;
@@ -862,7 +890,7 @@
       height: 200%;
       background: radial-gradient(
         ellipse 60% 40% at 70% 30%,
-        rgba(46, 78, 110, 0.06) 0%,
+        rgba(46, 92, 110, 0.06) 0%,
         transparent 60%
       );
       pointer-events: none;
@@ -872,7 +900,7 @@
     [data-theme="dark"] .col-right::before {
       background: radial-gradient(
         ellipse 60% 40% at 70% 30%,
-        rgba(122, 157, 184, 0.08) 0%,
+        rgba(106, 157, 176, 0.08) 0%,
         transparent 60%
       );
     }
@@ -1000,20 +1028,300 @@
       background: linear-gradient(to bottom, var(--accent-gold), transparent);
     }
 
-    /* 滚动条 */
     ::-webkit-scrollbar { width: 5px; height: 5px; }
     ::-webkit-scrollbar-track { background: transparent; }
     ::-webkit-scrollbar-thumb { background: var(--border); border-radius: 3px; }
 
+    /* ═══ Page System ═══ */
+    .page { display: none; flex: 1; overflow: hidden; }
+    .page.active { display: flex; }
+
+    /* ═══ Templates / DAG Canvas ═══ */
+    .dag-sidebar { width: 240px; flex-shrink: 0; }
+    .dag-main { flex: 1; display: flex; flex-direction: column; min-width: 0; position: relative; }
+    .dag-canvas {
+      flex: 1;
+      position: relative;
+      overflow: auto;
+      background: var(--bg-secondary);
+      border-radius: 12px;
+      margin: 0 14px 14px;
+      border: 1px solid var(--border);
+    }
+    .dag-node {
+      position: absolute;
+      padding: 12px 18px;
+      border-radius: 12px;
+      background: var(--bg-panel);
+      backdrop-filter: blur(12px);
+      border: 2px solid var(--border);
+      font-size: 12px;
+      font-weight: 700;
+      cursor: grab;
+      transition: all 0.3s ease;
+      min-width: 120px;
+      text-align: center;
+      z-index: 2;
+    }
+    .dag-node:hover { transform: translateY(-2px); box-shadow: 0 8px 24px var(--shadow); }
+    .dag-node.start { border-color: var(--accent); color: var(--accent); }
+    .dag-node.agent { border-color: var(--accent-gold); color: var(--accent-gold); }
+    .dag-node.end { border-color: var(--text-tertiary); color: var(--text-tertiary); }
+    .dag-node.parallel { border-style: dashed; border-color: var(--accent-warm); color: var(--accent-warm); }
+    .dag-edge {
+      position: absolute;
+      height: 2px;
+      background: linear-gradient(90deg, var(--accent-soft), var(--accent-gold-soft));
+      z-index: 1;
+      border-radius: 1px;
+    }
+    .dag-edge::after {
+      content: '';
+      position: absolute;
+      right: -4px;
+      top: -3px;
+      width: 0;
+      height: 0;
+      border-left: 6px solid var(--accent-gold);
+      border-top: 4px solid transparent;
+      border-bottom: 4px solid transparent;
+    }
+    .template-item {
+      padding: 10px 12px;
+      border-radius: 10px;
+      margin-bottom: 6px;
+      cursor: pointer;
+      transition: all 0.3s ease;
+      border: 1px solid transparent;
+    }
+    .template-item:hover { background: var(--accent-soft); }
+    .template-item.active { background: var(--accent-soft); border-color: var(--accent-soft); }
+
+    /* ═══ Agents ═══ */
+    .agent-grid {
+      display: grid;
+      grid-template-columns: repeat(auto-fill, minmax(220px, 1fr));
+      gap: 14px;
+      padding: 14px;
+    }
+    .agent-card {
+      padding: 18px;
+      border-radius: 14px;
+      background: var(--bg-panel);
+      backdrop-filter: blur(12px);
+      border: 1px solid var(--border);
+      transition: all 0.3s ease;
+      cursor: pointer;
+      position: relative;
+      overflow: hidden;
+    }
+    .agent-card:hover {
+      transform: translateY(-3px);
+      box-shadow: 0 8px 32px var(--shadow);
+      border-color: var(--accent-soft);
+    }
+    .agent-card::before {
+      content: '';
+      position: absolute;
+      top: 0;
+      left: 0;
+      width: 3px;
+      height: 100%;
+      background: linear-gradient(to bottom, var(--accent-gold), transparent);
+      opacity: 0;
+      transition: opacity 0.3s ease;
+    }
+    .agent-card:hover::before { opacity: 1; }
+    .agent-avatar {
+      width: 44px;
+      height: 44px;
+      border-radius: 50%;
+      background: linear-gradient(135deg, var(--accent), var(--accent-gold));
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      font-size: 18px;
+      margin-bottom: 12px;
+    }
+    .agent-name { font-size: 14px; font-weight: 700; margin-bottom: 4px; }
+    .agent-role { font-size: 11px; color: var(--text-tertiary); margin-bottom: 10px; }
+    .agent-meta { font-size: 10px; color: var(--text-tertiary); display: flex; gap: 8px; }
+    .memory-list {
+      padding: 14px;
+    }
+    .memory-item {
+      padding: 10px 12px;
+      border-radius: 10px;
+      background: var(--bg-secondary);
+      border: 1px solid var(--border);
+      margin-bottom: 8px;
+      font-size: 12px;
+      transition: all 0.3s ease;
+    }
+    .memory-item:hover { border-color: var(--accent-gold-soft); }
+
+    /* ═══ Single ═══ */
+    .single-config {
+      padding: 16px 20px;
+      border-bottom: 1px solid var(--border);
+      display: flex;
+      gap: 12px;
+      flex-wrap: wrap;
+      align-items: center;
+    }
+    .config-field {
+      display: flex;
+      flex-direction: column;
+      gap: 4px;
+    }
+    .config-field label {
+      font-size: 10px;
+      color: var(--text-tertiary);
+      font-weight: 600;
+      text-transform: uppercase;
+      letter-spacing: 0.05em;
+    }
+    .config-field select, .config-field input {
+      padding: 6px 10px;
+      border-radius: 8px;
+      border: 1px solid var(--border);
+      background: var(--bg-secondary);
+      color: var(--text-primary);
+      font-size: 12px;
+      outline: none;
+      font-family: inherit;
+    }
+
+    /* ═══ Settings ═══ */
+    .settings-layout {
+      display: flex;
+      flex: 1;
+      overflow: hidden;
+    }
+    .settings-nav {
+      width: 200px;
+      border-right: 1px solid var(--border);
+      padding: 12px;
+      flex-shrink: 0;
+    }
+    .settings-nav-item {
+      padding: 8px 12px;
+      border-radius: 8px;
+      font-size: 12px;
+      color: var(--text-secondary);
+      cursor: pointer;
+      transition: all 0.2s ease;
+      margin-bottom: 2px;
+      font-weight: 500;
+    }
+    .settings-nav-item:hover { background: var(--accent-soft); color: var(--accent); }
+    .settings-nav-item.active { background: var(--accent-soft); color: var(--accent); font-weight: 700; }
+    .settings-content {
+      flex: 1;
+      overflow: auto;
+      padding: 20px 28px;
+    }
+    .settings-section-title {
+      font-size: 16px;
+      font-weight: 700;
+      margin-bottom: 16px;
+      color: var(--text-primary);
+    }
+    .form-group {
+      margin-bottom: 18px;
+      max-width: 480px;
+    }
+    .form-group label {
+      display: block;
+      font-size: 11px;
+      font-weight: 600;
+      color: var(--text-tertiary);
+      margin-bottom: 6px;
+      text-transform: uppercase;
+      letter-spacing: 0.05em;
+    }
+    .form-group input, .form-group select, .form-group textarea {
+      width: 100%;
+      padding: 8px 12px;
+      border-radius: 8px;
+      border: 1px solid var(--border);
+      background: var(--bg-secondary);
+      color: var(--text-primary);
+      font-size: 13px;
+      outline: none;
+      font-family: inherit;
+      transition: all 0.25s ease;
+    }
+    .form-group input:focus, .form-group select:focus, .form-group textarea:focus {
+      border-color: var(--accent);
+      box-shadow: 0 0 0 3px var(--accent-soft);
+    }
+    .form-group textarea {
+      min-height: 80px;
+      resize: vertical;
+    }
+    .form-row {
+      display: flex;
+      gap: 12px;
+    }
+    .form-row .form-group { flex: 1; }
+    .toggle-switch {
+      width: 40px;
+      height: 22px;
+      border-radius: 11px;
+      background: var(--bg-tertiary);
+      border: 1px solid var(--border);
+      position: relative;
+      cursor: pointer;
+      transition: all 0.3s ease;
+    }
+    .toggle-switch.on {
+      background: var(--accent);
+      border-color: var(--accent);
+    }
+    .toggle-switch::after {
+      content: '';
+      position: absolute;
+      top: 2px;
+      left: 2px;
+      width: 16px;
+      height: 16px;
+      border-radius: 50%;
+      background: #fff;
+      transition: transform 0.3s cubic-bezier(0.34, 1.56, 0.64, 1);
+      box-shadow: 0 1px 3px rgba(0,0,0,0.2);
+    }
+    .toggle-switch.on::after { transform: translateX(18px); }
+
     @media (max-width: 1100px) {
-      .col-right { display: none; }
+      .col-right, .dag-sidebar { display: none; }
     }
     @media (max-width: 800px) {
-      .col-left { display: none; }
+      .col-left, .settings-nav { display: none; }
     }
   </style>
 </head>
 <body data-theme="light">
+  <!-- 水墨山峦线条 - 左下角 -->
+  <div class="ink-bamboo">
+    <svg viewBox="0 0 400 250" preserveAspectRatio="xMinYMax slice">
+      <path class="bamboo-stem" d="M-20,180 Q30,120 80,140 T160,100 T240,130 T320,90 L400,110 L400,270 L-20,270 Z" />
+      <path class="bamboo-stem" d="M-20,200 Q40,150 100,170 T200,130 T300,160 L400,140 L400,270 L-20,270 Z" opacity="0.6"/>
+      <path class="bamboo-stem" d="M-20,190 Q50,160 90,175 T180,150 T260,170 T360,155" opacity="0.4"/>
+      <path class="bamboo-joint" d="M60,145 Q65,110 70,145 M65,125 Q55,115 65,125 M65,125 Q75,115 65,125" opacity="0.3"/>
+      <path class="bamboo-joint" d="M140,105 Q145,75 150,105 M145,90 Q135,80 145,90 M145,90 Q155,80 145,90" opacity="0.25"/>
+    </svg>
+  </div>
+
+  <!-- 右上角淡墨笔触 -->
+  <div class="ink-bamboo-tr">
+    <svg viewBox="0 0 200 150" preserveAspectRatio="xMaxYMin slice">
+      <path class="bamboo-leaf" d="M200,0 Q150,20 180,60 T140,120 T160,150" />
+      <path class="bamboo-leaf" d="M200,30 Q160,50 170,90 T130,140" opacity="0.6"/>
+      <path class="bamboo-leaf" d="M180,0 Q140,15 150,50" opacity="0.4"/>
+    </svg>
+  </div>
+
   <div class="app">
     <!-- 顶部画轴线 -->
     <div class="top-accent-line"></div>
@@ -1025,11 +1333,11 @@
         <span>经纶</span>
       </div>
       <nav class="nav">
-        <div class="nav-item active">经纶</div>
-        <div class="nav-item">模板</div>
-        <div class="nav-item">智能体</div>
-        <div class="nav-item">单次</div>
-        <div class="nav-item">设置</div>
+        <div class="nav-item active" onclick="switchPage('workflow')">经纶</div>
+        <div class="nav-item" onclick="switchPage('templates')">模板</div>
+        <div class="nav-item" onclick="switchPage('agents')">智能体</div>
+        <div class="nav-item" onclick="switchPage('single')">单次</div>
+        <div class="nav-item" onclick="switchPage('settings')">设置</div>
       </nav>
       <div class="topbar-right">
         <div class="status-pill">
@@ -1040,9 +1348,10 @@
       </div>
     </header>
 
-    <!-- Main -->
-    <div class="main">
-      <!-- 左栏 · Runs -->
+    <!-- Page: Workflow -->
+    <div class="page active" id="page-workflow">
+      <div class="main">
+      <!-- 左栏 -->
       <div class="panel col-left" style="animation-delay:0.08s">
         <div class="panel-header">
           <span class="panel-title">运行队列</span>
@@ -1094,7 +1403,6 @@
 
       <!-- 中栏 -->
       <div class="panel col-center" style="animation-delay:0.16s">
-        <!-- 印章风格步骤 -->
         <div class="steps-scroll">
           <div class="step-node">
             <div class="step-seal done">✓</div>
@@ -1122,7 +1430,6 @@
           </div>
         </div>
 
-        <!-- Transcript -->
         <div class="transcript">
           <div class="msg msg-user" style="animation-delay:0.1s">
             <div class="bubble">为 acme-web 添加 RBAC 鉴权，支持角色继承</div>
@@ -1164,7 +1471,6 @@
           </div>
         </div>
 
-        <!-- Composer -->
         <div class="composer">
           <div class="composer-actions">
             <button class="btn btn-primary">✓ 确认继续</button>
