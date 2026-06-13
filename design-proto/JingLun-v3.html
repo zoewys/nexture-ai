@@ -1333,12 +1333,12 @@
         <span>经纶</span>
       </div>
       <nav class="nav">
-        <div class="nav-item active" onclick="switchPage('workflow')">经纶</div>
-        <div class="nav-item" onclick="switchPage('templates')">模板</div>
-        <div class="nav-item" onclick="switchPage('agents')">智能体</div>
-        <div class="nav-item" onclick="switchPage('single')">单次</div>
-        <div class="nav-item" onclick="switchPage('settings')">设置</div>
-      </nav>
+      <div class="nav-item active" onclick="switchPage('workflow', this)">经纶</div>
+      <div class="nav-item" onclick="switchPage('templates', this)">模板</div>
+      <div class="nav-item" onclick="switchPage('agents', this)">智能体</div>
+      <div class="nav-item" onclick="switchPage('single', this)">单次</div>
+      <div class="nav-item" onclick="switchPage('settings', this)">设置</div>
+    </nav>
       <div class="topbar-right">
         <div class="status-pill">
           <span class="status-dot"></span>
@@ -1547,9 +1547,299 @@
         </div>
       </div>
     </div>
+
+    <!-- Page: Templates -->
+    <div class="page" id="page-templates">
+      <div class="main">
+        <div class="panel dag-sidebar" style="animation-delay:0.08s">
+          <div class="panel-header">
+            <span class="panel-title">模板库</span>
+            <span style="font-size:11px;color:var(--text-tertiary);cursor:pointer;font-weight:600;">+ 新建</span>
+          </div>
+          <div class="panel-body">
+            <div class="template-item active">
+              <div style="font-size:13px;font-weight:700;margin-bottom:4px;">需求 → 设计 → 开发</div>
+              <div style="font-size:10px;color:var(--text-tertiary);">5 个步骤 · 3 个 Agent</div>
+            </div>
+            <div class="template-item">
+              <div style="font-size:13px;font-weight:700;margin-bottom:4px;">代码 Review 流水线</div>
+              <div style="font-size:10px;color:var(--text-tertiary);">3 个步骤 · 2 个 Agent</div>
+            </div>
+            <div class="template-item">
+              <div style="font-size:13px;font-weight:700;margin-bottom:4px;">定时数据清洗</div>
+              <div style="font-size:10px;color:var(--text-tertiary);">2 个步骤 · 1 个 Agent</div>
+            </div>
+          </div>
+        </div>
+
+        <div class="panel dag-main" style="animation-delay:0.16s">
+          <div class="panel-header">
+            <span class="panel-title">画布</span>
+            <div style="display:flex;gap:8px;">
+              <button class="btn btn-primary" style="padding:5px 12px;font-size:11px;">+ Agent 节点</button>
+              <button class="btn btn-ghost" style="padding:5px 12px;font-size:11px;">+ 并行组</button>
+            </div>
+          </div>
+          <div class="dag-canvas">
+            <div class="dag-node start" style="left:40px;top:40px;">开始</div>
+            <div class="dag-edge" style="left:110px;top:55px;width:60px;"></div>
+            <div class="dag-node agent" style="left:180px;top:30px;">需求分析</div>
+            <div class="dag-edge" style="left:260px;top:55px;width:60px;"></div>
+            <div class="dag-node agent" style="left:330px;top:30px;">技术设计</div>
+            <div class="dag-edge" style="left:410px;top:55px;width:40px;transform:rotate(30deg);"></div>
+            <div class="dag-node parallel" style="left:460px;top:20px;">并行开发</div>
+            <div class="dag-edge" style="left:500px;top:75px;width:30px;transform:rotate(90deg);"></div>
+            <div class="dag-node agent" style="left:460px;top:110px;">后端</div>
+            <div class="dag-edge" style="left:540px;top:55px;width:60px;"></div>
+            <div class="dag-node agent" style="left:460px;top:160px;">前端</div>
+            <div class="dag-edge" style="left:620px;top:125px;width:60px;"></div>
+            <div class="dag-node agent" style="left:610px;top:30px;">测试验收</div>
+            <div class="dag-edge" style="left:690px;top:55px;width:60px;"></div>
+            <div class="dag-node end" style="left:760px;top:40px;">结束</div>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <!-- Page: Agents -->
+    <div class="page" id="page-agents">
+      <div class="main">
+        <div class="panel col-left" style="animation-delay:0.08s">
+          <div class="panel-header">
+            <span class="panel-title">角色列表</span>
+            <span style="font-size:11px;color:var(--text-tertiary);cursor:pointer;font-weight:600;">+ 新建</span>
+          </div>
+          <div class="panel-body">
+            <div class="run-item active">
+              <div class="run-title">Product Manager</div>
+              <div class="run-meta"><span>需求分析 · claude</span></div>
+            </div>
+            <div class="run-item">
+              <div class="run-title">Architect</div>
+              <div class="run-meta"><span>技术设计 · claude</span></div>
+            </div>
+            <div class="run-item">
+              <div class="run-title">Backend Dev</div>
+              <div class="run-meta"><span>后端开发 · codex</span></div>
+            </div>
+            <div class="run-item">
+              <div class="run-title">Frontend Dev</div>
+              <div class="run-meta"><span>前端开发 · api</span></div>
+            </div>
+            <div class="run-item">
+              <div class="run-title">QA</div>
+              <div class="run-meta"><span>测试验收 · api</span></div>
+            </div>
+          </div>
+        </div>
+
+        <div class="panel col-center" style="animation-delay:0.16s">
+          <div class="panel-header">
+            <span class="panel-title">Agent 详情</span>
+            <button class="btn btn-primary" style="padding:5px 12px;font-size:11px;">保存</button>
+          </div>
+          <div class="panel-body" style="padding:20px;">
+            <div style="display:flex;align-items:center;gap:14px;margin-bottom:20px;">
+              <div class="agent-avatar">🤖</div>
+              <div>
+                <div style="font-size:16px;font-weight:700;">Product Manager</div>
+                <div style="font-size:12px;color:var(--text-tertiary);">需求分析 · 产品规划 · 用户调研</div>
+              </div>
+            </div>
+            <div class="form-group">
+              <label>名称</label>
+              <input value="Product Manager" />
+            </div>
+            <div class="form-row">
+              <div class="form-group">
+                <label>运行模式</label>
+                <select><option>Claude CLI</option><option>Codex CLI</option><option>API</option></select>
+              </div>
+              <div class="form-group">
+                <label>模型</label>
+                <select><option>claude-sonnet-4-6</option><option>gpt-4o</option></select>
+              </div>
+            </div>
+            <div class="form-group">
+              <label>系统提示词</label>
+              <textarea>你是一位资深产品经理。你的职责是分析需求、撰写PRD、梳理用户故事，并确保技术方案符合业务目标。</textarea>
+            </div>
+          </div>
+        </div>
+
+        <div class="panel col-right" style="animation-delay:0.24s">
+          <div class="panel-header">
+            <span class="panel-title">记忆库</span>
+          </div>
+          <div class="panel-body memory-list">
+            <div class="memory-item">
+              <div style="font-weight:700;font-size:12px;margin-bottom:4px;">auth-pattern</div>
+              <div style="font-size:11px;color:var(--text-tertiary);">项目使用 JWT + RBAC 的鉴权模式，token 有效期 2 小时。</div>
+            </div>
+            <div class="memory-item">
+              <div style="font-weight:700;font-size:12px;margin-bottom:4px;">rbac-rules</div>
+              <div style="font-size:11px;color:var(--text-tertiary);">角色分为 admin、editor、viewer 三级，权限粒度到按钮级别。</div>
+            </div>
+            <div class="memory-item">
+              <div style="font-weight:700;font-size:12px;margin-bottom:4px;">error-handling</div>
+              <div style="font-size:11px;color:var(--text-tertiary);">API 统一返回 {code, message, data} 格式，HTTP 状态码只用 200/400/500。</div>
+            </div>
+            <div class="memory-item">
+              <div style="font-weight:700;font-size:12px;margin-bottom:4px;">deploy-flow</div>
+              <div style="font-size:11px;color:var(--text-tertiary);">CI/CD 使用 GitHub Actions，部署到 AWS ECS，蓝绿发布。</div>
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <!-- Page: Single -->
+    <div class="page" id="page-single">
+      <div class="main">
+        <div class="panel col-left" style="animation-delay:0.08s;width:220px;">
+          <div class="panel-header">
+            <span class="panel-title">历史</span>
+          </div>
+          <div class="panel-body">
+            <div class="run-item">
+              <div class="run-title">重构 auth 模块</div>
+              <div class="run-meta"><span>昨天 · claude</span></div>
+            </div>
+            <div class="run-item">
+              <div class="run-title">写 API 文档</div>
+              <div class="run-meta"><span>3天前 · codex</span></div>
+            </div>
+          </div>
+        </div>
+
+        <div class="panel col-center" style="animation-delay:0.16s">
+          <div class="single-config">
+            <div class="config-field">
+              <label>Vendor</label>
+              <select><option>Claude CLI</option><option>Codex CLI</option><option>API</option></select>
+            </div>
+            <div class="config-field">
+              <label>模型</label>
+              <select><option>claude-sonnet-4-6</option><option>gpt-4o</option><option>deepseek-chat</option></select>
+            </div>
+            <div class="config-field">
+              <label>项目路径</label>
+              <input value="~/projects/acme-web" />
+            </div>
+            <div class="config-field">
+              <label>Agent</label>
+              <select><option>Architect</option><option>Backend Dev</option></option></select>
+            </div>
+          </div>
+          <div class="transcript">
+            <div class="msg msg-user">
+              <div class="bubble">帮我重构 auth 模块，改用 RBAC</div>
+            </div>
+            <div class="msg msg-assistant">
+              <div class="msg-avatar">🤖</div>
+              <div class="msg-content">
+                <div class="bubble">好的，我来分析现有 auth 模块并给出 RBAC 重构方案。</div>
+                <div class="msg-tool">🔧 file_read src/auth.ts</div>
+                <div class="msg-tool">🔧 file_read src/middleware/auth.ts</div>
+                <div class="msg-tool">📝 M src/auth.ts (+120, -80)</div>
+              </div>
+            </div>
+            <div class="msg-usage">
+              <span>4,200 → 1,890 tokens · $0.0084</span>
+            </div>
+          </div>
+          <div class="composer">
+            <div class="composer-input-wrap">
+              <input class="composer-input" placeholder="发送消息..." />
+              <button class="composer-send">➤</button>
+            </div>
+          </div>
+        </div>
+
+        <div class="panel col-right" style="animation-delay:0.24s;width:240px;">
+          <div class="panel-header">
+            <span class="panel-title">运行参数</span>
+          </div>
+          <div class="panel-body" style="padding:14px;">
+            <div class="detail-row"><span class="detail-label">状态</span><span class="detail-value" style="color:var(--accent);">运行中</span></div>
+            <div class="detail-row"><span class="detail-label">模型</span><span class="detail-value">claude-sonnet-4-6</span></div>
+            <div class="detail-row"><span class="detail-label">耗时</span><span class="detail-value">2m 14s</span></div>
+            <div class="detail-row"><span class="detail-label">Cost</span><span class="detail-value">$0.0084</span></div>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <!-- Page: Settings -->
+    <div class="page" id="page-settings">
+      <div class="settings-layout">
+        <div class="settings-nav">
+          <div class="settings-nav-item active">CLI 工具</div>
+          <div class="settings-nav-item">API 供应商</div>
+          <div class="settings-nav-item">数据管理</div>
+          <div class="settings-nav-item">通知</div>
+          <div class="settings-nav-item">Memory</div>
+          <div class="settings-nav-item">关于</div>
+        </div>
+        <div class="settings-content">
+          <div class="settings-section-title">CLI 工具</div>
+          <div class="form-group">
+            <label>Claude Code 路径</label>
+            <input value="/usr/local/bin/claude" />
+          </div>
+          <div class="form-group">
+            <label>Codex CLI 路径</label>
+            <input value="/usr/local/bin/codex" />
+          </div>
+          <div class="form-group">
+            <label>自动更新 CLI</label>
+            <div style="display:flex;align-items:center;gap:10px;margin-top:6px;">
+              <div class="toggle-switch on"></div>
+              <span style="font-size:12px;color:var(--text-secondary);">开启</span>
+            </div>
+          </div>
+
+          <div style="height:1px;background:var(--border);margin:24px 0;"></div>
+          <div class="settings-section-title">API 供应商</div>
+          <div class="form-group">
+            <label>DeepSeek API Key</label>
+            <input type="password" value="sk-xxxxxxxx" />
+          </div>
+          <div class="form-group">
+            <label>OpenAI API Key</label>
+            <input type="password" value="sk-yyyyyyyy" />
+          </div>
+          <div class="form-row">
+            <div class="form-group">
+              <label>Kimi API Key</label>
+              <input type="password" value="sk-zzzzzzzz" />
+            </div>
+            <div class="form-group">
+              <label>MiMo API Key</label>
+              <input type="password" value="sk-wwwwwwww" />
+            </div>
+          </div>
+
+          <div style="height:1px;background:var(--border);margin:24px 0;"></div>
+          <div class="settings-section-title">通知</div>
+          <div class="form-group">
+            <label>Feishu Webhook</label>
+            <input placeholder="https://open.feishu.cn/open-apis/bot/v2/hook/..." />
+          </div>
+          <div class="form-group">
+            <label>启用通知</label>
+            <div style="display:flex;align-items:center;gap:10px;margin-top:6px;">
+              <div class="toggle-switch"></div>
+              <span style="font-size:12px;color:var(--text-secondary);">关闭</span>
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
   </div>
 
   <script>
+    // 主题切换
     const themeToggle = document.getElementById('themeToggle');
     const body = document.body;
     themeToggle.addEventListener('click', () => {
@@ -1562,9 +1852,25 @@
     const saved = localStorage.getItem('jinglun-theme');
     if (saved) body.setAttribute('data-theme', saved);
 
+    // 页面切换
+    function switchPage(pageId, el) {
+      document.querySelectorAll('.page').forEach((p) => p.classList.remove('active'));
+      document.querySelectorAll('.nav-item').forEach((n) => n.classList.remove('active'));
+      const target = document.getElementById('page-' + pageId);
+      if (target) target.classList.add('active');
+      if (el) el.classList.add('active');
+    }
+
     document.querySelectorAll('.run-item').forEach((item) => {
       item.addEventListener('click', () => {
         document.querySelectorAll('.run-item').forEach((i) => i.classList.remove('active'));
+        item.classList.add('active');
+      });
+    });
+
+    document.querySelectorAll('.settings-nav-item').forEach((item) => {
+      item.addEventListener('click', () => {
+        document.querySelectorAll('.settings-nav-item').forEach((i) => i.classList.remove('active'));
         item.classList.add('active');
       });
     });
