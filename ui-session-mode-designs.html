@@ -1,0 +1,899 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="UTF-8">
+<title>Agent Studio — Session Mode UI 方案选择</title>
+<style>
+:root {
+  --bg: #17191f;
+  --bg-header: #191c23;
+  --bg-panel: #20232b;
+  --bg-input: #242833;
+  --bg-card: #161b22;
+  --border: #343946;
+  --border-soft: #2a2f3b;
+  --text-strong: #eef2f8;
+  --text: #eef2f8;
+  --text-soft: #c8d0df;
+  --text-dim: #9aa3b5;
+  --accent: #6c8cff;
+  --accent-dim: #3d4a7a;
+  --green: #4caf7d;
+  --yellow: #d4a548;
+  --red: #db6b6b;
+  --purple: #b48ead;
+  --orange: #d4874d;
+  --blue: #60a5fa;
+  --cyan: #5cb8d4;
+}
+
+* { margin: 0; padding: 0; box-sizing: border-box; }
+body {
+  font-family: Inter, -apple-system, BlinkMacSystemFont, 'Segoe UI', system-ui, sans-serif;
+  background: var(--bg);
+  color: var(--text);
+  font-size: 13px;
+  line-height: 1.5;
+  overflow-x: hidden;
+}
+
+.page-header {
+  background: var(--bg-header);
+  border-bottom: 1px solid var(--border);
+  padding: 16px 32px;
+  position: sticky;
+  top: 0;
+  z-index: 100;
+}
+.page-header h1 { font-size: 18px; font-weight: 750; }
+.page-header p { font-size: 12px; color: var(--text-dim); margin-top: 4px; }
+
+.container { max-width: 1220px; margin: 0 auto; padding: 24px 32px 80px; }
+
+.decision-section {
+  margin-bottom: 48px;
+  border: 1px solid var(--border);
+  border-radius: 10px;
+  overflow: hidden;
+}
+.decision-header {
+  background: var(--bg-panel);
+  padding: 16px 20px;
+  border-bottom: 1px solid var(--border);
+  display: flex;
+  align-items: center;
+  gap: 10px;
+}
+.decision-header .badge {
+  font-size: 10px;
+  font-weight: 800;
+  text-transform: uppercase;
+  letter-spacing: 0.06em;
+  padding: 2px 7px;
+  border-radius: 4px;
+  border: 1px solid;
+}
+.badge-task7 { border-color: rgba(108,140,255,0.5); background: rgba(108,140,255,0.12); color: var(--accent); }
+.badge-task8 { border-color: rgba(212,165,72,0.5); background: rgba(212,165,72,0.12); color: var(--yellow); }
+.badge-task10 { border-color: rgba(96,165,250,0.5); background: rgba(96,165,250,0.12); color: var(--blue); }
+.decision-header h2 { font-size: 15px; font-weight: 700; }
+.decision-desc {
+  padding: 12px 20px;
+  font-size: 12px;
+  color: var(--text-dim);
+  background: var(--bg-panel);
+  border-bottom: 1px solid var(--border);
+  line-height: 1.6;
+}
+
+.options-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(360px, 1fr));
+  gap: 1px;
+  background: var(--border);
+}
+.option-card {
+  background: var(--bg);
+  padding: 20px;
+  cursor: pointer;
+  transition: background 0.15s, border-color 0.15s;
+  position: relative;
+}
+.option-card:hover { background: var(--bg-panel); }
+.option-card.selected { background: rgba(108,140,255,0.06); }
+.option-card.selected::before {
+  content: '';
+  position: absolute;
+  top: 0; left: 0; right: 0;
+  height: 2px;
+  background: var(--accent);
+}
+.option-card-header {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  margin-bottom: 10px;
+}
+.option-radio {
+  width: 16px; height: 16px; border-radius: 50%;
+  border: 2px solid var(--border);
+  display: flex; align-items: center; justify-content: center;
+  flex-shrink: 0;
+}
+.selected .option-radio { border-color: var(--accent); }
+.selected .option-radio::after {
+  content: '';
+  width: 8px; height: 8px; border-radius: 50%;
+  background: var(--accent);
+}
+.option-label { font-size: 13px; font-weight: 700; color: var(--text-strong); }
+.option-sublabel { font-size: 11px; color: var(--text-dim); margin-bottom: 12px; line-height: 1.5; }
+
+.mockup {
+  border: 1px solid var(--border);
+  border-radius: 8px;
+  overflow: hidden;
+  background: var(--bg-card);
+}
+.mockup-title-bar {
+  font-size: 10px;
+  text-transform: uppercase;
+  letter-spacing: 0.05em;
+  color: var(--text-dim);
+  padding: 6px 10px;
+  border-bottom: 1px solid var(--border);
+  background: var(--bg-panel);
+}
+.mockup-body { padding: 16px; }
+
+.app-shell {
+  display: grid;
+  grid-template-columns: 46px 180px minmax(0, 1fr) 120px;
+  gap: 0;
+  border: 1px solid var(--border-soft);
+  border-radius: 8px;
+  overflow: hidden;
+  min-height: 260px;
+}
+.app-shell.app-shell-b {
+  grid-template-columns: 46px 220px minmax(0, 1fr);
+}
+.rail {
+  background: #1b1e25;
+  border-right: 1px solid var(--border);
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 8px;
+  padding: 10px 0;
+}
+.rail-dot {
+  width: 28px;
+  height: 28px;
+  border-radius: 8px;
+  background: rgba(108,140,255,0.12);
+  border: 1px solid rgba(108,140,255,0.35);
+}
+.sidebar {
+  background: var(--bg-panel);
+  border-right: 1px solid var(--border);
+  padding: 12px;
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+}
+.sidebar-head {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 8px;
+}
+.sidebar-title {
+  font-size: 12px;
+  font-weight: 700;
+  color: var(--text-strong);
+}
+.ghost-btn, .mini-btn {
+  border: 1px solid var(--border);
+  background: transparent;
+  color: var(--text-dim);
+  border-radius: 6px;
+  cursor: pointer;
+}
+.ghost-btn {
+  font-size: 10px;
+  padding: 4px 7px;
+}
+.session-cards,
+.session-rows {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+.session-card {
+  padding: 9px 10px;
+  border-radius: 8px;
+  border: 1px solid var(--border-soft);
+  background: rgba(36,40,51,0.6);
+}
+.session-card.active {
+  border-color: var(--accent);
+  background: rgba(108,140,255,0.12);
+}
+.session-card strong,
+.session-row strong {
+  display: block;
+  font-size: 11px;
+  color: var(--text-strong);
+}
+.session-meta,
+.session-row small {
+  font-size: 10px;
+  color: var(--text-dim);
+}
+.session-preview {
+  margin-top: 5px;
+  font-size: 10px;
+  color: var(--text-soft);
+  line-height: 1.45;
+}
+.session-group-label {
+  font-size: 9px;
+  color: var(--text-dim);
+  text-transform: uppercase;
+  letter-spacing: 0.06em;
+  margin-top: 2px;
+}
+.session-row {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 8px;
+  border-radius: 7px;
+  padding: 8px 9px;
+  border: 1px solid transparent;
+  background: transparent;
+}
+.session-row.active {
+  border-color: var(--accent);
+  background: rgba(108,140,255,0.12);
+}
+.model-pill {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  padding: 2px 7px;
+  border-radius: 999px;
+  font-size: 9px;
+  border: 1px solid var(--border);
+  background: rgba(108,140,255,0.08);
+  color: var(--accent);
+}
+.main-pane {
+  background: var(--bg);
+  display: flex;
+  flex-direction: column;
+  min-width: 0;
+}
+.main-head {
+  border-bottom: 1px solid var(--border);
+  background: #181b22;
+  padding: 12px 14px;
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+.main-head-row {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 10px;
+}
+.main-head strong {
+  font-size: 13px;
+  color: var(--text-strong);
+}
+.submeta {
+  font-size: 10px;
+  color: var(--text-dim);
+}
+.banner {
+  border: 1px solid rgba(96,165,250,0.35);
+  background: rgba(96,165,250,0.1);
+  color: #cfe5ff;
+  padding: 8px 10px;
+  border-radius: 7px;
+  font-size: 10px;
+}
+.banner.warn {
+  border-color: rgba(212,165,72,0.35);
+  background: rgba(212,165,72,0.1);
+  color: #f0dfb4;
+}
+.transcript {
+  flex: 1;
+  padding: 14px;
+  display: flex;
+  flex-direction: column;
+  gap: 9px;
+}
+.msg {
+  border-radius: 10px;
+  padding: 10px 11px;
+  max-width: 78%;
+  border: 1px solid var(--border-soft);
+  font-size: 11px;
+  line-height: 1.55;
+}
+.msg.user {
+  align-self: flex-end;
+  background: rgba(108,140,255,0.14);
+  border-color: rgba(108,140,255,0.3);
+}
+.msg.assistant {
+  align-self: flex-start;
+  background: rgba(36,40,51,0.74);
+}
+.msg.system {
+  align-self: center;
+  max-width: 100%;
+  background: transparent;
+  color: var(--text-dim);
+  border-style: dashed;
+}
+.composer {
+  border-top: 1px solid var(--border);
+  padding: 10px 12px;
+  display: flex;
+  gap: 8px;
+}
+.composer-input {
+  flex: 1;
+  border: 1px solid var(--border);
+  border-radius: 8px;
+  background: var(--bg-input);
+  padding: 10px 11px;
+  color: var(--text-soft);
+  font-size: 11px;
+}
+.composer-send {
+  padding: 0 12px;
+  border-radius: 8px;
+  border: 1px solid var(--accent);
+  background: var(--accent);
+  color: white;
+  font-size: 11px;
+}
+.config-pane {
+  background: var(--bg-panel);
+  border-left: 1px solid var(--border);
+  padding: 12px;
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+.config-block {
+  border: 1px solid var(--border-soft);
+  border-radius: 7px;
+  padding: 8px;
+  background: rgba(36,40,51,0.55);
+  font-size: 10px;
+  color: var(--text-dim);
+}
+.toolbar {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 8px;
+}
+.route-chip {
+  padding: 3px 7px;
+  font-size: 9px;
+  border-radius: 999px;
+  border: 1px solid var(--border);
+  color: var(--text-dim);
+}
+.route-chip.active {
+  border-color: rgba(108,140,255,0.45);
+  color: var(--accent);
+  background: rgba(108,140,255,0.1);
+}
+.step-card {
+  border: 1px solid var(--border-soft);
+  border-radius: 8px;
+  background: rgba(36,40,51,0.55);
+  padding: 10px;
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+.step-card.active {
+  border-color: rgba(96,165,250,0.45);
+  background: rgba(96,165,250,0.08);
+}
+.step-top {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 8px;
+}
+.step-status {
+  font-size: 9px;
+  padding: 2px 6px;
+  border-radius: 999px;
+  background: rgba(96,165,250,0.12);
+  color: var(--blue);
+}
+.step-desc {
+  font-size: 10px;
+  color: var(--text-dim);
+  line-height: 1.45;
+}
+.step-actions {
+  display: flex;
+  gap: 6px;
+}
+.mini-btn {
+  font-size: 10px;
+  padding: 5px 8px;
+}
+.mini-btn.primary {
+  border-color: var(--accent);
+  background: var(--accent);
+  color: white;
+}
+.summary-bar {
+  position: fixed;
+  left: 50%;
+  bottom: 18px;
+  transform: translateX(-50%);
+  background: rgba(25,28,35,0.96);
+  border: 1px solid var(--border);
+  border-radius: 999px;
+  padding: 10px 14px;
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  box-shadow: 0 12px 28px rgba(0,0,0,0.35);
+}
+.summary-text {
+  font-size: 11px;
+  color: var(--text-soft);
+}
+.summary-btn {
+  border: 1px solid var(--accent);
+  background: var(--accent);
+  color: white;
+  border-radius: 999px;
+  padding: 6px 12px;
+  font-size: 11px;
+  cursor: pointer;
+}
+.summary-btn[disabled] {
+  opacity: 0.45;
+  cursor: not-allowed;
+}
+.export-box {
+  margin-top: 18px;
+  border: 1px solid var(--border);
+  border-radius: 8px;
+  background: var(--bg-card);
+  padding: 14px;
+  font-family: ui-monospace, SFMono-Regular, Menlo, monospace;
+  font-size: 11px;
+  white-space: pre-wrap;
+  color: var(--text-soft);
+  display: none;
+}
+</style>
+</head>
+<body>
+<header class="page-header">
+  <h1>Agent Studio · Session Mode UI 方案选择</h1>
+  <p>以下 4 个界面决策对应 `SESSION_MODE_TASKS.md` 中的 UI 任务。每个问题选一个方案，点底部“导出选择”后把结果发给我，我会回写到 Spec 和 Tasks。</p>
+</header>
+
+<div class="container">
+  <div class="decision-section" data-decision="single-workspace">
+    <div class="decision-header">
+      <span class="badge badge-task7">任务 7</span>
+      <h2>Single 会话型主界面布局</h2>
+    </div>
+    <div class="decision-desc">核心问题：Single 模式要不要保留现有右侧配置栏，并把会话列表作为新的固定左侧区域。两种方案都会支持新建 / 切换 / 继续，但信息重心不同。</div>
+    <div class="options-grid">
+      <div class="option-card" onclick="selectOption(this)">
+        <div class="option-card-header">
+          <div class="option-radio"></div>
+          <span class="option-label">A. 会话列表固定 + 配置栏保留为右侧抽屉</span>
+        </div>
+        <div class="option-sublabel">更像 `Codex App`：左边看会话，右边只在需要时看模型和路径配置。主聊天区最大化，配置是次入口。</div>
+        <div class="mockup">
+          <div class="mockup-title-bar">single workspace / layout A</div>
+          <div class="mockup-body">
+            <div class="app-shell">
+              <div class="rail">
+                <div class="rail-dot"></div>
+                <div class="rail-dot" style="opacity:.45"></div>
+                <div class="rail-dot" style="opacity:.45"></div>
+              </div>
+              <div class="sidebar">
+                <div class="sidebar-head">
+                  <span class="sidebar-title">Sessions</span>
+                  <button class="ghost-btn">+ New</button>
+                </div>
+                <div class="session-cards">
+                  <div class="session-card active">
+                    <strong>产品需求澄清</strong>
+                    <div class="session-meta">Claude · 刚刚</div>
+                    <div class="session-preview">我想把 Single 做成会话型桌面端体验…</div>
+                  </div>
+                  <div class="session-card">
+                    <strong>API 模式回归</strong>
+                    <div class="session-meta">Codex · 10:42</div>
+                    <div class="session-preview">检查 API provider 选择是否还会丢失…</div>
+                  </div>
+                  <div class="session-card">
+                    <strong>Workflow 调整</strong>
+                    <div class="session-meta">OpenAI API · 昨天</div>
+                    <div class="session-preview">Interactive step 会话是不是要和 Single 统一…</div>
+                  </div>
+                </div>
+              </div>
+              <div class="main-pane">
+                <div class="main-head">
+                  <div class="main-head-row">
+                    <strong>产品需求澄清</strong>
+                    <span class="model-pill">Claude · sonnet</span>
+                  </div>
+                  <div class="submeta">/Users/siyuan/work/agent-studio · active</div>
+                </div>
+                <div class="transcript">
+                  <div class="msg user">我想让 Single 更像 Claude Desktop 或 Codex App。</div>
+                  <div class="msg assistant">可以，先把会话层抽出来，Single 和 Workflow 都共用它。</div>
+                  <div class="msg user">同一会话里切模型也要支持。</div>
+                </div>
+                <div class="composer">
+                  <div class="composer-input">继续当前会话…</div>
+                  <button class="composer-send">Send</button>
+                </div>
+              </div>
+              <div class="config-pane">
+                <div class="config-block">Mode: Codex CLI / Claude / API</div>
+                <div class="config-block">Project Directory</div>
+                <div class="config-block">Model / Provider</div>
+              </div>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <div class="option-card" onclick="selectOption(this)">
+        <div class="option-card-header">
+          <div class="option-radio"></div>
+          <span class="option-label">B. 会话列表更宽，配置并入聊天头部</span>
+        </div>
+        <div class="option-sublabel">更像“聊天产品”而不是“IDE 工具面板”：会话列表更显眼，模型切换直接在聊天顶部完成，减少第四栏。</div>
+        <div class="mockup">
+          <div class="mockup-title-bar">single workspace / layout B</div>
+          <div class="mockup-body">
+            <div class="app-shell app-shell-b">
+              <div class="rail">
+                <div class="rail-dot"></div>
+                <div class="rail-dot" style="opacity:.45"></div>
+                <div class="rail-dot" style="opacity:.45"></div>
+              </div>
+              <div class="sidebar">
+                <div class="sidebar-head">
+                  <span class="sidebar-title">Conversations</span>
+                  <button class="ghost-btn">+ Session</button>
+                </div>
+                <div class="session-rows">
+                  <div class="session-row active">
+                    <div>
+                      <strong>产品需求澄清</strong>
+                      <small>Claude → Codex</small>
+                    </div>
+                    <span class="model-pill">Live</span>
+                  </div>
+                  <div class="session-row">
+                    <div>
+                      <strong>API 模式回归</strong>
+                      <small>今天 10:42</small>
+                    </div>
+                    <span class="route-chip">API</span>
+                  </div>
+                  <div class="session-row">
+                    <div>
+                      <strong>Workflow 调整</strong>
+                      <small>昨天</small>
+                    </div>
+                    <span class="route-chip">Codex</span>
+                  </div>
+                </div>
+              </div>
+              <div class="main-pane">
+                <div class="main-head">
+                  <div class="toolbar">
+                    <div>
+                      <strong>产品需求澄清</strong>
+                      <div class="submeta">当前 route：Claude / sonnet</div>
+                    </div>
+                    <div style="display:flex; gap:6px;">
+                      <span class="route-chip active">Claude</span>
+                      <span class="route-chip">Codex</span>
+                      <span class="route-chip">API</span>
+                    </div>
+                  </div>
+                </div>
+                <div class="transcript">
+                  <div class="msg assistant">会话保持不变，但接下来可以切到 Codex 继续。</div>
+                  <div class="msg system">配置入口并入顶部，减少固定侧栏。</div>
+                  <div class="msg user">这样更像聊天产品。</div>
+                </div>
+                <div class="composer">
+                  <div class="composer-input">继续当前会话…</div>
+                  <button class="composer-send">Send</button>
+                </div>
+              </div>
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <div class="decision-section" data-decision="single-session-list">
+    <div class="decision-header">
+      <span class="badge badge-task7">任务 7</span>
+      <h2>Single 会话列表样式</h2>
+    </div>
+    <div class="decision-desc">核心问题：左侧列表更像现有 Workflow run cards，还是更像普通聊天 App 的简洁会话列表。</div>
+    <div class="options-grid">
+      <div class="option-card" onclick="selectOption(this)">
+        <div class="option-card-header">
+          <div class="option-radio"></div>
+          <span class="option-label">A. 卡片式列表</span>
+        </div>
+        <div class="option-sublabel">延续 `WorkflowRunsList` 的视觉语言：每条会话是卡片，有标题、模型、时间、预览，状态更清晰。</div>
+        <div class="mockup">
+          <div class="mockup-title-bar">session list / card style</div>
+          <div class="mockup-body">
+            <div class="session-cards">
+              <div class="session-card active">
+                <strong>产品需求澄清</strong>
+                <div class="session-meta">Claude · 刚刚</div>
+                <div class="session-preview">同一会话内切模型后，由新模型接手同一条聊天…</div>
+              </div>
+              <div class="session-card">
+                <strong>API 模式回归</strong>
+                <div class="session-meta">Codex · 10:42</div>
+                <div class="session-preview">补一个 resume fallback 的自动验证…</div>
+              </div>
+              <div class="session-card">
+                <strong>Workflow Step 澄清</strong>
+                <div class="session-meta">API · 昨天</div>
+                <div class="session-preview">这个 step 结束后进入下一步，conversation 单独保留…</div>
+              </div>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <div class="option-card" onclick="selectOption(this)">
+        <div class="option-card-header">
+          <div class="option-radio"></div>
+          <span class="option-label">B. 聊天行列表 + 分组</span>
+        </div>
+        <div class="option-sublabel">更像 Claude Desktop：列表更轻、更密，支持按“Today / Earlier”分组，阅读效率更高。</div>
+        <div class="mockup">
+          <div class="mockup-title-bar">session list / row style</div>
+          <div class="mockup-body">
+            <div class="session-group-label">Today</div>
+            <div class="session-rows">
+              <div class="session-row active">
+                <div>
+                  <strong>产品需求澄清</strong>
+                  <small>Claude → Codex</small>
+                </div>
+                <span class="model-pill">Live</span>
+              </div>
+              <div class="session-row">
+                <div>
+                  <strong>API 模式回归</strong>
+                  <small>10:42</small>
+                </div>
+                <span class="route-chip">Codex</span>
+              </div>
+            </div>
+            <div class="session-group-label" style="margin-top:12px;">Earlier</div>
+            <div class="session-rows">
+              <div class="session-row">
+                <div>
+                  <strong>Workflow Step 澄清</strong>
+                  <small>Yesterday</small>
+                </div>
+                <span class="route-chip">API</span>
+              </div>
+              <div class="session-row">
+                <div>
+                  <strong>Prompt 调整</strong>
+                  <small>2 days ago</small>
+                </div>
+                <span class="route-chip">Claude</span>
+              </div>
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <div class="decision-section" data-decision="route-switch-feedback">
+    <div class="decision-header">
+      <span class="badge badge-task8">任务 8</span>
+      <h2>同一会话切模型的提示方式</h2>
+    </div>
+    <div class="decision-desc">核心问题：用户切模型后，要如何表达“还是同一条会话，但底层已经由新模型接手”。</div>
+    <div class="options-grid">
+      <div class="option-card" onclick="selectOption(this)">
+        <div class="option-card-header">
+          <div class="option-radio"></div>
+          <span class="option-label">A. 顶部 Banner 明示切换</span>
+        </div>
+        <div class="option-sublabel">把“逻辑会话没变，模型已接手”的信息放在会话头部 banner，适合新用户理解机制。</div>
+        <div class="mockup">
+          <div class="mockup-title-bar">active session header / banner</div>
+          <div class="mockup-body">
+            <div class="main-head" style="border:1px solid var(--border); border-radius:8px;">
+              <div class="main-head-row">
+                <div>
+                  <strong>产品需求澄清</strong>
+                  <div class="submeta">逻辑会话保持不变</div>
+                </div>
+                <span class="model-pill">Codex · o3</span>
+              </div>
+              <div class="banner">已从 Claude 切换到 Codex。当前话题保持不变；后续回复将由 Codex 接手。</div>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <div class="option-card" onclick="selectOption(this)">
+        <div class="option-card-header">
+          <div class="option-radio"></div>
+          <span class="option-label">B. Transcript 内插入系统分割条</span>
+        </div>
+        <div class="option-sublabel">不占用头部空间，把变化直接落到消息流里，更像真实的“交接记录”。</div>
+        <div class="mockup">
+          <div class="mockup-title-bar">transcript / route handoff marker</div>
+          <div class="mockup-body">
+            <div class="transcript" style="padding:0;">
+              <div class="msg assistant">先把会话层抽出来，再谈 Workflow 对接。</div>
+              <div class="msg system">Model handoff: Claude → Codex。会话保持不变，新模型已接手。</div>
+              <div class="msg user">继续，顺便把会话列表也做一下。</div>
+              <div class="msg assistant">可以，下一步我会先补 SessionStore。</div>
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <div class="decision-section" data-decision="workflow-step-conversation">
+    <div class="decision-header">
+      <span class="badge badge-task10">任务 10</span>
+      <h2>Workflow Step 会话提示方式</h2>
+    </div>
+    <div class="decision-desc">核心问题：在 Workflow 中，用户需要明确知道“你现在在这个步骤里聊天”，但又不能把它做成和 Single 同级的全局会话列表。</div>
+    <div class="options-grid">
+      <div class="option-card" onclick="selectOption(this)">
+        <div class="option-card-header">
+          <div class="option-radio"></div>
+          <span class="option-label">A. 顶部 Step 对话条</span>
+        </div>
+        <div class="option-sublabel">在当前 step transcript 上方固定一条会话状态条，强调“这是当前步骤内的对话”，并提供结束对话按钮。</div>
+        <div class="mockup">
+          <div class="mockup-title-bar">workflow step conversation / top bar</div>
+          <div class="mockup-body">
+            <div class="step-card active">
+              <div class="step-top">
+                <div>
+                  <strong>Step 2 · 需求澄清</strong>
+                  <div class="step-desc">你正在当前步骤内与 PM Agent 对话。对话结束后才会进入下一步。</div>
+                </div>
+                <span class="step-status">INPUT</span>
+              </div>
+              <div class="toolbar">
+                <span class="model-pill">PM Agent · Claude</span>
+                <div class="step-actions">
+                  <button class="mini-btn">继续提问</button>
+                  <button class="mini-btn primary">结束对话，进入下一步</button>
+                </div>
+              </div>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <div class="option-card" onclick="selectOption(this)">
+        <div class="option-card-header">
+          <div class="option-radio"></div>
+          <span class="option-label">B. 右侧 Step 会话说明卡</span>
+        </div>
+        <div class="option-sublabel">主 transcript 更纯净，把 step 会话的解释和行为按钮放到右侧说明卡，适合信息层级更清楚的 workflow 风格。</div>
+        <div class="mockup">
+          <div class="mockup-title-bar">workflow step conversation / side explainer</div>
+          <div class="mockup-body">
+            <div style="display:grid; grid-template-columns:minmax(0,1fr) 180px; gap:12px;">
+              <div class="transcript" style="padding:0;">
+                <div class="msg assistant">为了确认边界，我先问两个关键问题。</div>
+                <div class="msg user">Single 要像 Codex App，Workflow 也要统一。</div>
+                <div class="msg assistant">明白，我会把 step 会话独立出来。</div>
+              </div>
+              <div class="step-card">
+                <div class="step-top">
+                  <strong>当前 Step</strong>
+                  <span class="step-status">INPUT</span>
+                </div>
+                <div class="step-desc">这是 `需求澄清` 步骤内的临时会话，不会进入全局列表。</div>
+                <span class="model-pill">PM Agent · Claude</span>
+                <div class="step-actions" style="flex-direction:column;">
+                  <button class="mini-btn">继续提问</button>
+                  <button class="mini-btn primary">结束对话</button>
+                </div>
+              </div>
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <div class="export-box" id="exportBox"></div>
+</div>
+
+<div class="summary-bar">
+  <div class="summary-text" id="summaryText">已选择 0 / 4 个界面决策</div>
+  <button class="summary-btn" id="exportBtn" disabled onclick="exportSelections()">导出选择</button>
+</div>
+
+<script>
+const selections = {};
+
+function selectOption(card) {
+  const section = card.closest('.decision-section');
+  const key = section.dataset.decision;
+  const cards = section.querySelectorAll('.option-card');
+  cards.forEach((item) => item.classList.remove('selected'));
+  card.classList.add('selected');
+  const label = card.querySelector('.option-label').textContent.trim();
+  selections[key] = label;
+  updateSummary();
+}
+
+function updateSummary() {
+  const total = document.querySelectorAll('.decision-section').length;
+  const chosen = Object.keys(selections).length;
+  document.getElementById('summaryText').textContent = `已选择 ${chosen} / ${total} 个界面决策`;
+  document.getElementById('exportBtn').disabled = chosen !== total;
+}
+
+function exportSelections() {
+  const lines = [
+    '## Session Mode UI 选择结果',
+    '',
+    `- Single 会话型主界面布局：${selections['single-workspace']}`,
+    `- Single 会话列表样式：${selections['single-session-list']}`,
+    `- 同一会话切模型的提示方式：${selections['route-switch-feedback']}`,
+    `- Workflow Step 会话提示方式：${selections['workflow-step-conversation']}`,
+    '',
+    '请按以上选择更新 `SESSION_MODE_TASKS.md` 和 `SESSION_MODE_SPEC.md`。'
+  ];
+  const box = document.getElementById('exportBox');
+  box.style.display = 'block';
+  box.textContent = lines.join('\n');
+  box.scrollIntoView({ behavior: 'smooth', block: 'nearest' });
+}
+</script>
+</body>
+</html>

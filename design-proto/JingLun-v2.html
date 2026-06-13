@@ -1,0 +1,1113 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>经纶 · 智能体工作台</title>
+  <style>
+    :root {
+      --bg-primary: #f5f3ef;
+      --bg-secondary: #faf9f7;
+      --bg-sidebar: rgba(245, 243, 239, 0.88);
+      --bg-panel: rgba(255, 255, 255, 0.72);
+      --text-primary: #1c1c1e;
+      --text-secondary: #6e6e73;
+      --text-tertiary: #aeaeb2;
+      --accent: #2c5282;
+      --accent-soft: rgba(44, 82, 130, 0.10);
+      --accent-warm: #a94442;
+      --accent-warm-soft: rgba(169, 68, 66, 0.10);
+      --accent-gold: #a67c3b;
+      --accent-gold-soft: rgba(166, 124, 59, 0.12);
+      --border: rgba(0, 0, 0, 0.06);
+      --shadow: rgba(0, 0, 0, 0.04);
+      --divider: rgba(0, 0, 0, 0.08);
+      --glow-running: rgba(44, 82, 130, 0.12);
+      --glow-confirm: rgba(169, 68, 66, 0.12);
+      --glow-done: rgba(80, 140, 100, 0.12);
+      --toolbar-bg: rgba(245, 243, 239, 0.92);
+    }
+
+    [data-theme="dark"] {
+      --bg-primary: #121214;
+      --bg-secondary: #18181a;
+      --bg-sidebar: rgba(18, 18, 20, 0.88);
+      --bg-panel: rgba(30, 30, 34, 0.65);
+      --text-primary: #f5f5f7;
+      --text-secondary: #8e8e93;
+      --text-tertiary: #636366;
+      --accent: #6b9dc7;
+      --accent-soft: rgba(107, 157, 199, 0.15);
+      --accent-warm: #c97b73;
+      --accent-warm-soft: rgba(201, 123, 115, 0.15);
+      --accent-gold: #c4a35a;
+      --accent-gold-soft: rgba(196, 163, 90, 0.15);
+      --border: rgba(255, 255, 255, 0.06);
+      --shadow: rgba(0, 0, 0, 0.25);
+      --divider: rgba(255, 255, 255, 0.08);
+      --glow-running: rgba(107, 157, 199, 0.18);
+      --glow-confirm: rgba(201, 123, 115, 0.18);
+      --glow-done: rgba(120, 200, 150, 0.15);
+      --toolbar-bg: rgba(18, 18, 20, 0.92);
+    }
+
+    * { margin: 0; padding: 0; box-sizing: border-box; }
+
+    html, body {
+      height: 100%;
+      font-family: -apple-system, BlinkMacSystemFont, "SF Pro Text", "PingFang SC", "Helvetica Neue", sans-serif;
+      background: var(--bg-primary);
+      color: var(--text-primary);
+      transition: background 0.5s ease, color 0.4s ease;
+      overflow: hidden;
+      -webkit-font-smoothing: antialiased;
+    }
+
+    .app {
+      height: 100vh;
+      display: flex;
+      flex-direction: column;
+    }
+
+    /* ═══ macOS 标题栏 ═══ */
+    .titlebar {
+      height: 52px;
+      display: flex;
+      align-items: center;
+      padding: 0 16px;
+      gap: 12px;
+      background: var(--toolbar-bg);
+      backdrop-filter: blur(20px) saturate(1.8);
+      -webkit-backdrop-filter: blur(20px) saturate(1.8);
+      border-bottom: 1px solid var(--divider);
+      flex-shrink: 0;
+      -webkit-app-region: drag;
+      animation: fadeInDown 0.5s cubic-bezier(0.16, 1, 0.3, 1);
+    }
+
+    @keyframes fadeInDown {
+      from { opacity: 0; transform: translateY(-8px); }
+      to { opacity: 1; transform: translateY(0); }
+    }
+
+    .traffic-lights {
+      display: flex;
+      gap: 8px;
+      margin-right: 12px;
+      -webkit-app-region: no-drag;
+    }
+
+    .traffic-light {
+      width: 12px;
+      height: 12px;
+      border-radius: 50%;
+      border: 0.5px solid rgba(0,0,0,0.1);
+    }
+
+    .tl-red { background: #ff5f57; }
+    .tl-yellow { background: #febc2e; }
+    .tl-green { background: #28c840; }
+
+    .brand {
+      display: flex;
+      align-items: center;
+      gap: 8px;
+      font-size: 14px;
+      font-weight: 700;
+      letter-spacing: 0.04em;
+      color: var(--text-primary);
+      -webkit-app-region: no-drag;
+    }
+
+    .brand-icon {
+      width: 20px;
+      height: 20px;
+      border-radius: 50%;
+      background: conic-gradient(from 0deg, var(--accent-gold), var(--accent), var(--accent-warm), var(--accent-gold));
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      font-size: 9px;
+      color: #fff;
+      font-weight: 800;
+    }
+
+    .segmented-control {
+      display: flex;
+      background: var(--bg-secondary);
+      border-radius: 6px;
+      padding: 2px;
+      border: 1px solid var(--border);
+      -webkit-app-region: no-drag;
+      margin-left: 20px;
+    }
+
+    .segment {
+      padding: 4px 14px;
+      border-radius: 4px;
+      font-size: 12px;
+      font-weight: 500;
+      color: var(--text-secondary);
+      cursor: pointer;
+      transition: all 0.25s ease;
+      border: none;
+      background: transparent;
+      font-family: inherit;
+    }
+
+    .segment.active {
+      background: var(--bg-panel);
+      color: var(--text-primary);
+      box-shadow: 0 1px 3px var(--shadow);
+      backdrop-filter: blur(10px);
+    }
+
+    .search-box {
+      width: 220px;
+      padding: 5px 10px;
+      border-radius: 6px;
+      border: 1px solid var(--border);
+      background: var(--bg-secondary);
+      color: var(--text-primary);
+      font-size: 12px;
+      outline: none;
+      font-family: inherit;
+      -webkit-app-region: no-drag;
+      transition: all 0.25s ease;
+    }
+
+    .search-box:focus {
+      border-color: var(--accent);
+      box-shadow: 0 0 0 2px var(--accent-soft);
+    }
+
+    .search-box::placeholder {
+      color: var(--text-tertiary);
+    }
+
+    .titlebar-actions {
+      margin-left: auto;
+      display: flex;
+      align-items: center;
+      gap: 10px;
+      -webkit-app-region: no-drag;
+    }
+
+    .theme-btn {
+      width: 28px;
+      height: 28px;
+      border-radius: 6px;
+      border: 1px solid var(--border);
+      background: var(--bg-secondary);
+      color: var(--text-secondary);
+      cursor: pointer;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      font-size: 13px;
+      transition: all 0.25s ease;
+    }
+
+    .theme-btn:hover {
+      background: var(--accent-soft);
+      color: var(--accent);
+    }
+
+    /* ═══ 主体 ═══ */
+    .main {
+      flex: 1;
+      display: flex;
+      overflow: hidden;
+    }
+
+    /* ═══ Sidebar ═══ */
+    .sidebar {
+      width: 240px;
+      background: var(--bg-sidebar);
+      backdrop-filter: blur(12px);
+      -webkit-backdrop-filter: blur(12px);
+      border-right: 1px solid var(--divider);
+      display: flex;
+      flex-direction: column;
+      flex-shrink: 0;
+      animation: fadeInLeft 0.5s cubic-bezier(0.16, 1, 0.3, 1) 0.05s backwards;
+    }
+
+    @keyframes fadeInLeft {
+      from { opacity: 0; transform: translateX(-12px); }
+      to { opacity: 1; transform: translateX(0); }
+    }
+
+    .sidebar-header {
+      padding: 12px 16px;
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+    }
+
+    .sidebar-title {
+      font-size: 11px;
+      font-weight: 700;
+      text-transform: uppercase;
+      letter-spacing: 0.08em;
+      color: var(--text-tertiary);
+    }
+
+    .sidebar-add {
+      width: 20px;
+      height: 20px;
+      border-radius: 4px;
+      border: none;
+      background: transparent;
+      color: var(--text-tertiary);
+      cursor: pointer;
+      font-size: 16px;
+      line-height: 1;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      transition: all 0.2s ease;
+    }
+
+    .sidebar-add:hover {
+      background: var(--accent-soft);
+      color: var(--accent);
+    }
+
+    .sidebar-section {
+      padding: 4px 10px;
+    }
+
+    .section-label {
+      padding: 6px 6px;
+      font-size: 10px;
+      font-weight: 700;
+      color: var(--text-tertiary);
+      text-transform: uppercase;
+      letter-spacing: 0.06em;
+    }
+
+    .sidebar-item {
+      padding: 6px 8px;
+      border-radius: 6px;
+      display: flex;
+      align-items: center;
+      gap: 8px;
+      cursor: pointer;
+      transition: all 0.2s ease;
+      margin-bottom: 1px;
+      position: relative;
+    }
+
+    .sidebar-item:hover {
+      background: var(--accent-soft);
+    }
+
+    .sidebar-item.active {
+      background: var(--accent-soft);
+    }
+
+    .sidebar-item.active::before {
+      content: '';
+      position: absolute;
+      left: -10px;
+      top: 50%;
+      transform: translateY(-50%);
+      width: 3px;
+      height: 16px;
+      border-radius: 0 2px 2px 0;
+      background: var(--accent);
+    }
+
+    .si-icon {
+      width: 20px;
+      height: 20px;
+      border-radius: 5px;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      font-size: 11px;
+      flex-shrink: 0;
+      background: var(--bg-secondary);
+      border: 1px solid var(--border);
+    }
+
+    .si-text {
+      font-size: 12px;
+      color: var(--text-primary);
+      flex: 1;
+    }
+
+    .si-badge {
+      font-size: 10px;
+      padding: 1px 6px;
+      border-radius: 10px;
+      background: var(--accent-warm-soft);
+      color: var(--accent-warm);
+      font-weight: 600;
+    }
+
+    .si-status {
+      width: 6px;
+      height: 6px;
+      border-radius: 50%;
+      flex-shrink: 0;
+    }
+
+    .status-running { background: var(--accent); box-shadow: 0 0 6px var(--glow-running); animation: pulse 2s infinite; }
+    .status-awaiting { background: var(--accent-warm); box-shadow: 0 0 6px var(--glow-confirm); }
+    .status-done { background: #50a070; }
+    .status-error { background: var(--accent-warm); }
+
+    @keyframes pulse {
+      0%, 100% { opacity: 1; }
+      50% { opacity: 0.5; }
+    }
+
+    /* ═══ Content ═══ */
+    .content {
+      flex: 1;
+      display: flex;
+      flex-direction: column;
+      min-width: 0;
+      animation: fadeInUp 0.5s cubic-bezier(0.16, 1, 0.3, 1) 0.1s backwards;
+    }
+
+    @keyframes fadeInUp {
+      from { opacity: 0; transform: translateY(10px); }
+      to { opacity: 1; transform: translateY(0); }
+    }
+
+    .content-header {
+      padding: 16px 24px;
+      border-bottom: 1px solid var(--divider);
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+    }
+
+    .content-title {
+      font-size: 15px;
+      font-weight: 700;
+      color: var(--text-primary);
+      display: flex;
+      align-items: center;
+      gap: 10px;
+    }
+
+    .content-subtitle {
+      font-size: 12px;
+      color: var(--text-tertiary);
+      font-weight: 500;
+      margin-top: 2px;
+    }
+
+    .content-actions {
+      display: flex;
+      gap: 8px;
+    }
+
+    .btn {
+      padding: 5px 12px;
+      border-radius: 6px;
+      border: none;
+      font-size: 12px;
+      font-weight: 500;
+      cursor: pointer;
+      transition: all 0.2s ease;
+      font-family: inherit;
+      display: flex;
+      align-items: center;
+      gap: 4px;
+    }
+
+    .btn:hover { transform: translateY(-0.5px); }
+
+    .btn-primary {
+      background: var(--accent);
+      color: #fff;
+    }
+
+    .btn-primary:hover {
+      box-shadow: 0 2px 8px var(--glow-running);
+    }
+
+    .btn-secondary {
+      background: var(--bg-secondary);
+      color: var(--text-secondary);
+      border: 1px solid var(--border);
+    }
+
+    .btn-secondary:hover {
+      background: var(--accent-soft);
+      color: var(--accent);
+      border-color: var(--accent-soft);
+    }
+
+    .btn-warm {
+      background: var(--accent-warm);
+      color: #fff;
+    }
+
+    .btn-warm:hover {
+      box-shadow: 0 2px 8px var(--glow-confirm);
+    }
+
+    /* ═══ Timeline / Steps ═══ */
+    .timeline {
+      display: flex;
+      align-items: center;
+      gap: 0;
+      padding: 16px 24px;
+      border-bottom: 1px solid var(--divider);
+      overflow-x: auto;
+      flex-shrink: 0;
+    }
+
+    .tl-node {
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      gap: 6px;
+      min-width: 100px;
+      position: relative;
+    }
+
+    .tl-orb {
+      width: 28px;
+      height: 28px;
+      border-radius: 50%;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      font-size: 11px;
+      font-weight: 700;
+      transition: all 0.4s cubic-bezier(0.34, 1.56, 0.64, 1);
+      z-index: 1;
+    }
+
+    .tl-orb.done {
+      background: var(--glow-done);
+      color: #50a070;
+    }
+
+    .tl-orb.current {
+      background: var(--accent-gold-soft);
+      color: var(--accent-gold);
+      box-shadow: 0 0 12px var(--accent-gold-soft);
+      animation: orbGlow 2.5s ease-in-out infinite;
+    }
+
+    @keyframes orbGlow {
+      0%, 100% { box-shadow: 0 0 8px var(--accent-gold-soft); }
+      50% { box-shadow: 0 0 18px var(--accent-gold-soft); }
+    }
+
+    .tl-orb.pending {
+      background: var(--bg-secondary);
+      color: var(--text-tertiary);
+      border: 1.5px solid var(--border);
+    }
+
+    .tl-line {
+      position: absolute;
+      top: 14px;
+      left: 50%;
+      width: 100%;
+      height: 1.5px;
+      background: var(--border);
+      z-index: 0;
+    }
+
+    .tl-line.done {
+      background: linear-gradient(90deg, var(--glow-done), var(--accent-gold-soft));
+    }
+
+    .tl-label {
+      font-size: 10px;
+      color: var(--text-tertiary);
+      text-align: center;
+      font-weight: 500;
+    }
+
+    /* ═══ Transcript ═══ */
+    .transcript {
+      flex: 1;
+      overflow: auto;
+      padding: 20px 24px;
+      font-size: 13px;
+      line-height: 1.6;
+    }
+
+    .msg { margin-bottom: 14px; animation: msgIn 0.4s ease backwards; }
+    @keyframes msgIn {
+      from { opacity: 0; transform: translateY(6px); }
+      to { opacity: 1; transform: translateY(0); }
+    }
+
+    .msg-user {
+      display: flex;
+      justify-content: flex-end;
+    }
+
+    .msg-user .bubble {
+      max-width: 75%;
+      padding: 8px 14px;
+      border-radius: 14px 14px 4px 14px;
+      background: var(--accent);
+      color: #fff;
+      font-size: 13px;
+      box-shadow: 0 1px 4px var(--shadow);
+    }
+
+    .msg-assistant {
+      display: flex;
+      gap: 8px;
+    }
+
+    .msg-avatar {
+      width: 24px;
+      height: 24px;
+      border-radius: 50%;
+      background: var(--bg-secondary);
+      border: 1px solid var(--border);
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      font-size: 11px;
+      flex-shrink: 0;
+    }
+
+    .msg-body {
+      flex: 1;
+      max-width: 85%;
+    }
+
+    .msg-body .bubble {
+      padding: 8px 14px;
+      border-radius: 4px 14px 14px 14px;
+      background: var(--bg-secondary);
+      color: var(--text-primary);
+      font-size: 13px;
+      border: 1px solid var(--border);
+      box-shadow: 0 1px 2px var(--shadow);
+    }
+
+    .msg-think {
+      margin-top: 6px;
+      padding: 6px 10px;
+      border-radius: 6px;
+      background: var(--accent-gold-soft);
+      color: var(--accent-gold);
+      font-size: 11px;
+      font-style: italic;
+      border-left: 2px solid var(--accent-gold);
+    }
+
+    .msg-tool {
+      margin-top: 6px;
+      padding: 5px 10px;
+      border-radius: 5px;
+      background: var(--accent-soft);
+      color: var(--accent);
+      font-size: 11px;
+      font-family: "SF Mono", monospace;
+    }
+
+    .msg-handoff {
+      margin: 14px 0;
+      padding: 12px 14px;
+      border-radius: 10px;
+      background: var(--accent-gold-soft);
+      border: 1px solid var(--accent-gold-soft);
+      animation: msgIn 0.5s ease;
+    }
+
+    .msg-handoff-title {
+      font-size: 11px;
+      font-weight: 700;
+      color: var(--accent-gold);
+      margin-bottom: 4px;
+    }
+
+    .msg-handoff-body {
+      font-size: 12px;
+      color: var(--text-secondary);
+    }
+
+    .msg-usage {
+      text-align: center;
+      margin: 10px 0;
+    }
+
+    .msg-usage span {
+      font-size: 10px;
+      color: var(--text-tertiary);
+      padding: 2px 10px;
+      border-radius: 10px;
+      background: var(--bg-secondary);
+      border: 1px solid var(--border);
+    }
+
+    /* ═══ Composer ═══ */
+    .composer {
+      padding: 12px 24px;
+      border-top: 1px solid var(--divider);
+      background: var(--bg-panel);
+      backdrop-filter: blur(16px);
+      flex-shrink: 0;
+      animation: fadeInUp 0.4s ease 0.3s backwards;
+    }
+
+    .composer-actions {
+      display: flex;
+      gap: 8px;
+      margin-bottom: 10px;
+    }
+
+    .composer-input-wrap {
+      display: flex;
+      gap: 8px;
+      align-items: center;
+    }
+
+    .composer-input {
+      flex: 1;
+      padding: 8px 12px;
+      border-radius: 8px;
+      border: 1px solid var(--border);
+      background: var(--bg-secondary);
+      color: var(--text-primary);
+      font-size: 13px;
+      outline: none;
+      font-family: inherit;
+      transition: all 0.25s ease;
+    }
+
+    .composer-input:focus {
+      border-color: var(--accent);
+      box-shadow: 0 0 0 3px var(--accent-soft);
+    }
+
+    .composer-send {
+      width: 32px;
+      height: 32px;
+      border-radius: 50%;
+      border: none;
+      background: var(--accent);
+      color: #fff;
+      font-size: 13px;
+      cursor: pointer;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      transition: all 0.25s ease;
+    }
+
+    .composer-send:hover {
+      transform: scale(1.08);
+      box-shadow: 0 0 12px var(--glow-running);
+    }
+
+    /* ═══ Inspector ═══ */
+    .inspector {
+      width: 260px;
+      background: var(--bg-sidebar);
+      backdrop-filter: blur(12px);
+      -webkit-backdrop-filter: blur(12px);
+      border-left: 1px solid var(--divider);
+      display: flex;
+      flex-direction: column;
+      flex-shrink: 0;
+      animation: fadeInRight 0.5s cubic-bezier(0.16, 1, 0.3, 1) 0.15s backwards;
+    }
+
+    @keyframes fadeInRight {
+      from { opacity: 0; transform: translateX(12px); }
+      to { opacity: 1; transform: translateX(0); }
+    }
+
+    .inspector-header {
+      padding: 12px 16px;
+      border-bottom: 1px solid var(--divider);
+      font-size: 11px;
+      font-weight: 700;
+      text-transform: uppercase;
+      letter-spacing: 0.08em;
+      color: var(--text-tertiary);
+    }
+
+    .inspector-body {
+      flex: 1;
+      overflow: auto;
+      padding: 12px 16px;
+    }
+
+    .info-row {
+      display: flex;
+      justify-content: space-between;
+      padding: 5px 0;
+      font-size: 12px;
+      border-bottom: 1px solid var(--border);
+    }
+
+    .info-label {
+      color: var(--text-tertiary);
+    }
+
+    .info-value {
+      color: var(--text-primary);
+      font-weight: 500;
+      font-family: "SF Mono", monospace;
+      font-size: 11px;
+    }
+
+    .info-section-title {
+      font-size: 10px;
+      font-weight: 700;
+      text-transform: uppercase;
+      letter-spacing: 0.06em;
+      color: var(--text-tertiary);
+      margin: 14px 0 8px;
+    }
+
+    .budget-track {
+      height: 4px;
+      background: var(--bg-secondary);
+      border-radius: 2px;
+      overflow: hidden;
+      margin-top: 6px;
+    }
+
+    .budget-fill {
+      height: 100%;
+      border-radius: 2px;
+      background: linear-gradient(90deg, var(--accent), var(--accent-gold));
+      width: 42%;
+      transition: width 1s cubic-bezier(0.34, 1.56, 0.64, 1);
+    }
+
+    .artifact-item {
+      padding: 8px 10px;
+      border-radius: 7px;
+      background: var(--bg-secondary);
+      border: 1px solid var(--border);
+      margin-bottom: 6px;
+      cursor: pointer;
+      transition: all 0.25s ease;
+    }
+
+    .artifact-item:hover {
+      transform: translateY(-1px);
+      box-shadow: 0 2px 8px var(--shadow);
+      border-color: var(--accent-soft);
+    }
+
+    .artifact-name {
+      font-size: 11px;
+      font-weight: 600;
+      color: var(--text-primary);
+      font-family: "SF Mono", monospace;
+      margin-bottom: 2px;
+    }
+
+    .artifact-desc {
+      font-size: 10px;
+      color: var(--text-tertiary);
+    }
+
+    .artifact-tag {
+      display: inline-block;
+      margin-top: 4px;
+      padding: 1px 5px;
+      border-radius: 3px;
+      font-size: 9px;
+      text-transform: uppercase;
+      letter-spacing: 0.05em;
+      background: var(--accent-soft);
+      color: var(--accent);
+      font-weight: 600;
+    }
+
+    .memory-chip {
+      padding: 6px 8px;
+      border-radius: 6px;
+      background: var(--bg-secondary);
+      border-left: 2px solid var(--accent-gold);
+      font-size: 11px;
+      color: var(--text-secondary);
+      line-height: 1.5;
+      margin-bottom: 6px;
+    }
+
+    /* Scrollbar */
+    ::-webkit-scrollbar { width: 4px; height: 4px; }
+    ::-webkit-scrollbar-track { background: transparent; }
+    ::-webkit-scrollbar-thumb { background: var(--border); border-radius: 2px; }
+
+    @media (max-width: 1100px) {
+      .inspector { display: none; }
+    }
+    @media (max-width: 800px) {
+      .sidebar { display: none; }
+    }
+  </style>
+</head>
+<body data-theme="light">
+  <div class="app">
+    <!-- macOS Title Bar -->
+    <header class="titlebar">
+      <div class="traffic-lights">
+        <div class="traffic-light tl-red"></div>
+        <div class="traffic-light tl-yellow"></div>
+        <div class="traffic-light tl-green"></div>
+      </div>
+      <div class="brand">
+        <div class="brand-icon">纶</div>
+        <span>经纶</span>
+      </div>
+      <div class="segmented-control">
+        <button class="segment active">经纶</button>
+        <button class="segment">模板</button>
+        <button class="segment">智能体</button>
+        <button class="segment">单次</button>
+      </div>
+      <input class="search-box" placeholder="搜索运行记录、Agent..." />
+      <div class="titlebar-actions">
+        <button class="theme-btn" id="themeBtn" title="切换主题">☀</button>
+      </div>
+    </header>
+
+    <!-- Main -->
+    <div class="main">
+      <!-- Sidebar -->
+      <aside class="sidebar">
+        <div class="sidebar-header">
+          <span class="sidebar-title">运行队列</span>
+          <button class="sidebar-add">+</button>
+        </div>
+        <div class="sidebar-section">
+          <div class="section-label">活跃</div>
+          <div class="sidebar-item active">
+            <div class="si-status status-awaiting"></div>
+            <span class="si-text">需求分析 → 设计 → 开发</span>
+          </div>
+          <div class="sidebar-item">
+            <div class="si-status status-running"></div>
+            <span class="si-text">后端 API 重构</span>
+          </div>
+        </div>
+        <div class="sidebar-section">
+          <div class="section-label">历史</div>
+          <div class="sidebar-item">
+            <div class="si-status status-done"></div>
+            <span class="si-text">定时数据清洗</span>
+          </div>
+          <div class="sidebar-item">
+            <div class="si-status status-error"></div>
+            <span class="si-text">移动端适配 review</span>
+            <span class="si-badge">1</span>
+          </div>
+        </div>
+      </aside>
+
+      <!-- Content -->
+      <div class="content">
+        <div class="content-header">
+          <div>
+            <div class="content-title">
+              需求分析 → 设计 → 开发
+            </div>
+            <div class="content-subtitle">
+              ~/projects/acme-web · Architect · 待确认
+            </div>
+          </div>
+          <div class="content-actions">
+            <button class="btn btn-warm">↻ 重跑</button>
+            <button class="btn btn-secondary">⏸ 暂停</button>
+            <button class="btn btn-secondary">⏹ 停止</button>
+          </div>
+        </div>
+
+        <!-- Timeline -->
+        <div class="timeline">
+          <div class="tl-node">
+            <div class="tl-orb done">✓</div>
+            <div class="tl-label">需求分析</div>
+          </div>
+          <div class="tl-node" style="flex:1;position:relative;">
+            <div class="tl-line done"></div>
+          </div>
+          <div class="tl-node">
+            <div class="tl-orb current">◉</div>
+            <div class="tl-label">技术设计</div>
+          </div>
+          <div class="tl-node" style="flex:1;position:relative;">
+            <div class="tl-line"></div>
+          </div>
+          <div class="tl-node">
+            <div class="tl-orb pending">○</div>
+            <div class="tl-label">后端开发</div>
+          </div>
+          <div class="tl-node" style="flex:1;position:relative;">
+            <div class="tl-line"></div>
+          </div>
+          <div class="tl-node">
+            <div class="tl-orb pending">○</div>
+            <div class="tl-label">前端开发</div>
+          </div>
+          <div class="tl-node" style="flex:1;position:relative;">
+            <div class="tl-line"></div>
+          </div>
+          <div class="tl-node">
+            <div class="tl-orb pending">○</div>
+            <div class="tl-label">测试验收</div>
+          </div>
+        </div>
+
+        <!-- Transcript -->
+        <div class="transcript">
+          <div class="msg msg-user" style="animation-delay:0.05s">
+            <div class="bubble">为 acme-web 添加 RBAC 鉴权，支持角色继承</div>
+          </div>
+
+          <div class="msg msg-assistant" style="animation-delay:0.1s">
+            <div class="msg-avatar">🤖</div>
+            <div class="msg-body">
+              <div class="bubble">
+                已分析现有鉴权逻辑。建议引入 RBAC，支持角色继承。请确认以下范围：
+                <br/><br/>
+                1. 是否支持 OAuth2 登录<br/>
+                2. 角色粒度到菜单还是按钮级别
+              </div>
+              <div class="msg-think">
+                🤔 思考中：用户是否允许引入第三方 auth 库？
+              </div>
+              <div class="msg-tool">
+                🔧 file_read src/auth.ts (312 lines)
+              </div>
+              <div class="msg-tool" style="margin-left:12px;opacity:0.7;">
+                ✓ exit 0
+              </div>
+              <div class="msg-tool">
+                📝 M src/auth.ts (+45, -12)
+              </div>
+            </div>
+          </div>
+
+          <div class="msg-handoff" style="animation-delay:0.25s">
+            <div class="msg-handoff-title">📋 Handoff · 步骤 2 完成</div>
+            <div class="msg-handoff-body">
+              产出鉴权设计文档和修改后的入口文件，等待确认后继续下一步。
+            </div>
+          </div>
+
+          <div class="msg-usage" style="animation-delay:0.3s">
+            <span>2,400 → 890 tokens · $0.0042</span>
+          </div>
+        </div>
+
+        <!-- Composer -->
+        <div class="composer">
+          <div class="composer-actions">
+            <button class="btn btn-primary">✓ 确认继续</button>
+            <button class="btn btn-secondary">↻ 重跑此步</button>
+            <button class="btn btn-secondary">⏭ 跳过下一步</button>
+            <button class="btn btn-secondary">🧠 采纳建议</button>
+          </div>
+          <div class="composer-input-wrap">
+            <input class="composer-input" placeholder="回复 Agent 或输入指令..." />
+            <button class="composer-send">➤</button>
+          </div>
+        </div>
+      </div>
+
+      <!-- Inspector -->
+      <aside class="inspector">
+        <div class="inspector-header"></div>
+        <div class="inspector-body">
+          <div class="info-section-title">详情</div>
+          <div class="info-row">
+            <span class="info-label">状态</span>
+            <span class="info-value" style="color:var(--accent-warm);">待确认</span>
+          </div>
+          <div class="info-row">
+            <span class="info-label">模型</span>
+            <span class="info-value">claude-sonnet-4-6</span>
+          </div>
+          <div class="info-row">
+            <span class="info-label">项目</span>
+            <span class="info-value">~/acme-web</span>
+          </div>
+          <div class="info-row">
+            <span class="info-label">Agent</span>
+            <span class="info-value">Architect</span>
+          </div>
+
+          <div class="info-section-title">预算</div>
+          <div style="font-size:11px;color:var(--text-secondary);margin-bottom:4px;">
+            $0.0042 / $0.10
+          </div>
+          <div class="budget-track">
+            <div class="budget-fill"></div>
+          </div>
+
+          <div class="info-section-title">产物</div>
+          <div class="artifact-item">
+            <div class="artifact-name">design/auth-rbac.md</div>
+            <div class="artifact-desc">鉴权模块设计文档</div>
+            <span class="artifact-tag">doc</span>
+          </div>
+          <div class="artifact-item">
+            <div class="artifact-name">src/auth.ts</div>
+            <div class="artifact-desc">修改后的鉴权入口</div>
+            <span class="artifact-tag">code</span>
+          </div>
+
+          <div class="info-section-title">记忆注入</div>
+          <div class="memory-chip">
+            auth-pattern<br/>
+            rbac-rules<br/>
+            error-handling
+          </div>
+        </div>
+      </aside>
+    </div>
+  </div>
+
+  <script>
+    const themeBtn = document.getElementById('themeBtn');
+    const body = document.body;
+
+    themeBtn.addEventListener('click', () => {
+      const current = body.getAttribute('data-theme');
+      const next = current === 'dark' ? 'light' : 'dark';
+      body.setAttribute('data-theme', next);
+      themeBtn.textContent = next === 'dark' ? '☾' : '☀';
+      localStorage.setItem('jinglun-theme', next);
+    });
+
+    const saved = localStorage.getItem('jinglun-theme');
+    if (saved) {
+      body.setAttribute('data-theme', saved);
+      themeBtn.textContent = saved === 'dark' ? '☾' : '☀';
+    }
+
+    // Sidebar interaction
+    document.querySelectorAll('.sidebar-item').forEach((item) => {
+      item.addEventListener('click', () => {
+        document.querySelectorAll('.sidebar-item').forEach((i) => i.classList.remove('active'));
+        item.classList.add('active');
+      });
+    });
+
+    // Segmented control
+    document.querySelectorAll('.segment').forEach((seg) => {
+      seg.addEventListener('click', () => {
+        document.querySelectorAll('.segment').forEach((s) => s.classList.remove('active'));
+        seg.classList.add('active');
+      });
+    });
+  </script>
+</body>
+</html>

@@ -1,0 +1,1132 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>经纶 · 智能体工作台</title>
+  <style>
+    /* ═══════════════════════════════════════
+       经纶 · Jing Lun Design System
+       ═══════════════════════════════════════ */
+
+    :root {
+      /* 亮版 · 宣纸 */
+      --bg-primary: #f7f4ed;
+      --bg-secondary: #f0ece3;
+      --bg-tertiary: #e8e3d8;
+      --bg-panel: rgba(255, 253, 248, 0.72);
+      --text-primary: #2a2723;
+      --text-secondary: #6b655d;
+      --text-tertiary: #9b948a;
+      --accent: #2e5c8a;
+      --accent-soft: rgba(46, 92, 138, 0.12);
+      --accent-warm: #b84a3b;
+      --accent-warm-soft: rgba(184, 74, 59, 0.12);
+      --accent-gold: #b8953f;
+      --accent-gold-soft: rgba(184, 149, 63, 0.15);
+      --border: rgba(42, 39, 35, 0.08);
+      --shadow: rgba(42, 39, 35, 0.06);
+      --glass-border: rgba(255, 255, 255, 0.5);
+      --pattern-opacity: 0.035;
+      --glow-running: rgba(46, 92, 138, 0.15);
+      --glow-confirm: rgba(184, 74, 59, 0.15);
+      --glow-done: rgba(80, 140, 100, 0.15);
+    }
+
+    [data-theme="dark"] {
+      /* 暗版 · 玄墨 */
+      --bg-primary: #161518;
+      --bg-secondary: #1e1d22;
+      --bg-tertiary: #26252b;
+      --bg-panel: rgba(30, 29, 34, 0.72);
+      --text-primary: #e8e4dc;
+      --text-secondary: #9a958d;
+      --text-tertiary: #6a6560;
+      --accent: #7aadce;
+      --accent-soft: rgba(122, 173, 206, 0.15);
+      --accent-warm: #d4756b;
+      --accent-warm-soft: rgba(212, 117, 107, 0.15);
+      --accent-gold: #d4b87a;
+      --accent-gold-soft: rgba(212, 184, 122, 0.15);
+      --border: rgba(232, 228, 220, 0.08);
+      --shadow: rgba(0, 0, 0, 0.3);
+      --glass-border: rgba(255, 255, 255, 0.06);
+      --pattern-opacity: 0.04;
+      --glow-running: rgba(122, 173, 206, 0.2);
+      --glow-confirm: rgba(212, 117, 107, 0.2);
+      --glow-done: rgba(120, 200, 150, 0.15);
+    }
+
+    * { margin: 0; padding: 0; box-sizing: border-box; }
+
+    html, body {
+      height: 100%;
+      font-family: "PingFang SC", "Hiragino Sans GB", "Microsoft YaHei", "Noto Sans SC", sans-serif;
+      background: var(--bg-primary);
+      color: var(--text-primary);
+      transition: background 0.6s ease, color 0.4s ease;
+      overflow: hidden;
+    }
+
+    /* 祥云暗纹背景 */
+    body::before {
+      content: '';
+      position: fixed;
+      inset: 0;
+      background-image:
+        url("data:image/svg+xml,%3Csvg width='60' height='60' viewBox='0 0 60 60' xmlns='http://www.w3.org/2000/svg'%3E%3Cpath d='M30 5c-5 0-10 3-12 8-3-2-7-2-10 1s-3 7 0 10c-5 2-8 7-8 12s3 10 8 12c-3 3-3 7 0 10s7 3 10 0c2 5 7 8 12 8s10-3 12-8c3 3 7 3 10 0s3-7 0-10c5-2 8-7 8-12s-3-10-8-12c3-3 3-7 0-10s-7-3-10 0c-2-5-7-8-12-8z' fill='none' stroke='%23000000' stroke-width='0.5' opacity='1'/%3E%3C/svg%3E");
+      background-size: 120px 120px;
+      opacity: var(--pattern-opacity);
+      pointer-events: none;
+      z-index: 0;
+      transition: opacity 0.6s ease;
+    }
+
+    /* 背景粒子 canvas */
+    #particles {
+      position: fixed;
+      inset: 0;
+      pointer-events: none;
+      z-index: 0;
+    }
+
+    .app {
+      position: relative;
+      z-index: 1;
+      height: 100vh;
+      display: flex;
+      flex-direction: column;
+    }
+
+    /* ═══ 顶部 ═══ */
+    .topbar {
+      height: 52px;
+      display: flex;
+      align-items: center;
+      padding: 0 24px;
+      gap: 20px;
+      border-bottom: 1px solid var(--border);
+      background: var(--bg-panel);
+      backdrop-filter: blur(20px) saturate(1.2);
+      -webkit-backdrop-filter: blur(20px) saturate(1.2);
+      border-bottom: 1px solid var(--glass-border);
+      flex-shrink: 0;
+      animation: slideDown 0.6s cubic-bezier(0.16, 1, 0.3, 1);
+    }
+
+    @keyframes slideDown {
+      from { opacity: 0; transform: translateY(-12px); }
+      to { opacity: 1; transform: translateY(0); }
+    }
+
+    .brand {
+      display: flex;
+      align-items: center;
+      gap: 10px;
+      font-size: 18px;
+      font-weight: 700;
+      letter-spacing: 0.08em;
+      color: var(--text-primary);
+    }
+
+    .brand-mark {
+      width: 28px;
+      height: 28px;
+      border-radius: 50%;
+      background: conic-gradient(from 0deg, var(--accent-gold), var(--accent), var(--accent-warm), var(--accent-gold));
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      font-size: 12px;
+      color: #fff;
+      font-weight: 800;
+      box-shadow: 0 0 12px var(--accent-gold-soft);
+      animation: rotateMark 20s linear infinite;
+    }
+
+    @keyframes rotateMark {
+      from { transform: rotate(0deg); }
+      to { transform: rotate(360deg); }
+    }
+
+    .brand-mark span {
+      animation: rotateMark 20s linear infinite reverse;
+    }
+
+    .nav {
+      display: flex;
+      gap: 4px;
+      margin-left: 24px;
+    }
+
+    .nav-item {
+      padding: 6px 14px;
+      border-radius: 8px;
+      font-size: 13px;
+      color: var(--text-secondary);
+      cursor: pointer;
+      transition: all 0.3s ease;
+      position: relative;
+    }
+
+    .nav-item:hover {
+      background: var(--accent-soft);
+      color: var(--accent);
+    }
+
+    .nav-item.active {
+      background: var(--accent-soft);
+      color: var(--accent);
+      font-weight: 600;
+    }
+
+    .nav-item.active::after {
+      content: '';
+      position: absolute;
+      bottom: -4px;
+      left: 30%;
+      width: 40%;
+      height: 2px;
+      background: var(--accent);
+      border-radius: 1px;
+    }
+
+    .topbar-right {
+      margin-left: auto;
+      display: flex;
+      align-items: center;
+      gap: 12px;
+    }
+
+    .theme-toggle {
+      width: 44px;
+      height: 24px;
+      border-radius: 12px;
+      background: var(--bg-tertiary);
+      border: 1px solid var(--border);
+      position: relative;
+      cursor: pointer;
+      transition: all 0.4s ease;
+    }
+
+    .theme-toggle::after {
+      content: '☀';
+      position: absolute;
+      top: 2px;
+      left: 2px;
+      width: 18px;
+      height: 18px;
+      border-radius: 50%;
+      background: var(--bg-primary);
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      font-size: 10px;
+      transition: transform 0.4s cubic-bezier(0.34, 1.56, 0.64, 1);
+      box-shadow: 0 1px 3px var(--shadow);
+    }
+
+    [data-theme="dark"] .theme-toggle::after {
+      content: '☾';
+      transform: translateX(20px);
+    }
+
+    .status-pill {
+      display: flex;
+      align-items: center;
+      gap: 6px;
+      padding: 4px 10px;
+      border-radius: 20px;
+      background: var(--accent-soft);
+      font-size: 11px;
+      color: var(--accent);
+      font-weight: 600;
+      animation: fadeIn 0.8s ease;
+    }
+
+    .status-dot {
+      width: 6px;
+      height: 6px;
+      border-radius: 50%;
+      background: var(--accent);
+      animation: pulse 2s ease-in-out infinite;
+    }
+
+    @keyframes pulse {
+      0%, 100% { opacity: 1; transform: scale(1); }
+      50% { opacity: 0.5; transform: scale(0.8); }
+    }
+
+    @keyframes fadeIn {
+      from { opacity: 0; transform: translateY(6px); }
+      to { opacity: 1; transform: translateY(0); }
+    }
+
+    /* ═══ 主体 ═══ */
+    .main {
+      flex: 1;
+      display: flex;
+      overflow: hidden;
+      padding: 16px;
+      gap: 16px;
+    }
+
+    /* 面板通用 */
+    .panel {
+      background: var(--bg-panel);
+      backdrop-filter: blur(16px) saturate(1.1);
+      -webkit-backdrop-filter: blur(16px) saturate(1.1);
+      border: 1px solid var(--glass-border);
+      border-radius: 16px;
+      display: flex;
+      flex-direction: column;
+      overflow: hidden;
+      transition: all 0.4s ease;
+      animation: fadeInUp 0.7s cubic-bezier(0.16, 1, 0.3, 1) backwards;
+    }
+
+    .panel:hover {
+      box-shadow: 0 8px 32px var(--shadow);
+    }
+
+    @keyframes fadeInUp {
+      from { opacity: 0; transform: translateY(16px); }
+      to { opacity: 1; transform: translateY(0); }
+    }
+
+    .panel-header {
+      padding: 14px 18px;
+      border-bottom: 1px solid var(--border);
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      flex-shrink: 0;
+    }
+
+    .panel-title {
+      font-size: 12px;
+      font-weight: 700;
+      text-transform: uppercase;
+      letter-spacing: 0.08em;
+      color: var(--text-tertiary);
+    }
+
+    .panel-body {
+      flex: 1;
+      overflow: auto;
+      padding: 8px;
+    }
+
+    /* ═══ 左栏 · Runs ═══ */
+    .col-left {
+      width: 260px;
+      flex-shrink: 0;
+      animation-delay: 0.1s;
+    }
+
+    .run-item {
+      padding: 12px 14px;
+      border-radius: 12px;
+      margin-bottom: 6px;
+      cursor: pointer;
+      transition: all 0.3s ease;
+      border: 1px solid transparent;
+      position: relative;
+      overflow: hidden;
+    }
+
+    .run-item::before {
+      content: '';
+      position: absolute;
+      left: 0;
+      top: 50%;
+      transform: translateY(-50%);
+      width: 3px;
+      height: 0;
+      border-radius: 0 2px 2px 0;
+      background: var(--accent);
+      transition: height 0.3s ease;
+    }
+
+    .run-item:hover {
+      background: var(--accent-soft);
+      transform: translateX(2px);
+    }
+
+    .run-item.active {
+      background: var(--accent-soft);
+      border-color: var(--accent-soft);
+    }
+
+    .run-item.active::before {
+      height: 60%;
+    }
+
+    .run-title {
+      font-size: 13px;
+      font-weight: 600;
+      color: var(--text-primary);
+      margin-bottom: 6px;
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+    }
+
+    .run-meta {
+      display: flex;
+      align-items: center;
+      gap: 8px;
+      font-size: 11px;
+      color: var(--text-tertiary);
+    }
+
+    .run-badge {
+      padding: 2px 8px;
+      border-radius: 20px;
+      font-size: 10px;
+      font-weight: 700;
+    }
+
+    .badge-awaiting {
+      background: var(--accent-warm-soft);
+      color: var(--accent-warm);
+      box-shadow: 0 0 8px var(--glow-confirm);
+    }
+
+    .badge-running {
+      background: var(--accent-soft);
+      color: var(--accent);
+      box-shadow: 0 0 8px var(--glow-running);
+    }
+
+    .badge-done {
+      background: var(--glow-done);
+      color: #5a9a6e;
+    }
+
+    .badge-error {
+      background: var(--accent-warm-soft);
+      color: var(--accent-warm);
+    }
+
+    /* ═══ 中栏 ═══ */
+    .col-center {
+      flex: 1;
+      min-width: 0;
+      animation-delay: 0.2s;
+    }
+
+    /* 步骤卷轴 */
+    .steps-scroll {
+      display: flex;
+      align-items: center;
+      gap: 8px;
+      padding: 16px 20px;
+      border-bottom: 1px solid var(--border);
+      overflow-x: auto;
+      flex-shrink: 0;
+    }
+
+    .step-node {
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      gap: 6px;
+      min-width: 80px;
+      position: relative;
+    }
+
+    .step-orb {
+      width: 36px;
+      height: 36px;
+      border-radius: 50%;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      font-size: 14px;
+      font-weight: 700;
+      transition: all 0.4s cubic-bezier(0.34, 1.56, 0.64, 1);
+      position: relative;
+    }
+
+    .step-orb.done {
+      background: var(--glow-done);
+      color: #5a9a6e;
+    }
+
+    .step-orb.current {
+      background: var(--accent-gold-soft);
+      color: var(--accent-gold);
+      box-shadow: 0 0 16px var(--accent-gold-soft);
+      animation: orbPulse 3s ease-in-out infinite;
+    }
+
+    .step-orb.pending {
+      background: var(--bg-tertiary);
+      color: var(--text-tertiary);
+    }
+
+    @keyframes orbPulse {
+      0%, 100% { box-shadow: 0 0 12px var(--accent-gold-soft); }
+      50% { box-shadow: 0 0 24px var(--accent-gold-soft); }
+    }
+
+    .step-connector {
+      width: 32px;
+      height: 2px;
+      background: var(--border);
+      border-radius: 1px;
+      margin-top: -22px;
+    }
+
+    .step-connector.done {
+      background: linear-gradient(90deg, var(--glow-done), var(--accent-gold-soft));
+    }
+
+    .step-name {
+      font-size: 10px;
+      color: var(--text-tertiary);
+      text-align: center;
+    }
+
+    /* Transcript */
+    .transcript {
+      flex: 1;
+      overflow: auto;
+      padding: 20px;
+      font-size: 13px;
+      line-height: 1.7;
+    }
+
+    .msg {
+      margin-bottom: 16px;
+      animation: fadeInUp 0.5s ease backwards;
+    }
+
+    .msg-user {
+      display: flex;
+      justify-content: flex-end;
+    }
+
+    .msg-user .bubble {
+      max-width: 70%;
+      padding: 10px 16px;
+      border-radius: 16px 16px 4px 16px;
+      background: var(--accent);
+      color: #fff;
+      font-size: 13px;
+    }
+
+    .msg-assistant {
+      display: flex;
+      gap: 10px;
+    }
+
+    .msg-avatar {
+      width: 28px;
+      height: 28px;
+      border-radius: 50%;
+      background: var(--bg-tertiary);
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      font-size: 13px;
+      flex-shrink: 0;
+    }
+
+    .msg-content {
+      flex: 1;
+      max-width: 80%;
+    }
+
+    .msg-content .bubble {
+      padding: 10px 16px;
+      border-radius: 4px 16px 16px 16px;
+      background: var(--bg-secondary);
+      color: var(--text-primary);
+      font-size: 13px;
+      margin-bottom: 4px;
+    }
+
+    .msg-thinking {
+      margin: 8px 0;
+      padding: 8px 12px;
+      border-radius: 8px;
+      background: var(--accent-gold-soft);
+      color: var(--accent-gold);
+      font-size: 11px;
+      border-left: 2px solid var(--accent-gold);
+      font-style: italic;
+    }
+
+    .msg-tool {
+      margin: 6px 0;
+      padding: 6px 12px;
+      border-radius: 6px;
+      background: var(--accent-soft);
+      color: var(--accent);
+      font-size: 11px;
+      font-family: "SF Mono", monospace;
+    }
+
+    .msg-usage {
+      text-align: center;
+      margin: 12px 0;
+    }
+
+    .msg-usage span {
+      font-size: 11px;
+      color: var(--text-tertiary);
+      padding: 3px 12px;
+      border-radius: 12px;
+      background: var(--bg-tertiary);
+    }
+
+    .msg-handoff {
+      margin: 14px 0;
+      padding: 14px 16px;
+      border-radius: 12px;
+      background: var(--accent-gold-soft);
+      border: 1px solid var(--accent-gold-soft);
+      animation: fadeInUp 0.6s ease;
+    }
+
+    .msg-handoff-title {
+      font-size: 12px;
+      font-weight: 700;
+      color: var(--accent-gold);
+      margin-bottom: 6px;
+    }
+
+    .msg-handoff-body {
+      font-size: 12px;
+      color: var(--text-secondary);
+    }
+
+    /* Composer */
+    .composer {
+      padding: 14px 20px;
+      border-top: 1px solid var(--border);
+      flex-shrink: 0;
+      background: var(--bg-panel);
+      backdrop-filter: blur(20px);
+    }
+
+    .composer-actions {
+      display: flex;
+      gap: 8px;
+      margin-bottom: 10px;
+      flex-wrap: wrap;
+    }
+
+    .btn {
+      padding: 8px 16px;
+      border-radius: 10px;
+      border: none;
+      font-size: 12px;
+      font-weight: 600;
+      cursor: pointer;
+      transition: all 0.3s ease;
+      font-family: inherit;
+    }
+
+    .btn:hover {
+      transform: translateY(-1px);
+      box-shadow: 0 4px 12px var(--shadow);
+    }
+
+    .btn-primary {
+      background: var(--accent);
+      color: #fff;
+    }
+
+    .btn-warm {
+      background: var(--accent-warm);
+      color: #fff;
+    }
+
+    .btn-ghost {
+      background: transparent;
+      border: 1px solid var(--border);
+      color: var(--text-secondary);
+    }
+
+    .btn-gold {
+      background: var(--accent-gold-soft);
+      color: var(--accent-gold);
+    }
+
+    .composer-input-wrap {
+      display: flex;
+      gap: 10px;
+      align-items: center;
+    }
+
+    .composer-input {
+      flex: 1;
+      padding: 10px 14px;
+      border-radius: 12px;
+      border: 1px solid var(--border);
+      background: var(--bg-primary);
+      color: var(--text-primary);
+      font-size: 13px;
+      outline: none;
+      transition: all 0.3s ease;
+      font-family: inherit;
+    }
+
+    .composer-input:focus {
+      border-color: var(--accent);
+      box-shadow: 0 0 0 3px var(--accent-soft);
+    }
+
+    .composer-send {
+      width: 38px;
+      height: 38px;
+      border-radius: 50%;
+      border: none;
+      background: var(--accent);
+      color: #fff;
+      font-size: 16px;
+      cursor: pointer;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      transition: all 0.3s ease;
+    }
+
+    .composer-send:hover {
+      transform: scale(1.08);
+      box-shadow: 0 0 16px var(--glow-running);
+    }
+
+    /* ═══ 右栏 ═══ */
+    .col-right {
+      width: 280px;
+      flex-shrink: 0;
+      animation-delay: 0.3s;
+    }
+
+    .detail-row {
+      display: flex;
+      justify-content: space-between;
+      padding: 8px 0;
+      border-bottom: 1px solid var(--border);
+      font-size: 12px;
+    }
+
+    .detail-label {
+      color: var(--text-tertiary);
+    }
+
+    .detail-value {
+      color: var(--text-primary);
+      font-weight: 600;
+      font-family: "SF Mono", monospace;
+    }
+
+    .budget-bar {
+      height: 6px;
+      background: var(--bg-tertiary);
+      border-radius: 3px;
+      overflow: hidden;
+      margin-top: 6px;
+    }
+
+    .budget-fill {
+      height: 100%;
+      border-radius: 3px;
+      background: linear-gradient(90deg, var(--accent), var(--accent-gold));
+      transition: width 1s cubic-bezier(0.34, 1.56, 0.64, 1);
+      width: 42%;
+    }
+
+    .artifact-card {
+      padding: 10px 12px;
+      border-radius: 10px;
+      background: var(--bg-secondary);
+      border: 1px solid var(--border);
+      margin-bottom: 8px;
+      cursor: pointer;
+      transition: all 0.3s ease;
+    }
+
+    .artifact-card:hover {
+      transform: translateY(-2px);
+      box-shadow: 0 4px 16px var(--shadow);
+      border-color: var(--accent-soft);
+    }
+
+    .artifact-name {
+      font-size: 12px;
+      font-weight: 600;
+      color: var(--text-primary);
+      margin-bottom: 2px;
+      font-family: "SF Mono", monospace;
+    }
+
+    .artifact-desc {
+      font-size: 11px;
+      color: var(--text-tertiary);
+    }
+
+    .artifact-tag {
+      display: inline-block;
+      margin-top: 6px;
+      padding: 1px 6px;
+      border-radius: 4px;
+      font-size: 9px;
+      text-transform: uppercase;
+      letter-spacing: 0.05em;
+      background: var(--accent-soft);
+      color: var(--accent);
+    }
+
+    .memory-block {
+      padding: 10px;
+      border-radius: 10px;
+      background: var(--bg-secondary);
+      border-left: 2px solid var(--accent-gold);
+      font-size: 11px;
+      color: var(--text-secondary);
+      line-height: 1.6;
+    }
+
+    /* 滚动条美化 */
+    ::-webkit-scrollbar { width: 5px; height: 5px; }
+    ::-webkit-scrollbar-track { background: transparent; }
+    ::-webkit-scrollbar-thumb { background: var(--border); border-radius: 3px; }
+    ::-webkit-scrollbar-thumb:hover { background: var(--text-tertiary); }
+
+    /* 响应式隐藏 */
+    @media (max-width: 1100px) {
+      .col-right { display: none; }
+    }
+    @media (max-width: 800px) {
+      .col-left { display: none; }
+    }
+  </style>
+</head>
+<body data-theme="light">
+  <canvas id="particles"></canvas>
+
+  <div class="app">
+    <!-- 顶部 -->
+    <header class="topbar">
+      <div class="brand">
+        <div class="brand-mark"><span>纶</span></div>
+        <span>经纶</span>
+      </div>
+      <nav class="nav">
+        <div class="nav-item active">经纶</div>
+        <div class="nav-item">模板</div>
+        <div class="nav-item">智能体</div>
+        <div class="nav-item">单次</div>
+        <div class="nav-item">设置</div>
+      </nav>
+      <div class="topbar-right">
+        <div class="status-pill">
+          <span class="status-dot"></span>
+          2 运行中 · 1 待确认
+        </div>
+        <div class="theme-toggle" id="themeToggle" title="切换亮暗主题"></div>
+      </div>
+    </header>
+
+    <!-- 主体 -->
+    <div class="main">
+      <!-- 左栏 · Runs -->
+      <div class="panel col-left" style="animation-delay:0.1s">
+        <div class="panel-header">
+          <span class="panel-title">运行队列</span>
+          <span style="font-size:11px;color:var(--text-tertiary);cursor:pointer;">+ 新建</span>
+        </div>
+        <div class="panel-body">
+          <div class="run-item active">
+            <div class="run-title">
+              需求分析 → 设计 → 开发
+              <span style="font-size:10px;color:var(--text-tertiary);">2分钟前</span>
+            </div>
+            <div class="run-meta">
+              <span class="run-badge badge-awaiting">待确认</span>
+              <span>Step 2/5</span>
+            </div>
+          </div>
+          <div class="run-item">
+            <div class="run-title">
+              后端 API 重构
+              <span style="font-size:10px;color:var(--text-tertiary);">5分钟前</span>
+            </div>
+            <div class="run-meta">
+              <span class="run-badge badge-running">运行中</span>
+              <span>Step 1/3</span>
+            </div>
+          </div>
+          <div class="run-item">
+            <div class="run-title">
+              定时数据清洗
+              <span style="font-size:10px;color:var(--text-tertiary);">1小时前</span>
+            </div>
+            <div class="run-meta">
+              <span class="run-badge badge-done">已完成</span>
+              <span>Step 4/4</span>
+            </div>
+          </div>
+          <div class="run-item">
+            <div class="run-title">
+              移动端适配 review
+              <span style="font-size:10px;color:var(--text-tertiary);">3小时前</span>
+            </div>
+            <div class="run-meta">
+              <span class="run-badge badge-error">错误</span>
+              <span>Step 2/3</span>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <!-- 中栏 -->
+      <div class="panel col-center" style="animation-delay:0.2s">
+        <!-- 步骤卷轴 -->
+        <div class="steps-scroll">
+          <div class="step-node">
+            <div class="step-orb done">✓</div>
+            <div class="step-name">需求分析</div>
+          </div>
+          <div class="step-connector done"></div>
+          <div class="step-node">
+            <div class="step-orb current">◉</div>
+            <div class="step-name">技术设计</div>
+          </div>
+          <div class="step-connector"></div>
+          <div class="step-node">
+            <div class="step-orb pending">○</div>
+            <div class="step-name">后端开发</div>
+          </div>
+          <div class="step-connector"></div>
+          <div class="step-node">
+            <div class="step-orb pending">○</div>
+            <div class="step-name">前端开发</div>
+          </div>
+          <div class="step-connector"></div>
+          <div class="step-node">
+            <div class="step-orb pending">○</div>
+            <div class="step-name">测试验收</div>
+          </div>
+        </div>
+
+        <!-- Transcript -->
+        <div class="transcript">
+          <div class="msg msg-user" style="animation-delay:0.1s">
+            <div class="bubble">为 acme-web 添加 RBAC 鉴权，需要支持角色继承</div>
+          </div>
+
+          <div class="msg msg-assistant" style="animation-delay:0.2s">
+            <div class="msg-avatar">🤖</div>
+            <div class="msg-content">
+              <div class="bubble">
+                已分析现有鉴权逻辑。建议引入 RBAC，支持角色继承。请确认以下范围：
+                <br/><br/>
+                1. 是否支持 OAuth2 登录<br/>
+                2. 角色粒度到菜单还是按钮级别
+              </div>
+              <div class="msg-thinking">
+                🤔 思考中：用户是否允许引入第三方 auth 库？
+              </div>
+              <div class="msg-tool">
+                🔧 file_read src/auth.ts (312 lines)
+              </div>
+              <div class="msg-tool" style="margin-left:12px;opacity:0.8;">
+                ✓ exit 0
+              </div>
+              <div class="msg-tool">
+                📝 M src/auth.ts (+45, -12)
+              </div>
+            </div>
+          </div>
+
+          <div class="msg-handoff" style="animation-delay:0.4s">
+            <div class="msg-handoff-title">📋 Handoff · 步骤 2 完成</div>
+            <div class="msg-handoff-body">
+              产出鉴权设计文档和修改后的入口文件，等待确认后继续下一步。
+            </div>
+          </div>
+
+          <div class="msg-usage" style="animation-delay:0.5s">
+            <span>2,400 → 890 tokens · $0.0042</span>
+          </div>
+        </div>
+
+        <!-- Composer -->
+        <div class="composer">
+          <div class="composer-actions">
+            <button class="btn btn-primary">✓ 确认继续</button>
+            <button class="btn btn-warm">↻ 重跑此步</button>
+            <button class="btn btn-ghost">⏭ 跳过下一步</button>
+            <button class="btn btn-gold">🧠 采纳建议</button>
+            <button class="btn btn-ghost" style="margin-left:auto;color:var(--accent-warm);">✕ 停止</button>
+          </div>
+          <div class="composer-input-wrap">
+            <input class="composer-input" placeholder="回复 Agent 或输入指令..." />
+            <button class="composer-send">➤</button>
+          </div>
+        </div>
+      </div>
+
+      <!-- 右栏 -->
+      <div class="panel col-right" style="animation-delay:0.3s">
+        <div class="panel-header">
+          <span class="panel-title">详情</span>
+        </div>
+        <div class="panel-body" style="padding:14px;">
+          <div style="margin-bottom:16px;">
+            <div class="detail-row">
+              <span class="detail-label">状态</span>
+              <span class="detail-value" style="color:var(--accent-warm);">待确认</span>
+            </div>
+            <div class="detail-row">
+              <span class="detail-label">模型</span>
+              <span class="detail-value">claude-sonnet-4-6</span>
+            </div>
+            <div class="detail-row">
+              <span class="detail-label">项目</span>
+              <span class="detail-value">~/projects/acme-web</span>
+            </div>
+            <div class="detail-row">
+              <span class="detail-label">Agent</span>
+              <span class="detail-value">Architect</span>
+            </div>
+          </div>
+
+          <div style="margin-bottom:16px;">
+            <div style="display:flex;justify-content:space-between;font-size:11px;margin-bottom:6px;">
+              <span style="color:var(--text-tertiary);">预算使用</span>
+              <span style="color:var(--text-primary);font-weight:600;">$0.0042 / $0.10</span>
+            </div>
+            <div class="budget-bar">
+              <div class="budget-fill"></div>
+            </div>
+          </div>
+
+          <div style="margin-bottom:16px;">
+            <div class="panel-title" style="margin-bottom:10px;text-transform:none;letter-spacing:0;">产物</div>
+            <div class="artifact-card">
+              <div class="artifact-name">design/auth-rbac.md</div>
+              <div class="artifact-desc">鉴权模块 RBAC 设计文档</div>
+              <span class="artifact-tag">doc</span>
+            </div>
+            <div class="artifact-card">
+              <div class="artifact-name">src/auth.ts</div>
+              <div class="artifact-desc">修改后的鉴权入口文件</div>
+              <span class="artifact-tag">code</span>
+            </div>
+          </div>
+
+          <div>
+            <div class="panel-title" style="margin-bottom:10px;text-transform:none;letter-spacing:0;">记忆注入</div>
+            <div class="memory-block">
+              已注入 3 条记忆：<br/>
+              · auth-pattern<br/>
+              · rbac-rules<br/>
+              · error-handling
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <script>
+    // 主题切换
+    const themeToggle = document.getElementById('themeToggle');
+    const body = document.body;
+    themeToggle.addEventListener('click', () => {
+      const current = body.getAttribute('data-theme');
+      const next = current === 'dark' ? 'light' : 'dark';
+      body.setAttribute('data-theme', next);
+      localStorage.setItem('jinglun-theme', next);
+    });
+
+    const saved = localStorage.getItem('jinglun-theme');
+    if (saved) body.setAttribute('data-theme', saved);
+
+    // 粒子背景
+    const canvas = document.getElementById('particles');
+    const ctx = canvas.getContext('2d');
+    let particles = [];
+    let w, h;
+
+    function resize() {
+      w = canvas.width = window.innerWidth;
+      h = canvas.height = window.innerHeight;
+    }
+    resize();
+    window.addEventListener('resize', resize);
+
+    function createParticles() {
+      particles = [];
+      const count = Math.floor((w * h) / 25000);
+      for (let i = 0; i < count; i++) {
+        particles.push({
+          x: Math.random() * w,
+          y: Math.random() * h,
+          r: Math.random() * 1.5 + 0.5,
+          dx: (Math.random() - 0.5) * 0.3,
+          dy: (Math.random() - 0.5) * 0.3,
+          opacity: Math.random() * 0.4 + 0.1,
+        });
+      }
+    }
+    createParticles();
+
+    function animate() {
+      ctx.clearRect(0, 0, w, h);
+      const isDark = body.getAttribute('data-theme') === 'dark';
+      ctx.fillStyle = isDark ? 'rgba(212, 184, 122, ' : 'rgba(46, 92, 138, ';
+
+      particles.forEach((p) => {
+        p.x += p.dx;
+        p.y += p.dy;
+        if (p.x < 0) p.x = w;
+        if (p.x > w) p.x = 0;
+        if (p.y < 0) p.y = h;
+        if (p.y > h) p.y = 0;
+
+        ctx.globalAlpha = p.opacity;
+        ctx.beginPath();
+        ctx.arc(p.x, p.y, p.r, 0, Math.PI * 2);
+        ctx.fill();
+      });
+
+      // 连线
+      ctx.globalAlpha = 0.04;
+      ctx.strokeStyle = isDark ? '#d4b87a' : '#2e5c8a';
+      ctx.lineWidth = 0.5;
+      for (let i = 0; i < particles.length; i++) {
+        for (let j = i + 1; j < particles.length; j++) {
+          const dx = particles[i].x - particles[j].x;
+          const dy = particles[i].y - particles[j].y;
+          const dist = Math.sqrt(dx * dx + dy * dy);
+          if (dist < 120) {
+            ctx.beginPath();
+            ctx.moveTo(particles[i].x, particles[i].y);
+            ctx.lineTo(particles[j].x, particles[j].y);
+            ctx.stroke();
+          }
+        }
+      }
+
+      requestAnimationFrame(animate);
+    }
+    animate();
+
+    // Run item 点击交互
+    document.querySelectorAll('.run-item').forEach((item) => {
+      item.addEventListener('click', () => {
+        document.querySelectorAll('.run-item').forEach((i) => i.classList.remove('active'));
+        item.classList.add('active');
+      });
+    });
+  </script>
+</body>
+</html>
