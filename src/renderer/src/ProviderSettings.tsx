@@ -1,4 +1,4 @@
-import { Bot, FlaskConical, Pencil, Plus, Save, Server, Trash2, X } from 'lucide-react'
+import { ArrowDown, ArrowUp, Bot, Download, Eye, EyeOff, FlaskConical, Pencil, Plus, Save, Server, Trash2, X } from 'lucide-react'
 import { useMemo, useState } from 'react'
 import type { ApiProviderConfig, ApiProviderFormat } from '@shared/types'
 import { Select } from './Select'
@@ -9,6 +9,8 @@ interface ProviderSettingsProps {
   save: (input: Omit<ApiProviderConfig, 'id'> & { id?: string }) => Promise<void>
   remove: (id: string) => Promise<void>
   testConnection: (id: string) => Promise<{ ok: boolean; message: string }>
+  fetchModels: (provider: ApiProviderConfig, providerId?: string) => Promise<{ models: string[]; error?: string }>
+  getDecrypted: (id: string) => Promise<ApiProviderConfig>
   reload: () => Promise<void>
 }
 
@@ -17,7 +19,7 @@ interface ProviderDraft {
   format: ApiProviderFormat
   apiKey: string
   baseUrl: string
-  modelsText: string
+  models: string[]
   defaultModel: string
 }
 
@@ -26,21 +28,30 @@ const EMPTY_DRAFT: ProviderDraft = {
   format: 'openai-compatible',
   apiKey: '',
   baseUrl: '',
-  modelsText: '',
+  models: [],
   defaultModel: ''
 }
 
 const PRESETS = [
-  { name: 'DeepSeek', baseUrl: 'https://api.deepseek.com/v1', models: 'deepseek-chat, deepseek-reasoner' },
-  { name: 'Kimi', baseUrl: 'https://api.moonshot.cn/v1', models: 'moonshot-v1-8k, moonshot-v1-32k' },
-  { name: '硅基流动', baseUrl: 'https://api.siliconflow.cn/v1', models: 'deepseek-ai/DeepSeek-V3' }
+  { name: 'DeepSeek', baseUrl: 'https://api.deepseek.com/v1', models: ['deepseek-chat', 'deepseek-reasoner'] },
+  { name: 'Kimi', baseUrl: 'https://api.moonshot.cn/v1', models: ['moonshot-v1-8k', 'moonshot-v1-32k'] },
+  { name: 'MiMo', baseUrl: 'https://api.xiaomimimo.com/v1', models: ['mimo-v2.5-pro', 'mimo-v2.5', 'mimo-v2-pro', 'mimo-v2-omni', 'mimo-v2-flash'] },
+  { name: '硅基流动', baseUrl: 'https://api.siliconflow.cn/v1', models: ['deepseek-ai/DeepSeek-V3', 'Qwen/Qwen2.5-72B-Instruct', 'TeleAI/TeleChat2'] }
 ]
 
-export function ProviderSettings({ providers, loading, save, remove, testConnection }: ProviderSettingsProps): JSX.Element {
+export function ProviderSettings({ providers, loading, save, remove, testConnection, fetchModels, getDecrypted }: ProviderSettingsProps): JSX.Element {
   const [editingId, setEditingId] = useState<string | null>(null)
   const [formOpen, setFormOpen] = useState(false)
   const [draft, setDraft] = useState<ProviderDraft>(EMPTY_DRAFT)
   const [testMessage, setTestMessage] = useState('')
+  const [showKey, setShowKey] = useState(false)
+  const [fetchingModels, setFetchingModels] = useState(false)
+  const [fetchedModels, setFetchedModels] = useState<string[]>([])
+
+  const suggestedModels = useMemo(
+    () => [...new Set([...PRESETS.flatMap((p) => p.models), ...fetchedModels])],
+    [fetchedModels]
+  )
 
   const editingProvider = useMemo(
     () => providers.find((provider) => provider.id === editingId) ?? null,
@@ -51,20 +62,27 @@ export function ProviderSettings({ providers, loading, save, remove, testConnect
     setEditingId(null)
     setDraft(EMPTY_DRAFT)
     setTestMessage('')
+    setShowKey(false)
+    setFetchedModels([])
     setFormOpen(true)
   }
 
-  const openEdit = (provider: ApiProviderConfig): void => {
+  const openEdit = async (provider: ApiProviderConfig): Promise<void> => {
     setEditingId(provider.id)
+    // Fetch the decrypted key so the user can see it (masked by default).
+    let decryptedKey = ''
+    try { decryptedKey = (await getDecrypted(provider.id)).apiKey } catch { /* keep empty */ }
     setDraft({
       name: provider.name,
       format: provider.format,
-      apiKey: '',
+      apiKey: decryptedKey,
       baseUrl: provider.baseUrl ?? '',
-      modelsText: provider.models.join(', '),
+      models: [...provider.models],
       defaultModel: provider.defaultModel ?? provider.models[0] ?? ''
     })
     setTestMessage('')
+    setShowKey(false)
+    setFetchedModels([])
     setFormOpen(true)
   }
 
@@ -72,11 +90,13 @@ export function ProviderSettings({ providers, loading, save, remove, testConnect
     setEditingId(null)
     setDraft(EMPTY_DRAFT)
     setTestMessage('')
+    setShowKey(false)
+    setFetchedModels([])
     setFormOpen(false)
   }
 
   const submit = async (): Promise<void> => {
-    const models = parseModels(draft.modelsText)
+    const models = draft.models.map((m) => m.trim()).filter(Boolean)
     if (!draft.name.trim() || models.length === 0) return
     await save({
       id: editingId ?? undefined,
@@ -97,6 +117,66 @@ export function ProviderSettings({ providers, loading, save, remove, testConnect
     }
     const result = await testConnection(editingId)
     setTestMessage(result.message)
+  }
+
+  const handleFetchModels = async (): Promise<void> => {
+    setFetchingModels(true)
+    try {
+      const result = await fetchModels({
+        id: editingId ?? '',
+        name: draft.name,
+        format: draft.format,
+        apiKey: draft.apiKey,
+        baseUrl: draft.baseUrl.trim() || undefined,
+        models: [],
+        defaultModel: ''
+      }, editingId ?? undefined)
+      if (result.models.length > 0) {
+        setFetchedModels(result.models)
+        setDraft((d) => ({
+          ...d,
+          models: [...new Set([...d.models, ...result.models])],
+          defaultModel: d.defaultModel || result.models[0]
+        }))
+        setTestMessage(`获取到 ${result.models.length} 个模型，已合并到列表`)
+      } else {
+        setTestMessage(result.error || '未获取到模型，请检查 API Key 和 Base URL 是否正确')
+      }
+    } catch {
+      setTestMessage('获取模型失败')
+    } finally {
+      setFetchingModels(false)
+    }
+  }
+
+  const addEmptyModel = (): void => {
+    setDraft((d) => ({ ...d, models: [...d.models, ''] }))
+  }
+
+  const updateModel = (index: number, value: string): void => {
+    setDraft((d) => {
+      const models = [...d.models]
+      models[index] = value
+      return { ...d, models }
+    })
+  }
+
+  const removeModel = (index: number): void => {
+    setDraft((d) => ({
+      ...d,
+      models: d.models.filter((_, i) => i !== index),
+      defaultModel: d.defaultModel === d.models[index] ? '' : d.defaultModel
+    }))
+  }
+
+  const moveModel = (index: number, direction: -1 | 1): void => {
+    setDraft((d) => {
+      const models = [...d.models]
+      const target = index + direction
+      if (target < 0 || target >= models.length) return d
+      ;[models[index], models[target]] = [models[target], models[index]]
+      return { ...d, models }
+    })
   }
 
   return (
@@ -155,13 +235,24 @@ export function ProviderSettings({ providers, loading, save, remove, testConnect
 
           <label className="pf-field">
             <span className="pf-label">API Key</span>
-            <input
-              className="pf-input"
-              type="password"
-              value={draft.apiKey}
-              placeholder={editingProvider ? '留空则沿用已保存的 Key' : 'sk-...'}
-              onChange={(e) => setDraft((d) => ({ ...d, apiKey: e.target.value }))}
-            />
+            <div className="pf-input-wrap">
+              <input
+                className="pf-input"
+                type={showKey ? 'text' : 'password'}
+                value={draft.apiKey}
+                placeholder={editingProvider ? '留空则沿用已保存的 Key' : 'sk-...'}
+                onChange={(e) => setDraft((d) => ({ ...d, apiKey: e.target.value }))}
+              />
+              <button
+                type="button"
+                className="pf-input-btn"
+                title={showKey ? '隐藏 API Key' : '显示 API Key'}
+                aria-label={showKey ? '隐藏 API Key' : '显示 API Key'}
+                onClick={() => setShowKey((v) => !v)}
+              >
+                {showKey ? <EyeOff size={15} /> : <Eye size={15} />}
+              </button>
+            </div>
           </label>
 
           <label className="pf-field">
@@ -178,8 +269,8 @@ export function ProviderSettings({ providers, loading, save, remove, testConnect
                     format: 'openai-compatible',
                     name: d.name || preset.name,
                     baseUrl: preset.baseUrl,
-                    modelsText: d.modelsText || preset.models,
-                    defaultModel: d.defaultModel || preset.models.split(',')[0].trim()
+                    models: d.models.length === 0 ? preset.models : d.models,
+                    defaultModel: d.defaultModel || preset.models[0]
                   }))}
                 >
                   {preset.name}
@@ -188,15 +279,90 @@ export function ProviderSettings({ providers, loading, save, remove, testConnect
             </div>
           </label>
 
-          <label className="pf-field">
-            <span className="pf-label">模型列表</span>
-            <input className="pf-input" value={draft.modelsText} onChange={(e) => setDraft((d) => ({ ...d, modelsText: e.target.value }))} />
-            <span className="pf-hint">逗号分隔；默认模型为空时使用第一个模型。</span>
-          </label>
+          {/* Model list with reorder, add, remove, and auto-fetch */}
+          <div className="pf-field">
+            <div className="pf-label-row">
+              <span className="pf-label">模型列表</span>
+              <button
+                type="button"
+                className="pf-btn small"
+                disabled={fetchingModels}
+                onClick={() => void handleFetchModels()}
+              >
+                <Download size={12} /> {fetchingModels ? '获取中...' : '自动获取'}
+              </button>
+            </div>
+
+            {/* Model rows */}
+            <div className="model-list">
+              {draft.models.length === 0 && (
+                <div className="model-list-empty">暂未添加模型，请手动添加或点击"自动获取"</div>
+              )}
+              {draft.models.map((model, index) => (
+                <div key={index} className="model-row">
+                  <span className="model-row-index">{index + 1}</span>
+                  <input
+                    className="pf-input model-row-input"
+                    value={model}
+                    placeholder="输入模型名称"
+                    onChange={(e) => updateModel(index, e.target.value)}
+                  />
+                  <Select
+                    value=""
+                    placeholder=""
+                    onChange={(value) => updateModel(index, value)}
+                  >
+                    <Select.Item value="">— 选择 —</Select.Item>
+                    {suggestedModels.map((m) => (
+                      <Select.Item key={m} value={m}>{m}</Select.Item>
+                    ))}
+                  </Select>
+                  <div className="model-row-actions">
+                    <button
+                      type="button"
+                      title="上移"
+                      aria-label="上移"
+                      disabled={index === 0}
+                      onClick={() => moveModel(index, -1)}
+                    >
+                      <ArrowUp size={12} />
+                    </button>
+                    <button
+                      type="button"
+                      title="下移"
+                      aria-label="下移"
+                      disabled={index === draft.models.length - 1}
+                      onClick={() => moveModel(index, 1)}
+                    >
+                      <ArrowDown size={12} />
+                    </button>
+                    <button
+                      type="button"
+                      title="移除"
+                      aria-label="移除"
+                      onClick={() => removeModel(index)}
+                    >
+                      <X size={12} />
+                    </button>
+                  </div>
+                </div>
+              ))}
+            </div>
+
+            {/* Add model row */}
+            <button type="button" className="pf-btn small model-add-btn" onClick={addEmptyModel}>
+              <Plus size={12} /> 添加模型
+            </button>
+          </div>
 
           <label className="pf-field">
             <span className="pf-label">默认模型</span>
-            <input className="pf-input" value={draft.defaultModel} onChange={(e) => setDraft((d) => ({ ...d, defaultModel: e.target.value }))} />
+            <Select value={draft.defaultModel} onChange={(m) => setDraft((d) => ({ ...d, defaultModel: m }))}>
+              <Select.Item value="">— 选择默认模型 —</Select.Item>
+              {draft.models.filter(Boolean).map((m, i) => (
+                <Select.Item key={`${m}-${i}`} value={m}>{m}</Select.Item>
+              ))}
+            </Select>
           </label>
 
           {testMessage ? <div className="pf-hint">{testMessage}</div> : null}
@@ -218,10 +384,6 @@ export function ProviderSettings({ providers, loading, save, remove, testConnect
   )
 }
 
-function parseModels(value: string): string[] {
-  return value.split(',').map((item) => item.trim()).filter(Boolean)
-}
-
 function maskKey(value: string): string {
   if (!value) return '未保存'
   return `••••${value.slice(-4)}`
@@ -231,6 +393,7 @@ function providerIconClass(provider: ApiProviderConfig): string {
   const value = `${provider.name} ${provider.baseUrl ?? ''}`.toLowerCase()
   if (value.includes('deepseek')) return 'icon-deepseek'
   if (value.includes('moonshot') || value.includes('kimi')) return 'icon-kimi'
+  if (value.includes('mimo')) return 'icon-mimo'
   if (provider.format === 'anthropic') return 'icon-anthropic'
   if (provider.format === 'openai-compatible') return 'icon-openai'
   return 'icon-custom'

@@ -5175,6 +5175,7 @@ button.icon-only {
 .icon-openai { background: rgba(108, 140, 248, 0.15); color: var(--accent); }
 .icon-deepseek { background: rgba(96, 165, 250, 0.15); color: #60a5fa; }
 .icon-kimi { background: rgba(180, 142, 173, 0.15); color: var(--purple); }
+.icon-mimo { background: rgba(255, 132, 116, 0.15); color: #ff8474; }
 .icon-custom { background: rgba(154, 163, 181, 0.1); color: var(--text-dim); }
 
 .provider-card-body {
@@ -5373,6 +5374,152 @@ button.icon-only {
 .preset-chip:hover {
   border-color: var(--accent);
   color: var(--accent);
+}
+
+/* ── API Key visibility toggle ── */
+.pf-input-wrap {
+  display: flex;
+  gap: 0;
+}
+
+.pf-input-wrap .pf-input {
+  border-top-right-radius: 0;
+  border-bottom-right-radius: 0;
+  border-right: none;
+}
+
+.pf-input-btn {
+  width: 32px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  background: var(--bg-input);
+  border: 1px solid var(--border);
+  border-left: none;
+  border-radius: 0 5px 5px 0;
+  color: var(--text-dim);
+  cursor: pointer;
+  flex-shrink: 0;
+}
+
+.pf-input-btn:hover { color: var(--accent); }
+
+/* ── Label + action row ── */
+.pf-label-row {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 6px;
+}
+
+.pf-label-row .pf-label { margin-bottom: 0; }
+
+/* ── Model list ── */
+.model-list {
+  display: flex;
+  flex-direction: column;
+  border: 1px solid var(--border);
+  border-radius: 5px;
+  background: var(--bg-input);
+  overflow: hidden;
+  max-height: 200px;
+  overflow-y: auto;
+}
+
+.model-list-empty {
+  padding: 14px 10px;
+  font-size: 10px;
+  color: var(--text-dim);
+  text-align: center;
+}
+
+.model-row {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  padding: 5px 8px;
+  border-bottom: 1px solid var(--border-soft);
+}
+
+.model-row:last-child { border-bottom: none; }
+
+.model-row-index {
+  width: 18px;
+  height: 18px;
+  border-radius: 3px;
+  background: rgba(108, 140, 255, 0.08);
+  color: var(--text-dim);
+  font-size: 9px;
+  font-family: ui-monospace, monospace;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  flex-shrink: 0;
+}
+
+.model-row-input {
+  flex: 1;
+  min-width: 0;
+  font-size: 11px;
+  font-family: ui-monospace, monospace;
+  padding: 5px 7px;
+}
+
+.model-row .select-trigger {
+  width: 28px;
+  height: 26px;
+  padding: 0;
+  justify-content: center;
+  flex-shrink: 0;
+}
+
+.model-row .select-trigger > span:first-of-type {
+  display: none;
+}
+
+.model-row-actions {
+  display: flex;
+  gap: 1px;
+  flex-shrink: 0;
+}
+
+.model-row-actions button {
+  width: 22px;
+  height: 22px;
+  border-radius: 3px;
+  border: none;
+  background: transparent;
+  color: var(--text-dim);
+  cursor: pointer;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.model-row-actions button:hover:not(:disabled) { color: var(--accent); background: rgba(108, 140, 255, 0.08); }
+.model-row-actions button:disabled { opacity: 0.25; cursor: default; }
+
+/* ── Add model row ── */
+.model-add-btn {
+  width: 100%;
+  margin-top: 4px;
+  justify-content: center;
+  border-style: dashed;
+  background: transparent;
+  color: var(--text-dim);
+}
+
+.model-add-btn:hover {
+  border-color: var(--accent);
+  color: var(--accent);
+}
+
+/* ── Small button variant ── */
+.pf-btn.small {
+  min-height: 0;
+  padding: 3px 8px;
+  font-size: 10px;
+  gap: 3px;
 }
 
 /* ── Vendor Tabs ─────────────────────────────────────────────────────── */

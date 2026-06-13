@@ -66,6 +66,12 @@ const api = {
   testProvider: (id: string): Promise<{ ok: boolean; message: string }> =>
     ipcRenderer.invoke(IPC.providersTest, id),
 
+  getDecryptedProvider: (id: string): Promise<ApiProviderConfig> =>
+    ipcRenderer.invoke(IPC.providersGetDecrypted, id),
+
+  fetchProviderModels: (provider: ApiProviderConfig, providerId?: string): Promise<{ models: string[]; error?: string }> =>
+    ipcRenderer.invoke(IPC.providersFetchModels, provider, providerId),
+
   respondPermission: (requestId: string, allowed: boolean): Promise<void> =>
     ipcRenderer.invoke(IPC.permissionRespond, requestId, allowed),
 

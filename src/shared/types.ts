@@ -590,6 +590,10 @@ export const IPC = {
   providersDelete: 'providers:delete',
   /** renderer → main: test an API provider connection. */
   providersTest: 'providers:test',
+  /** renderer → main: fetch available models from a provider's API. */
+  providersFetchModels: 'providers:fetch-models',
+  /** renderer → main: get a provider with decrypted apiKey. */
+  providersGetDecrypted: 'providers:get-decrypted',
   /** main → renderer: request tool permission. */
   permissionRequest: 'permission:request',
   /** renderer → main: respond to a tool permission request. */

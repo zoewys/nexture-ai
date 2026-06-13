@@ -1,4 +1,6 @@
 import { readFileSync, existsSync } from 'node:fs'
+import { request as httpRequest } from 'node:http'
+import { request as httpsRequest } from 'node:https'
 import { app, ipcMain, dialog, type BrowserWindow } from 'electron'
 import { generateText } from 'ai'
 import {
@@ -48,6 +50,52 @@ import { ProviderStore } from './ProviderStore'
 import { respondToPermissionRequest } from './adapters/api-tools/PermissionGuard'
 import { resolveModel } from './adapters/apiAdapter'
 import { FeishuNotifier } from './FeishuNotifier'
+
+/** Minimal JSON fetch using Node.js http/https (no dependency on the global
+ *  `fetch` which may behave differently across Electron versions). */
+function fetchJson(url: string, headers: Record<string, string>): Promise<string[]> {
+  return new Promise((resolve, reject) => {
+    const mod = url.startsWith('https:') ? httpsRequest : httpRequest
+    const parsed = new URL(url)
+    const req = mod(
+      {
+        hostname: parsed.hostname,
+        port: parsed.port || (url.startsWith('https:') ? 443 : 80),
+        path: parsed.pathname + parsed.search,
+        method: 'GET',
+        headers,
+        timeout: 15000
+      },
+      (res) => {
+        if (res.statusCode !== 200) {
+          res.resume()
+          return reject(new Error(`HTTP ${res.statusCode}`))
+        }
+        let body = ''
+        res.setEncoding('utf8')
+        res.on('data', (chunk: string) => { body += chunk })
+        res.on('end', () => {
+          try {
+            const json = JSON.parse(body) as Record<string, unknown>
+            const data = (json as { data?: Array<{ id: string }> }).data
+            if (Array.isArray(data) && data.length > 0) {
+              return resolve(data.map((m) => m.id).filter(Boolean))
+            }
+            if (Array.isArray(json) && json.length > 0) {
+              return resolve(json
+                .filter((m): m is string | { id: string } => typeof m === 'string' || (typeof m === 'object' && m !== null && 'id' in m))
+                .map((m) => (typeof m === 'string' ? m : (m as { id: string }).id)))
+            }
+            reject(new Error('无法解析模型列表'))
+          } catch (err) { reject(err) }
+        })
+      }
+    )
+    req.on('error', reject)
+    req.on('timeout', () => { req.destroy(); reject(new Error('请求超时')) })
+    req.end()
+  })
+}
 
 export interface AppManagers {
   abortAll(): void
@@ -237,21 +285,98 @@ export function registerIpc(
 
   ipcMain.handle(IPC.providersSave, (_e, input): ApiProviderConfig => providerStore.save(input))
 
+  ipcMain.handle(IPC.providersGetDecrypted, (_e, id: string): ApiProviderConfig => providerStore.getDecrypted(id))
+
   ipcMain.handle(IPC.providersDelete, (_e, id: string): void => providerStore.remove(id))
 
   ipcMain.handle(IPC.providersTest, async (_e, id: string): Promise<{ ok: boolean; message: string }> => {
     try {
       const provider = providerStore.getDecrypted(id)
+      const base = (provider.baseUrl ?? '').replace(/\/+$/, '')
+      if (!base) return { ok: false, message: '未配置 Base URL，请先在编辑表单中填写' }
       const modelId = provider.defaultModel ?? provider.models[0]
-      if (!modelId) return { ok: false, message: '未配置模型' }
+      if (!modelId) return { ok: false, message: '未配置模型，请先添加模型或使用「自动获取」' }
+
+      // Step 1 — verify API reachability via the models endpoint.
+      const headers: Record<string, string> = { 'Accept': 'application/json' }
+      if (provider.format === 'anthropic') {
+        headers['x-api-key'] = provider.apiKey
+        headers['anthropic-version'] = '2023-06-01'
+      } else {
+        headers['Authorization'] = `Bearer ${provider.apiKey}`
+      }
+      const modelCandidates = provider.format === 'anthropic'
+        ? [`${base}/v1/models`]
+        : [`${base}/models`, `${base.replace(/\/v1\/?$/, '')}/models`]
+      let modelsReachable = false
+      let modelFetchError = ''
+      for (const url of [...new Set(modelCandidates)]) {
+        try { await fetchJson(url, headers); modelsReachable = true; break }
+        catch (err) { modelFetchError = err instanceof Error ? err.message : String(err) }
+      }
+      if (!modelsReachable) {
+        return { ok: false, message: `无法连接 API (${modelFetchError})。请检查 Base URL 和 API Key 是否正确` }
+      }
+
+      // Step 2 — test chat completion with the configured model.
       await generateText({
         model: resolveModel(provider, modelId) as any,
         prompt: 'Reply with OK.',
-        maxOutputTokens: 8
+        maxOutputTokens: 8,
+        temperature: 1,
+        topP: 0.95
       })
-      return { ok: true, message: '连接成功' }
+      return { ok: true, message: `连接成功 (模型: ${modelId})` }
     } catch (err) {
-      return { ok: false, message: err instanceof Error ? err.message : String(err) }
+      const msg = err instanceof Error ? err.message : String(err)
+      // Translate common AI SDK errors into actionable Chinese hints.
+      if (msg.includes('Not Found') || msg.includes('404')) {
+        return { ok: false, message: `模型不存在 (${msg})。请在模型列表中确认「默认模型」名称正确，或使用「自动获取」更新模型列表` }
+      }
+      if (msg.includes('Unauthorized') || msg.includes('401') || msg.includes('403')) {
+        return { ok: false, message: `API Key 无效或无权限 (${msg})。请检查 Key 是否正确` }
+      }
+      if (msg.includes('InsufficientBalance') || msg.includes('insufficient') || msg.includes('402')) {
+        return { ok: false, message: `账户余额不足 (${msg})` }
+      }
+      return { ok: false, message: msg }
+    }
+  })
+
+  ipcMain.handle(IPC.providersFetchModels, async (_e, provider: ApiProviderConfig, providerId?: string): Promise<{ models: string[]; error?: string }> => {
+    try {
+      // If no key was provided but we have a stored provider, use its key.
+      let apiKey = provider.apiKey
+      if (!apiKey && providerId) {
+        try { apiKey = providerStore.getDecrypted(providerId).apiKey } catch { /* not found */ }
+      }
+      const base = (provider.baseUrl ?? '').replace(/\/+$/, '')
+      if (!apiKey) return { models: [], error: '请先填写 API Key' }
+      if (!base) return { models: [], error: '请先填写 Base URL' }
+
+      const headers: Record<string, string> = { 'Accept': 'application/json' }
+      if (provider.format === 'anthropic') {
+        headers['x-api-key'] = apiKey
+        headers['anthropic-version'] = '2023-06-01'
+      } else {
+        headers['Authorization'] = `Bearer ${apiKey}`
+      }
+
+      const candidates = provider.format === 'anthropic'
+        ? [`${base}/v1/models`]
+        : [`${base}/models`, `${base.replace(/\/v1\/?$/, '')}/models`]
+
+      for (const url of [...new Set(candidates)]) {
+        try {
+          const models = await fetchJson(url, headers)
+          if (models.length > 0) return { models }
+        } catch (err) {
+          // try next candidate
+        }
+      }
+      return { models: [], error: `无法从 ${candidates[0]} 获取模型列表，请检查 API Key 和 Base URL` }
+    } catch (err) {
+      return { models: [], error: err instanceof Error ? err.message : String(err) }
     }
   })
 

@@ -48,11 +48,12 @@ export class CodexAdapter implements CliAdapter {
           }
         },
         onStderr: (text) => {
-          // Codex writes some non-actionable diagnostics to stderr. These do
-          // not affect the exec flow, so suppress them rather than filling the
-          // transcript with warning blocks.
-          const filtered = filterCodexStderr(text)
-          if (filtered) queue.push({ kind: 'stderr', text: filtered })
+          // Separate benign plugin noise from potentially actionable auth/MCP
+          // messages. Plugin warnings are silent; MCP/auth messages become
+          // system events so the user can see connection progress.
+          const { noise, mcp } = filterCodexStderr(text)
+          if (noise) queue.push({ kind: 'stderr', text: noise })
+          if (mcp) queue.push({ kind: 'system', text: `[Codex] ${mcp}` })
         },
         onSpawnError: (err) => {
           cleanupOutputSchema()
@@ -114,25 +115,33 @@ function createOutputSchemaCleanup(schemaPath: string | undefined): () => void {
   }
 }
 
-/** Remove Codex's benign stderr chatter while preserving actionable stderr. */
-function filterCodexStderr(text: string): string {
+/** Split Codex stderr into benign noise (suppressed) and MCP/auth messages
+ *  (surfaced as system events to show connection progress). */
+function filterCodexStderr(text: string): { noise: string; mcp: string } {
   const withoutPluginAssetIconWarnings = text.replace(
     /(?:\S+\s+WARN\s+)?codex_core_skills::loader: ignoring\s+interface\.icon_(?:small|large): icon path with '\.\.' must\s+resolve under plugin assets\/?/g,
     ''
   )
 
-  return withoutPluginAssetIconWarnings
-    .split('\n')
-    .filter((line) => {
-      if (!line.trim()) return false
-      return !(
-        /rmcp::transport::worker/.test(line) ||
-        /MCP grant token/.test(line) ||
-        /grant token not valid/.test(line) ||
-        /Missing or invalid access token/.test(line) ||
-        /AuthRequired\b/.test(line) ||
-        /UnexpectedContentType/.test(line)
-      )
-    })
-    .join('\n')
+  const lines = withoutPluginAssetIconWarnings.split('\n')
+  const noiseLines: string[] = []
+  const mcpLines: string[] = []
+
+  for (const line of lines) {
+    if (!line.trim()) continue
+    if (
+      /rmcp::transport::worker/.test(line) ||
+      /MCP grant token/.test(line) ||
+      /grant token not valid/.test(line) ||
+      /Missing or invalid access token/.test(line) ||
+      /AuthRequired\b/.test(line) ||
+      /UnexpectedContentType/.test(line)
+    ) {
+      mcpLines.push(line.trim())
+    } else {
+      noiseLines.push(line)
+    }
+  }
+
+  return { noise: noiseLines.join('\n'), mcp: mcpLines.join('\n') }
 }

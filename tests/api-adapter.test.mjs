@@ -94,7 +94,7 @@ function mocksFor(parts, calls = []) {
     },
     stepCountIs: (count) => ({ stepCount: count }),
     createAnthropic: (options) => (modelId) => ({ provider: 'anthropic', options, modelId }),
-    createOpenAI: (options) => (modelId) => ({ provider: 'openai', options, modelId }),
+    createOpenAI: (options) => ({ chat: (modelId) => ({ provider: 'openai', options, modelId }) }),
     buildToolSet: () => ({ bash: { execute: async () => ({ exitCode: 0, output: '' }) } })
   }
 }
@@ -115,6 +115,7 @@ test('ApiAdapter emits session-started first, maps text deltas, and emits turn-d
     name: 'Anthropic',
     format: 'anthropic',
     apiKey: 'sk-test',
+    baseUrl: 'https://anthropic.example',
     models: ['claude-3-5'],
     defaultModel: 'claude-3-5'
   }, guard)
@@ -176,6 +177,7 @@ test('ApiAdapter emits error events for stream error parts and thrown stream err
     name: 'OpenAI',
     format: 'openai-compatible',
     apiKey: 'sk-test',
+    baseUrl: 'https://openai.example/v1',
     models: ['gpt-4o']
   }, guard)
 

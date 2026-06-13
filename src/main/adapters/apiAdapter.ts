@@ -39,6 +39,8 @@ export class ApiAdapter implements CliAdapter {
         model: resolveModel(this.config, modelId) as any,
         prompt: input.prompt,
         system: input.appendSystemPrompt,
+        temperature: 1,
+        topP: 0.95,
         tools: buildToolSet(input.cwd, input.abortSignal, this.guard, (path, op) => {
           queue.push({ kind: 'file-changed', path, op })
         }),
@@ -63,12 +65,13 @@ export class ApiAdapter implements CliAdapter {
 }
 
 export function resolveModel(config: ApiProviderConfig, modelId: string): unknown {
-  const options = {
-    apiKey: config.apiKey,
-    ...(config.baseUrl ? { baseURL: config.baseUrl } : {})
-  }
+  const baseURL = (config.baseUrl ?? '').trim().replace(/\/+$/, '')
+  if (!baseURL) throw new Error('未配置 Base URL')
+  const options = { apiKey: config.apiKey, baseURL }
   if (config.format === 'anthropic') return createAnthropic(options)(modelId)
-  return createOpenAI(options)(modelId)
+  // 必须用 .chat() 走 /v1/chat/completions，不能用默认的 Responses API (/v1/responses)
+  // 因为 DeepSeek / Moonshot / SiliconFlow 等第三方只支持 Chat Completions
+  return createOpenAI(options).chat(modelId)
 }
 
 function mapStreamPart(part: Record<string, unknown>, sessionId: string, queue: AsyncQueue<AgentEvent>): void {

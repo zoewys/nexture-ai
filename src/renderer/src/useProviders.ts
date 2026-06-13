@@ -7,6 +7,8 @@ export interface ProviderState {
   save: (input: Omit<ApiProviderConfig, 'id'> & { id?: string }) => Promise<void>
   remove: (id: string) => Promise<void>
   testConnection: (id: string) => Promise<{ ok: boolean; message: string }>
+  fetchModels: (provider: ApiProviderConfig, providerId?: string) => Promise<{ models: string[]; error?: string }>
+  getDecrypted: (id: string) => Promise<ApiProviderConfig>
   reload: () => Promise<void>
 }
 
@@ -35,9 +37,17 @@ export function useProviders(): ProviderState {
 
   const testConnection = useCallback((id: string) => window.api.testProvider(id), [])
 
+  const fetchModels = useCallback(async (provider: ApiProviderConfig, providerId?: string) => {
+    return window.api.fetchProviderModels(provider, providerId)
+  }, [])
+
+  const getDecrypted = useCallback(async (id: string) => {
+    return window.api.getDecryptedProvider(id)
+  }, [])
+
   useEffect(() => {
     void reload()
   }, [reload])
 
-  return { providers, loading, save, remove, testConnection, reload }
+  return { providers, loading, save, remove, testConnection, fetchModels, getDecrypted, reload }
 }
