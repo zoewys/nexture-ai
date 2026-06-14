@@ -1,4 +1,4 @@
-import type { AgentEvent, AgentVendor, RunConfig } from '@shared/types'
+import type { AdapterCapabilities, AgentEvent, AgentVendor, RunConfig } from '@shared/types'
 import type { CliAdapter } from './types'
 import { ClaudeAdapter } from './claudeAdapter'
 import { CodexAdapter } from './codexAdapter'
@@ -10,6 +10,36 @@ export interface AdapterContext {
   providerStore?: ProviderStore
   runConfig?: RunConfig
   emitEvent?: (event: AgentEvent) => void
+}
+
+export function getAdapterCapabilities(vendor: AgentVendor): AdapterCapabilities {
+  switch (vendor) {
+    case 'claude':
+      return {
+        bidirectionalStdin: true,
+        nativeResume: true,
+        structuredOutputSchema: false,
+        partialTokenStream: true
+      }
+    case 'codex':
+      return {
+        bidirectionalStdin: false,
+        nativeResume: true,
+        structuredOutputSchema: true,
+        partialTokenStream: true
+      }
+    case 'api':
+      return {
+        bidirectionalStdin: false,
+        nativeResume: false,
+        structuredOutputSchema: false,
+        partialTokenStream: true
+      }
+    default: {
+      const _exhaustive: never = vendor
+      throw new Error(`Unknown vendor: ${String(_exhaustive)}`)
+    }
+  }
 }
 
 /** Resolve a fresh adapter instance for a vendor. One per run. */

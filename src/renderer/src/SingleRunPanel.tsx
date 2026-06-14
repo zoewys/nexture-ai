@@ -1,33 +1,32 @@
 /**
- * SingleRunPanel.tsx — 单次 Agent 运行面板
+ * SingleRunPanel.tsx — Single Agent 会话型工作区
  *
- * 对应 UI 中 "Single" 模式的整个工作区，包含：
- *  - 左侧配置栏：Agent 选择、CLI/Model 选择、项目路径、Prompt 输入、运行控制按钮
- *  - 右侧运行时区域：TranscriptViewer（实时输出流）+ 底部 Composer（插话/跟进输入框）
- *
- * 所有单次运行相关的局部状态（vendor、model、cwd、prompt、interjection 等）
- * 都封装在此组件内部，App.tsx 只传入全局依赖（agents 列表、CLI 状态、运行回调）。
+ * Single 模式现在由产品级 SingleSession 驱动：左侧是逻辑会话列表，
+ * 主区显示当前会话 transcript，header 内直接承载 route / model / cwd 配置。
  */
 
-import { useMemo, useState } from 'react'
+import { useEffect, useMemo, useState } from 'react'
 import type {
   AgentDefinition,
-  AgentEvent,
   AgentVendor,
   CliCheckResult,
   ModelCatalog,
-  RunConfig
+  RunConfig,
+  SessionRoute,
+  SingleSession,
+  SingleSessionCreateInput,
+  SingleSessionDetail
 } from '@shared/types'
 import { ALL_VENDORS } from '@shared/types'
-import type { RunState } from './useRun'
 import { Select } from './Select'
 import { CodexOptions } from './CodexOptions'
 import { ModelSelect } from './ModelSelect'
 import { TranscriptViewer } from './TranscriptViewer'
 import { MemoryReferences } from './MemoryReferences'
 import { ComposerBar } from './ComposerBar'
+import { SingleSessionSidebar } from './SingleSessionSidebar'
 import { readLastProjectPath, rememberProjectPath } from './projectPathMemory'
-import { FolderOpen, ChevronLeft, ChevronRight, SlidersHorizontal } from 'lucide-react'
+import { Bot, FolderOpen, GitBranch, MessageSquare, Square } from 'lucide-react'
 import { useProviders } from './useProviders'
 
 interface SingleRunPanelProps {
@@ -35,14 +34,18 @@ interface SingleRunPanelProps {
   clis: CliCheckResult | null
   modelCatalog: ModelCatalog | null
   modelsLoading: boolean
-  runState: RunState
-  configOpen: boolean
-  onConfigOpenChange: (open: boolean) => void
-  onStart: (config: RunConfig) => Promise<void>
-  onContinueSession: (config: RunConfig, displayText?: string) => Promise<void>
-  onPush: (text: string) => Promise<void>
-  onAbort: () => Promise<void>
-  onReset: () => void
+  sessions: SingleSession[]
+  selectedSession: SingleSessionDetail | null
+  selectedSessionId: string | null
+  onCreateSession: (input: SingleSessionCreateInput) => Promise<SingleSession>
+  onSelectSession: (id: string) => void
+  onSendMessage: (
+    text: string,
+    route: SessionRoute,
+    options?: { appendSystemPrompt?: string; addDirs?: string[]; apiMaxSteps?: number },
+    sessionIdOverride?: string
+  ) => Promise<SingleSessionDetail>
+  onAbortSession: () => Promise<SingleSessionDetail | null>
   onModeAgents: () => void
   showMemoryReferences?: boolean
 }
@@ -52,33 +55,27 @@ export function SingleRunPanel({
   clis,
   modelCatalog,
   modelsLoading,
-  runState: state,
-  configOpen,
-  onConfigOpenChange,
-  onStart,
-  onContinueSession,
-  onPush,
-  onAbort,
-  onReset,
+  sessions,
+  selectedSession,
+  selectedSessionId,
+  onCreateSession,
+  onSelectSession,
+  onSendMessage,
+  onAbortSession,
   onModeAgents,
   showMemoryReferences = false
 }: SingleRunPanelProps): JSX.Element {
   const [vendor, setVendor] = useState<AgentVendor>('claude')
   const [cwd, setCwd] = useState(readLastProjectPath)
-  const [prompt, setPrompt] = useState('')
   const [model, setModel] = useState('')
   const [codexReasoningEffort, setCodexReasoningEffort] = useState<RunConfig['codexReasoningEffort']>()
   const [codexServiceTier, setCodexServiceTier] = useState<string | undefined>()
-  const [interjection, setInterjection] = useState('')
+  const [message, setMessage] = useState('')
   const [selectedAgentId, setSelectedAgentId] = useState<string | null>(null)
   const [selectedProviderId, setSelectedProviderId] = useState('')
   const [attachedFiles, setAttachedFiles] = useState<string[]>([])
+  const [lastRouteSwitch, setLastRouteSwitch] = useState<string | null>(null)
   const providerState = useProviders()
-
-  const handlePickFiles = async () => {
-    const files = await window.api.pickFiles()
-    if (files && files.length > 0) setAttachedFiles(prev => [...prev, ...files])
-  }
 
   const selectedAgent = useMemo(
     () => agents.find((a) => a.id === selectedAgentId) ?? null,
@@ -94,13 +91,29 @@ export function SingleRunPanel({
   const effectiveModel = vendor === 'api'
     ? (model || selectedProvider?.defaultModel || apiModels[0] || '')
     : model
-
-  const canStart = !state.running && cwd.trim() !== '' && prompt.trim() !== '' && (vendor !== 'api' || !!selectedProvider)
-  const canFollowUp = !state.running && state.events.length > 0
-  const canResume = canFollowUp && state.sessionId !== null
-  const canInterject = state.running && vendor === 'claude'
-  const composerEnabled = canFollowUp || canInterject
+  const currentRoute: SessionRoute = {
+    vendor,
+    agentId: selectedAgent?.id,
+    model: effectiveModel.trim() || undefined,
+    apiProviderId: vendor === 'api' ? selectedProviderId || selectedProvider?.id : undefined,
+    codexReasoningEffort: vendor === 'codex' ? codexReasoningEffort : undefined,
+    codexServiceTier: vendor === 'codex' ? codexServiceTier : undefined,
+    permissionMode: selectedAgent?.permissionMode
+  }
+  const routeChanged = !!selectedSession?.route && !routesEqual(selectedSession.route, currentRoute)
   const cliAvailable = clis ? clis[vendor] : true
+
+  useEffect(() => {
+    if (!selectedSession) return
+    setCwd(selectedSession.cwd)
+    if (!selectedSession.route) return
+    setVendor(selectedSession.route.vendor)
+    setModel(selectedSession.route.model ?? '')
+    setSelectedAgentId(selectedSession.route.agentId ?? null)
+    setSelectedProviderId(selectedSession.route.apiProviderId ?? '')
+    setCodexReasoningEffort(selectedSession.route.codexReasoningEffort)
+    setCodexServiceTier(selectedSession.route.codexServiceTier)
+  }, [selectedSession?.id])
 
   const handleSelectAgent = (id: string) => {
     setSelectedAgentId(id || null)
@@ -126,23 +139,6 @@ export function SingleRunPanel({
     setModel(provider?.defaultModel ?? provider?.models[0] ?? '')
   }
 
-  const handleStart = async (): Promise<void> => {
-    const config: RunConfig = {
-      vendor,
-      prompt: prompt.trim(),
-      cwd: cwd.trim(),
-      agentId: selectedAgent?.id,
-      model: effectiveModel.trim() || undefined,
-      codexReasoningEffort: vendor === 'codex' ? codexReasoningEffort : undefined,
-      codexServiceTier: vendor === 'codex' ? codexServiceTier : undefined,
-      apiProviderId: vendor === 'api' ? selectedProviderId || selectedProvider?.id : undefined,
-      appendSystemPrompt: selectedAgent?.systemPrompt,
-      permissionMode: selectedAgent?.permissionMode
-    }
-    rememberProjectPath(cwd)
-    await onStart(config)
-  }
-
   const handlePickDir = async (): Promise<void> => {
     const dir = await window.api.pickDir()
     if (dir) {
@@ -151,265 +147,248 @@ export function SingleRunPanel({
     }
   }
 
-  const handleComposerSend = async (): Promise<void> => {
-    const text = interjection.trim()
-    if ((!text && attachedFiles.length === 0) || !composerEnabled) return
+  const handlePickFiles = async () => {
+    const files = await window.api.pickFiles()
+    if (files && files.length > 0) setAttachedFiles(prev => [...prev, ...files])
+  }
+
+  const handleCreateSession = async (): Promise<SingleSession> => {
+    const projectPath = cwd.trim()
+    if (!projectPath) throw new Error('Project directory is required')
+    rememberProjectPath(projectPath)
+    return onCreateSession({
+      cwd: projectPath,
+      route: currentRoute
+    })
+  }
+
+  const handleSelectSession = (id: string): void => {
+    if (selectedSession?.running && selectedSession.id !== id) {
+      const confirmed = window.confirm('当前会话仍有 live run。停止或完成后再切换，或确认切换并保留后台运行。')
+      if (!confirmed) return
+    }
+    onSelectSession(id)
+  }
+
+  const handleSend = async (): Promise<void> => {
+    const text = message.trim()
+    if ((!text && attachedFiles.length === 0) || (vendor === 'api' && !selectedProvider)) return
     const fullText = attachedFiles.length > 0
       ? text + '\n\n[Attached files:\n' + attachedFiles.map(f => `  ${f}`).join('\n') + '\n]'
       : text
-    setInterjection('')
+    const session = selectedSession ?? await handleCreateSession()
+    const previousRoute = session.route
+    setMessage('')
     setAttachedFiles([])
-    if (canInterject) {
-      await onPush(fullText)
-    } else if (canFollowUp) {
-      const resumeFrom = state.sessionId ? { sessionId: state.sessionId, vendor } : undefined
-      const config: RunConfig = {
-        vendor,
-        prompt: resumeFrom ? fullText : buildSingleRunFollowUpPrompt(prompt, state.events, fullText),
-        cwd: cwd.trim(),
-        agentId: selectedAgent?.id,
-        model: effectiveModel.trim() || undefined,
-        apiProviderId: vendor === 'api' ? selectedProviderId || selectedProvider?.id : undefined,
-        resumeFrom,
+    rememberProjectPath(cwd)
+    const updated = await onSendMessage(
+      fullText,
+      currentRoute,
+      {
         appendSystemPrompt: selectedAgent?.systemPrompt,
-        permissionMode: selectedAgent?.permissionMode
-      }
-      await onContinueSession(config, text || '[Files attached]')
+        apiMaxSteps: vendor === 'api' ? 10 : undefined
+      },
+      session.id
+    )
+    if (previousRoute && !routesEqual(previousRoute, currentRoute)) {
+      setLastRouteSwitch(`${routeLabel(previousRoute)} -> ${routeLabel(currentRoute)}`)
+    } else if (updated.activeSegment?.continuationStrategy === 'logic-replay') {
+      setLastRouteSwitch(`${routeLabel(previousRoute ?? currentRoute)} -> ${routeLabel(currentRoute)}`)
     }
   }
 
+  const pendingSwitchLabel = selectedSession?.route && routeChanged
+    ? `${routeLabel(selectedSession.route)} -> ${routeLabel(currentRoute)}`
+    : null
+  const bannerText = pendingSwitchLabel
+    ? `当前话题不变，后续由新模型接手：${pendingSwitchLabel}`
+    : lastRouteSwitch
+      ? `模型已切换，会话保持不变：${lastRouteSwitch}`
+      : null
+
   return (
     <>
-      <aside className={`panel panel-config ${configOpen ? '' : 'panel-config-collapsed'}`}>
-        {configOpen ? (
-          <>
-            <div className="workspace-panel-header">
-              <div className="panel-heading-line">
-                <span className="section-title">Single Run</span>
-                <button
-                  type="button"
-                  className="icon-only panel-collapse-button"
-                  title="收起配置栏"
-                  aria-label="收起配置栏"
-                  onClick={() => onConfigOpenChange(false)}
-                >
-                  <ChevronLeft size={15} />
-                </button>
-              </div>
-              <h2>Single Run</h2>
-              <p>保留独立入口；不参与 workflow 多运行队列。</p>
+      <SingleSessionSidebar
+        sessions={sessions}
+        selectedSessionId={selectedSessionId}
+        onNewSession={() => { void handleCreateSession() }}
+        onSelectSession={handleSelectSession}
+      />
+
+      <main className="panel panel-runtime single-session-main">
+        <div className="single-session-header">
+          <div className="single-session-title-block">
+            <span className="section-title">Single Agent</span>
+            <h2>{selectedSession?.title ?? 'New Session'}</h2>
+            <div className="single-session-meta">
+              <span><Bot size={13} /> {routeLabel(selectedSession?.route ?? currentRoute)}</span>
+              <span><GitBranch size={13} /> {cwd || 'No project selected'}</span>
+              <span className={selectedSession?.running ? 'single-session-status-running' : ''}>
+                {selectedSession?.running ? 'LIVE' : 'READY'}
+              </span>
             </div>
+          </div>
+          <div className="single-session-actions">
+            {selectedSession?.running && (
+              <button type="button" onClick={() => { void onAbortSession() }}>
+                <Square size={13} /> Stop
+              </button>
+            )}
+          </div>
+        </div>
 
-            <>
-              <label className="field">
-                <span>Agent</span>
-                <div className="field-row">
-                  <Select
-                    value={selectedAgentId ?? ''}
-                    onChange={(v) => handleSelectAgent(v)}
-                    placeholder="None — manual config"
-                  >
-                    <Select.Item value="">None — manual config</Select.Item>
-                    {agents.map((a) => (
-                      <Select.Item key={a.id} value={a.id}>
-                        {a.name || 'Unnamed'}
-                      </Select.Item>
-                    ))}
-                  </Select>
-                  <button onClick={onModeAgents} type="button">
-                    Agent
-                  </button>
-                </div>
-              </label>
+        {bannerText && (
+          <div className="single-session-banner single-session-banner-active-route">
+            <MessageSquare size={15} />
+            <div>
+              <strong>{bannerText}</strong>
+              <span className="single-session-banner-meta">
+                逻辑会话 ID 不变；跨模型不会复用旧模型的原生 session。
+              </span>
+            </div>
+          </div>
+        )}
 
-              <label className="field">
-                <span>Mode</span>
-                <div className="vendor-tabs">
-                  {ALL_VENDORS.map((v) => (
-                    <button
-                      key={v}
-                      type="button"
-                      className={`vendor-tab${vendor === v ? ' active' : ''}`}
-                      onClick={() => handleVendorChange(v)}
-                    >
-                      {v === 'claude' ? 'Claude CLI' : v === 'codex' ? 'Codex CLI' : 'API'}
-                      {clis && !clis[v] ? ' (not installed)' : ''}
-                    </button>
-                  ))}
-                </div>
-              </label>
+        <div className="single-session-route-panel">
+          <label className="field compact-field">
+            <span>Agent</span>
+            <div className="field-row">
+              <Select value={selectedAgentId ?? ''} onChange={(v) => handleSelectAgent(v)} placeholder="None — manual config">
+                <Select.Item value="">None — manual config</Select.Item>
+                {agents.map((a) => (
+                  <Select.Item key={a.id} value={a.id}>{a.name || 'Unnamed'}</Select.Item>
+                ))}
+              </Select>
+              <button onClick={onModeAgents} type="button">Agent</button>
+            </div>
+          </label>
 
-              {vendor === 'api' ? (
-                <>
-                  <label className="field">
-                    <span>API 供应商</span>
-                    <Select value={selectedProvider?.id ?? ''} onChange={handleProviderChange} disabled={providerState.loading || providerState.providers.length === 0}>
-                      {providerState.providers.map((provider) => (
-                        <Select.Item key={provider.id} value={provider.id}>{provider.name}</Select.Item>
-                      ))}
-                    </Select>
-                  </label>
-                  <label className="field">
-                    <span>Model</span>
-                    <Select value={effectiveModel} onChange={setModel} disabled={apiModels.length === 0}>
-                      {apiModels.map((apiModel) => (
-                        <Select.Item key={apiModel} value={apiModel}>{apiModel}</Select.Item>
-                      ))}
-                    </Select>
-                  </label>
-                </>
-              ) : (
-                <label className="field">
-                  <span>Model</span>
-                  <ModelSelect
-                    value={model}
-                    loading={modelsLoading}
-                    modelInfo={modelInfo}
-                    onChange={setModel}
-                  />
-                </label>
-              )}
-
-              {vendor === 'codex' && (
-                <CodexOptions
-                  model={model}
-                  modelInfo={modelInfo}
-                  reasoningEffort={codexReasoningEffort}
-                  serviceTier={codexServiceTier}
-                  onReasoningEffortChange={setCodexReasoningEffort}
-                  onServiceTierChange={setCodexServiceTier}
-                />
-              )}
-
-              <label className="field">
-                <span>Project Directory</span>
-                <div className="field-row">
-                  <input
-                    value={cwd}
-                    placeholder="/path/to/project"
-                    onChange={(e) => setCwd(e.target.value)}
-                  />
-                  <button onClick={handlePickDir} type="button">
-                    <FolderOpen size={14} /> Browse
-                  </button>
-                </div>
-              </label>
-
-              <label className="field field-grow">
-                <span>Prompt</span>
-                <textarea
-                  value={prompt}
-                  placeholder="Describe the task for the agent..."
-                  onChange={(e) => setPrompt(e.target.value)}
-                />
-              </label>
-
-              {!cliAvailable && (
-                <div className="warn">
-                  {vendor} CLI not found. Auto-installing...
-                </div>
-              )}
-
-              <div className="actions">
+          <label className="field compact-field">
+            <span>Mode</span>
+            <div className="vendor-tabs">
+              {ALL_VENDORS.map((v) => (
                 <button
-                  className="primary"
-                  disabled={!canStart}
-                  onClick={handleStart}
+                  key={v}
                   type="button"
+                  className={`vendor-tab${vendor === v ? ' active' : ''}`}
+                  onClick={() => handleVendorChange(v)}
                 >
-                  {state.running ? 'Running...' : 'Start Run'}
+                  {v === 'claude' ? 'Claude CLI' : v === 'codex' ? 'Codex CLI' : 'API'}
+                  {clis && !clis[v] ? ' (not installed)' : ''}
                 </button>
-                {state.running && (
-                  <button onClick={onAbort} type="button">
-                    Stop
-                  </button>
-                )}
-                {!state.running && state.events.length > 0 && (
-                  <button onClick={onReset} type="button">
-                    Clear
-                  </button>
-                )}
-              </div>
+              ))}
+            </div>
+          </label>
+
+          {vendor === 'api' ? (
+            <>
+              <label className="field compact-field">
+                <span>API 供应商</span>
+                <Select value={selectedProvider?.id ?? ''} onChange={handleProviderChange} disabled={providerState.loading || providerState.providers.length === 0}>
+                  {providerState.providers.map((provider) => (
+                    <Select.Item key={provider.id} value={provider.id}>{provider.name}</Select.Item>
+                  ))}
+                </Select>
+              </label>
+              <label className="field compact-field">
+                <span>Model</span>
+                <Select value={effectiveModel} onChange={setModel} disabled={apiModels.length === 0}>
+                  {apiModels.map((apiModel) => (
+                    <Select.Item key={apiModel} value={apiModel}>{apiModel}</Select.Item>
+                  ))}
+                </Select>
+              </label>
             </>
-          </>
-        ) : (
-          <button
-            type="button"
-            className="panel-vertical-toggle"
-            title="展开配置栏"
-            aria-label="展开配置栏"
-            onClick={() => onConfigOpenChange(true)}
-          >
-            <ChevronRight size={16} />
-            <SlidersHorizontal size={16} />
-          </button>
-        )}
-      </aside>
+          ) : (
+            <label className="field compact-field">
+              <span>Model</span>
+              <ModelSelect
+                value={model}
+                loading={modelsLoading}
+                modelInfo={modelInfo}
+                onChange={setModel}
+              />
+            </label>
+          )}
 
-      <main className="panel panel-runtime">
-        <TranscriptViewer events={state.events} />
-        {showMemoryReferences && (
-          <MemoryReferences
-            agentId={state.agentId}
-            projectPath={state.projectPath}
-            memoryIds={state.injectedMemoryIds}
-          />
-        )}
+          {vendor === 'codex' && (
+            <CodexOptions
+              model={model}
+              modelInfo={modelInfo}
+              reasoningEffort={codexReasoningEffort}
+              serviceTier={codexServiceTier}
+              onReasoningEffortChange={setCodexReasoningEffort}
+              onServiceTierChange={setCodexServiceTier}
+            />
+          )}
 
-        {state.events.length > 0 && (
-          <ComposerBar
-            value={interjection}
-            onChange={setInterjection}
-            onSend={handleComposerSend}
-            disabled={!composerEnabled}
-            placeholder={
-              canInterject
-                ? '向运行中的 agent 发送消息...'
-                : canResume
-                  ? '继续此会话...'
-                  : canFollowUp
-                    ? '继续对话（将基于当前 transcript 重建上下文）...'
-                    : vendor === 'claude'
-                      ? '先启动一次运行以创建会话...'
-                      : state.running
-                        ? `${vendor} 运行中暂不支持实时输入`
-                        : '先启动一次运行以创建对话...'
-            }
-            attachedFiles={attachedFiles}
-            onPickFiles={handlePickFiles}
-            onRemoveFile={(f) => setAttachedFiles(prev => prev.filter(x => x !== f))}
-          />
-        )}
+          <label className="field compact-field single-session-cwd-field">
+            <span>Project Directory</span>
+            <div className="field-row">
+              <input value={cwd} placeholder="/path/to/project" onChange={(e) => setCwd(e.target.value)} />
+              <button onClick={handlePickDir} type="button">
+                <FolderOpen size={14} /> Browse
+              </button>
+            </div>
+          </label>
+        </div>
+
+        {!cliAvailable && <div className="warn">{vendor} CLI not found. Auto-installing...</div>}
+
+        <div className="single-session-transcript">
+          {selectedSession ? (
+            <TranscriptViewer events={selectedSession.conversation.events} variant="chat" />
+          ) : (
+            <div className="single-session-empty-state">
+              <MessageSquare size={26} />
+              <strong>Create a session to start chatting</strong>
+              <span>Pick a project directory, choose a route, then send the first message.</span>
+            </div>
+          )}
+          {showMemoryReferences && selectedAgentId && (
+            <MemoryReferences
+              agentId={selectedAgentId}
+              projectPath={cwd}
+              memoryIds={selectedSession?.injectedMemoryIds}
+            />
+          )}
+        </div>
+
+        <ComposerBar
+          value={message}
+          onChange={setMessage}
+          onSend={handleSend}
+          disabled={!cwd.trim() || (vendor === 'api' && !selectedProvider)}
+          placeholder={
+            selectedSession
+              ? '继续当前逻辑会话...'
+              : '发送第一条消息并创建会话...'
+          }
+          attachedFiles={attachedFiles}
+          onPickFiles={handlePickFiles}
+          onRemoveFile={(f) => setAttachedFiles(prev => prev.filter(x => x !== f))}
+        />
       </main>
     </>
   )
 }
 
-function buildSingleRunFollowUpPrompt(
-  initialPrompt: string,
-  events: AgentEvent[],
-  nextText: string
-): string {
-  const transcript = events
-    .flatMap((event): string[] => {
-      if (event.kind === 'message') return [`Assistant: ${event.text}`]
-      if (event.kind === 'system' && event.text.startsWith('↳ ')) {
-        return [`User: ${event.text.slice(2).trim()}`]
-      }
-      return []
-    })
-    .join('\n\n')
+function routesEqual(a: SessionRoute, b: SessionRoute): boolean {
+  return (
+    a.vendor === b.vendor &&
+    empty(a.model) === empty(b.model) &&
+    empty(a.agentId) === empty(b.agentId) &&
+    empty(a.apiProviderId) === empty(b.apiProviderId) &&
+    empty(a.codexReasoningEffort) === empty(b.codexReasoningEffort) &&
+    empty(a.codexServiceTier) === empty(b.codexServiceTier) &&
+    empty(a.permissionMode) === empty(b.permissionMode)
+  )
+}
 
-  return [
-    'Continue the earlier conversation. The CLI did not provide a resumable session id, so use this transcript as context.',
-    '',
-    initialPrompt.trim() ? `User: ${initialPrompt.trim()}` : '',
-    transcript,
-    '',
-    '---',
-    '',
-    `Now respond to this new message:\n${nextText}`
-  ]
-    .filter((part) => part.trim())
-    .join('\n\n')
+function empty(value: string | undefined): string {
+  return value?.trim() ?? ''
+}
+
+function routeLabel(route: SessionRoute): string {
+  return [route.vendor, route.model].filter(Boolean).join(' · ') || route.vendor
 }

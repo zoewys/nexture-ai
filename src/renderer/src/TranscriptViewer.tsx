@@ -245,6 +245,14 @@ type Block =
   | { kind: 'tool-result'; id: string; ok: boolean; output: unknown }
   | { kind: 'stderr'; text: string }
 
+type ChatBlock =
+  | { kind: 'message'; role: 'user' | 'assistant'; text: string }
+  | { kind: 'system'; text: string }
+  | { kind: 'thinking'; text: string }
+  | { kind: 'tool'; text: string }
+  | { kind: 'error'; message: string }
+  | { kind: 'permission'; request: PermissionRequestPayload }
+
 type PermissionStatus = 'pending' | 'allowed' | 'denied'
 
 interface PermissionRequestPayload {
@@ -309,6 +317,84 @@ function groupEvents(events: AgentEvent[]): Block[] {
     }
   }
   flush()
+  return blocks
+}
+
+function groupChatEvents(events: AgentEvent[]): ChatBlock[] {
+  const blocks: ChatBlock[] = []
+  let pendingAssistant = ''
+
+  const flushAssistant = () => {
+    if (!pendingAssistant) return
+    blocks.push({ kind: 'message', role: 'assistant', text: pendingAssistant })
+    pendingAssistant = ''
+  }
+
+  for (const ev of events) {
+    switch (ev.kind) {
+      case 'message-delta':
+        pendingAssistant += ev.text
+        break
+      case 'message':
+        if (pendingAssistant) {
+          if (ev.text.startsWith(pendingAssistant)) {
+            pendingAssistant = ''
+          } else {
+            flushAssistant()
+          }
+        }
+        blocks.push({ kind: 'message', role: 'assistant', text: ev.text })
+        break
+      case 'system': {
+        const permissionRequest = parsePermissionRequest(ev.text)
+        if (permissionRequest) {
+          flushAssistant()
+          blocks.push({ kind: 'permission', request: permissionRequest })
+        } else if (ev.text.startsWith('↳')) {
+          flushAssistant()
+          blocks.push({ kind: 'message', role: 'user', text: ev.text.replace(/^↳\s*/, '') })
+        } else if (!ev.text.startsWith('Injected ')) {
+          flushAssistant()
+          blocks.push({ kind: 'system', text: ev.text })
+        }
+        break
+      }
+      case 'thinking':
+        flushAssistant()
+        blocks.push({ kind: 'thinking', text: ev.text })
+        break
+      case 'tool-call': {
+        flushAssistant()
+        const target = toolTarget(ev.input)
+        blocks.push({ kind: 'tool', text: target ? `${ev.name} · ${target}` : ev.name })
+        break
+      }
+      case 'tool-result': {
+        flushAssistant()
+        const summary = resultSummary(ev.output)
+        blocks.push({ kind: 'tool', text: ev.ok ? `Done${summary ? ` · ${summary}` : ''}` : `Failed${summary ? ` · ${summary}` : ''}` })
+        break
+      }
+      case 'stderr':
+        flushAssistant()
+        blocks.push({ kind: 'system', text: ev.text })
+        break
+      case 'error':
+        flushAssistant()
+        blocks.push({ kind: 'error', message: ev.message })
+        break
+      case 'file-changed':
+        flushAssistant()
+        blocks.push({ kind: 'system', text: `${ev.op}: ${ev.path}` })
+        break
+      case 'session-started':
+      case 'usage':
+      case 'turn-done':
+        break
+    }
+  }
+
+  flushAssistant()
   return blocks
 }
 
@@ -598,9 +684,111 @@ function turnReason(reason: string): string {
   }
 }
 
-// ── public component ─────────────────────────────────────────────────────
+function ChatTranscript({ events }: { events: AgentEvent[] }): JSX.Element {
+  const scrollerRef = useRef<HTMLDivElement>(null)
+  const endRef = useRef<HTMLDivElement>(null)
+  const shouldFollowOutputRef = useRef(true)
+  const [permissionStatuses, setPermissionStatuses] = useState<Map<string, PermissionStatus>>(() => new Map())
+  const [allowAllForRun, setAllowAllForRun] = useState(false)
+  const blocks = useMemo(() => groupChatEvents(events), [events])
 
-export function TranscriptViewer({ events }: { events: AgentEvent[] }): JSX.Element {
+  const respondPermission = useCallback((requestId: string, allowed: boolean): void => {
+    setPermissionStatuses((prev) => {
+      const next = new Map(prev)
+      next.set(requestId, allowed ? 'allowed' : 'denied')
+      return next
+    })
+    void window.api.respondPermission(requestId, allowed)
+  }, [])
+
+  const allowAllPermissions = useCallback((requestId: string): void => {
+    setAllowAllForRun(true)
+    respondPermission(requestId, true)
+  }, [respondPermission])
+
+  useEffect(() => {
+    shouldFollowOutputRef.current = shouldAutoFollowTranscriptEvent(
+      shouldFollowOutputRef.current,
+      events.at(-1),
+      events.length
+    )
+    if (!shouldFollowOutputRef.current) return
+    endRef.current?.scrollIntoView({ behavior: 'auto', block: 'end' })
+  }, [events.length])
+
+  useEffect(() => {
+    if (!allowAllForRun) return
+    for (const event of events) {
+      if (event.kind !== 'system') continue
+      const request = parsePermissionRequest(event.text)
+      if (!request || permissionStatuses.has(request.requestId)) continue
+      respondPermission(request.requestId, true)
+    }
+  }, [allowAllForRun, events, permissionStatuses, respondPermission])
+
+  const updateAutoFollow = (): void => {
+    const scroller = scrollerRef.current
+    if (!scroller) return
+    shouldFollowOutputRef.current = isNearTranscriptBottom(scroller)
+  }
+
+  if (blocks.length === 0) {
+    return <div className="transcript-empty transcript-chat-empty">No messages yet.</div>
+  }
+
+  return (
+    <div className="transcript transcript-chat" ref={scrollerRef} onScroll={updateAutoFollow}>
+      {blocks.map((block, index) => {
+        switch (block.kind) {
+          case 'message': {
+            return (
+              <div key={index} className={`chat-row chat-row-${block.role}`}>
+                {block.role === 'user' ? (
+                  <div className="chat-bubble chat-bubble-user">{block.text}</div>
+                ) : (
+                  <div className="chat-bubble chat-bubble-assistant" dangerouslySetInnerHTML={{ __html: parseMarkdown(block.text) }} />
+                )}
+              </div>
+            )
+          }
+          case 'permission':
+            return (
+              <div key={index} className="chat-row chat-row-assistant">
+                <PermissionRequestBlock
+                  request={block.request}
+                  status={permissionStatuses.get(block.request.requestId) ?? 'pending'}
+                  respondPermission={respondPermission}
+                  allowAllPermissions={allowAllPermissions}
+                />
+              </div>
+            )
+          case 'thinking':
+            return (
+              <details key={index} className="chat-system chat-thinking">
+                <summary>Thinking</summary>
+                <pre>{block.text}</pre>
+              </details>
+            )
+          case 'tool':
+            return <div key={index} className="chat-system chat-tool">{block.text}</div>
+          case 'error':
+            return (
+              <div key={index} className="chat-row chat-row-assistant">
+                <div className="chat-bubble chat-bubble-error">{block.message}</div>
+              </div>
+            )
+          case 'system':
+            return <div key={index} className="chat-system">{block.text}</div>
+          default:
+            return null
+        }
+      })}
+      <div ref={endRef} />
+    </div>
+  )
+}
+
+function ProcessTranscript({ events }: { events: AgentEvent[] }): JSX.Element {
   const scrollerRef = useRef<HTMLDivElement>(null)
   const endRef = useRef<HTMLDivElement>(null)
   const shouldFollowOutputRef = useRef(true)
@@ -668,4 +856,18 @@ export function TranscriptViewer({ events }: { events: AgentEvent[] }): JSX.Elem
       <div ref={endRef} />
     </div>
   )
+}
+
+// ── public component ─────────────────────────────────────────────────────
+
+export function TranscriptViewer({
+  events,
+  variant = 'process'
+}: {
+  events: AgentEvent[]
+  variant?: 'process' | 'chat'
+}): JSX.Element {
+  return variant === 'chat'
+    ? <ChatTranscript events={events} />
+    : <ProcessTranscript events={events} />
 }

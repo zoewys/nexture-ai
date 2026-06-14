@@ -1,6 +1,7 @@
 import { randomUUID } from 'node:crypto'
 import type {
   AgentDefinition,
+  ConversationState,
   AgentEvent,
   HandoffArtifact,
   JSONSchema,
@@ -331,6 +332,8 @@ export class WorkflowManager {
         run.finishedAt = undefined
       }
       execution.events.push({ kind: 'system', text: `↳ ${clean}` })
+      execution.conversation = ensureWorkflowConversation(execution.conversation, undefined)
+      execution.conversation.events.push({ kind: 'system', text: `↳ ${clean}` })
       this.persistAndEmit(run)
       this.transcripts.recordUserInput(live.childRunId, clean)
       await this.runManager.push(live.childRunId, clean)
@@ -361,11 +364,13 @@ export class WorkflowManager {
       status: 'running',
       startedAt: Date.now(),
       injectedMemoryIds,
+      conversation: createWorkflowConversation(agent, 'native-resume'),
       events: [{ kind: 'system', text: `↳ ${clean}` }],
       totalInputTokens: 0,
       totalOutputTokens: 0,
       totalCostUsd: 0
     }
+    execution.conversation!.events.push({ kind: 'system', text: `↳ ${clean}` })
     step.executions.push(execution)
     step.status = 'running'
     markDownstreamStale(run, stepIndex)
@@ -517,6 +522,7 @@ export class WorkflowManager {
       status: 'running',
       startedAt: Date.now(),
       injectedMemoryIds,
+      conversation: createWorkflowConversation(agent, 'new'),
       events: [],
       totalInputTokens: 0,
       totalOutputTokens: 0,
@@ -587,7 +593,27 @@ export class WorkflowManager {
     }
 
     execution.events.push(event)
+    execution.conversation = ensureWorkflowConversation(execution.conversation, undefined)
+    execution.conversation.events.push(event)
     if (event.kind === 'session-started') execution.sessionId = event.sessionId
+    if (event.kind === 'session-started') {
+      const activeSegment = execution.conversation.segments.find(
+        (segment) => segment.id === execution.conversation?.activeSegmentId
+      ) ?? execution.conversation.segments.at(-1)
+      if (activeSegment) activeSegment.nativeSessionId = event.sessionId
+    }
+    if (event.kind === 'turn-done') {
+      const activeSegment = execution.conversation.segments.find(
+        (segment) => segment.id === execution.conversation?.activeSegmentId
+      ) ?? execution.conversation.segments.at(-1)
+      if (activeSegment) activeSegment.finishedAt = Date.now()
+    }
+    if (event.kind === 'error' && !event.recoverable) {
+      const activeSegment = execution.conversation.segments.find(
+        (segment) => segment.id === execution.conversation?.activeSegmentId
+      ) ?? execution.conversation.segments.at(-1)
+      if (activeSegment) activeSegment.finishedAt = Date.now()
+    }
     if (event.kind === 'usage') {
       execution.totalInputTokens += event.inputTokens
       execution.totalOutputTokens += event.outputTokens
@@ -841,6 +867,10 @@ export class WorkflowManager {
       status: 'error',
       startedAt: Date.now(),
       finishedAt: Date.now(),
+      conversation: createWorkflowConversation(
+        this.agentStore.list().find((agent) => agent.id === run.steps[stepIndex].agentId),
+        'new'
+      ),
       events: [{ kind: 'error', recoverable: false, message }],
       error: message,
       totalInputTokens: 0,
@@ -1317,6 +1347,40 @@ export class WorkflowManager {
 
 function latestExecution(step: { executions: WorkflowStepExecution[] }): WorkflowStepExecution | null {
   return step.executions[step.executions.length - 1] ?? null
+}
+
+function createWorkflowConversation(
+  agent: AgentDefinition | undefined,
+  continuationStrategy: 'new' | 'native-resume' | 'logic-replay' | 'live-push'
+): ConversationState {
+  const segmentId = randomUUID()
+  return {
+    scope: 'workflow-step',
+    activeSegmentId: segmentId,
+    segments: [{
+      id: segmentId,
+      scope: 'workflow-step',
+      route: {
+        vendor: agent?.vendor ?? 'claude',
+        model: agent?.model,
+        agentId: agent?.id,
+        apiProviderId: agent?.apiProviderId,
+        codexReasoningEffort: agent?.codexReasoningEffort,
+        codexServiceTier: agent?.codexServiceTier,
+        permissionMode: agent?.permissionMode
+      },
+      continuationStrategy,
+      startedAt: Date.now()
+    }],
+    events: []
+  }
+}
+
+function ensureWorkflowConversation(
+  conversation: ConversationState | undefined,
+  agent: AgentDefinition | undefined
+): ConversationState {
+  return conversation ?? createWorkflowConversation(agent, 'live-push')
 }
 
 function latestCompletedHandoff(run: WorkflowRun, stepIndex: number): HandoffArtifact | null {

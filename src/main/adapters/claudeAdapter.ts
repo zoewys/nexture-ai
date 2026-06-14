@@ -16,6 +16,7 @@ export class ClaudeAdapter implements CliAdapter {
   readonly vendor = 'claude' as const
   readonly capabilities: AdapterCapabilities = {
     bidirectionalStdin: true,
+    nativeResume: true,
     structuredOutputSchema: false,
     partialTokenStream: true
   }

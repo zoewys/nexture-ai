@@ -1,7 +1,7 @@
 import { randomUUID } from 'node:crypto'
-import type { AgentEvent, RunConfig } from '@shared/types'
+import type { AdapterCapabilities, AgentEvent, AgentVendor, RunConfig } from '@shared/types'
 import type { CliAdapter } from './adapters/types'
-import { createAdapter } from './adapters/factory'
+import { createAdapter, getAdapterCapabilities } from './adapters/factory'
 import type { TranscriptStore } from './TranscriptStore'
 import type { ProviderStore } from './ProviderStore'
 
@@ -158,6 +158,18 @@ export class RunManager {
       throw new Error(`The ${run.adapter.vendor} adapter does not support mid-run interjection`)
     }
     await run.adapter.pushInput(text)
+  }
+
+  hasLiveRun(id: string): boolean {
+    return this.runs.has(id)
+  }
+
+  getLiveRunCapabilities(id: string): AdapterCapabilities | null {
+    return this.runs.get(id)?.adapter.capabilities ?? null
+  }
+
+  getAdapterCapabilities(vendor: AgentVendor): AdapterCapabilities {
+    return getAdapterCapabilities(vendor)
   }
 
   closeInput(id: string): void {

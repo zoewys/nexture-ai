@@ -44,12 +44,14 @@ test('claude adapter omits --json-schema to avoid StructuredOutput tool conflict
 test('codex adapter writes a temporary schema file for exec mode', () => {
   assert.match(codexAdapter, /writeCodexOutputSchema/)
   assert.match(codexAdapter, /agent-studio-codex-schemas/)
-  assert.match(codexAdapter, /buildCodexExecArgs\(\{ \.\.\.input, outputSchemaPath \}, prompt\)/)
+  assert.match(codexAdapter, /buildCodexExecArgs\(\s*\{ \.\.\.input, outputSchemaPath, resumeFrom: input\.resumeFrom\?\.sessionId \},\s*prompt\s*\)/)
   assert.match(codexAdapter, /cleanupOutputSchema\(\)/)
 })
 
 test('codex exec args include output schema file path when present', () => {
   assert.match(codexArgs, /outputSchemaPath\?: string/)
+  assert.match(codexArgs, /resumeFrom\?: string/)
   assert.match(codexArgs, /--output-schema/)
   assert.match(codexArgs, /input\.outputSchemaPath/)
+  assert.match(codexArgs, /\['exec', 'resume', sessionId\]/)
 })

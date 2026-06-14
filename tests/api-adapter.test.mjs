@@ -24,8 +24,8 @@ async function importApiAdapter(mocks) {
   })
   const output = transpiled.outputText
     .replace(
-      /import\s+\{\s*streamText,\s*stepCountIs\s*\}\s+from\s+['"]ai['"];?/,
-      'const { streamText, stepCountIs } = globalThis.__apiAdapterMocks;'
+      /import\s+\{\s*generateText,\s*streamText,\s*stepCountIs\s*\}\s+from\s+['"]ai['"];?/,
+      'const { generateText, streamText, stepCountIs } = globalThis.__apiAdapterMocks;'
     )
     .replace(
       /import\s+\{\s*createAnthropic\s*\}\s+from\s+['"]@ai-sdk\/anthropic['"];?/,
@@ -90,6 +90,13 @@ function mocksFor(parts, calls = []) {
             yield part
           }
         })()
+      }
+    },
+    generateText: async (args) => {
+      calls.push({ ...args, fallback: true })
+      return {
+        text: 'fallback response',
+        totalUsage: { inputTokens: 5, outputTokens: 6 }
       }
     },
     stepCountIs: (count) => ({ stepCount: count }),
@@ -193,6 +200,94 @@ test('ApiAdapter emits error events for stream error parts and thrown stream err
   assert.match(events[2].message, /stream exploded/)
 })
 
+test('ApiAdapter falls back to generateText when provider stream ends without output', async () => {
+  const noOutput = new Error('No output generated. The model stream ended without a finish chunk.')
+  noOutput.name = 'AI_NoOutputGeneratedError'
+  const calls = []
+  const { ApiAdapter } = await importApiAdapter(mocksFor([noOutput], calls))
+  const adapter = new ApiAdapter({
+    id: 'p1',
+    name: 'GLM',
+    format: 'openai-compatible',
+    apiKey: 'sk-test',
+    baseUrl: 'https://glm.example/v1',
+    models: ['glm-5.1'],
+    defaultModel: 'glm-5.1'
+  }, guard)
+
+  const events = await collect(adapter.runTurn({
+    prompt: '你好',
+    cwd: root,
+    abortSignal: new AbortController().signal
+  }))
+
+  assert.equal(events[0].kind, 'session-started')
+  assert.deepEqual(events[1], { kind: 'message', role: 'assistant', text: 'fallback response' })
+  assert.deepEqual(events[2], { kind: 'usage', inputTokens: 5, outputTokens: 6 })
+  assert.equal(events[3].kind, 'turn-done')
+  assert.equal(calls.length, 2)
+  assert.equal(calls[1].fallback, true)
+})
+
+test('ApiAdapter falls back when no-output arrives as a stream error part', async () => {
+  const noOutput = new Error('No output generated. The model stream ended without a finish chunk.')
+  noOutput.name = 'AI_NoOutputGeneratedError'
+  const calls = []
+  const { ApiAdapter } = await importApiAdapter(mocksFor([{ type: 'error', error: noOutput }], calls))
+  const adapter = new ApiAdapter({
+    id: 'p1',
+    name: 'GLM',
+    format: 'openai-compatible',
+    apiKey: 'sk-test',
+    baseUrl: 'https://glm.example/v1',
+    models: ['glm-5.1'],
+    defaultModel: 'glm-5.1'
+  }, guard)
+
+  const events = await collect(adapter.runTurn({
+    prompt: '你好',
+    cwd: root,
+    abortSignal: new AbortController().signal
+  }))
+
+  assert.equal(events[0].kind, 'session-started')
+  assert.deepEqual(events[1], { kind: 'message', role: 'assistant', text: 'fallback response' })
+  assert.deepEqual(events[2], { kind: 'usage', inputTokens: 5, outputTokens: 6 })
+  assert.equal(events[3].kind, 'turn-done')
+  assert.equal(events.some((event) => event.kind === 'error'), false)
+  assert.equal(calls.length, 2)
+  assert.equal(calls[1].fallback, true)
+})
+
+test('ApiAdapter completes the turn when stream produced text but missed finish chunk', async () => {
+  const noOutput = new Error('No output generated. The model stream ended without a finish chunk.')
+  noOutput.name = 'AI_NoOutputGeneratedError'
+  const calls = []
+  const { ApiAdapter } = await importApiAdapter(mocksFor([
+    { type: 'text-delta', textDelta: 'partial' },
+    noOutput
+  ], calls))
+  const adapter = new ApiAdapter({
+    id: 'p1',
+    name: 'GLM',
+    format: 'openai-compatible',
+    apiKey: 'sk-test',
+    baseUrl: 'https://glm.example/v1',
+    models: ['glm-5.1'],
+    defaultModel: 'glm-5.1'
+  }, guard)
+
+  const events = await collect(adapter.runTurn({
+    prompt: '你好',
+    cwd: root,
+    abortSignal: new AbortController().signal
+  }))
+
+  assert.deepEqual(events[1], { kind: 'message-delta', text: 'partial' })
+  assert.equal(events[2].kind, 'turn-done')
+  assert.equal(calls.length, 1)
+})
+
 test('ApiAdapter resolves Anthropic and OpenAI-compatible models with provider options', async () => {
   const calls = []
   const { ApiAdapter } = await importApiAdapter(mocksFor([{ type: 'finish' }], calls))
@@ -219,12 +314,46 @@ test('ApiAdapter resolves Anthropic and OpenAI-compatible models with provider o
 
   assert.deepEqual(calls[0].model, {
     provider: 'anthropic',
-    options: { apiKey: 'sk-anthropic', baseURL: 'https://anthropic.example' },
+    options: { apiKey: 'sk-anthropic', baseURL: 'https://anthropic.example/v1' },
     modelId: 'claude'
   })
   assert.deepEqual(calls[1].model, {
     provider: 'openai',
     options: { apiKey: 'sk-openai', baseURL: 'https://openai.example/v1' },
     modelId: 'override'
+  })
+})
+
+test('ApiAdapter normalizes Anthropic-compatible base URL variants', async () => {
+  const calls = []
+  const { ApiAdapter } = await importApiAdapter(mocksFor([{ type: 'finish' }], calls))
+
+  await collect(new ApiAdapter({
+    id: 'glm',
+    name: 'GLM',
+    format: 'anthropic',
+    apiKey: 'sk-glm',
+    baseUrl: 'https://open.bigmodel.cn/api/anthropic',
+    models: ['glm-5.1'],
+    defaultModel: 'glm-5.1'
+  }, guard).runTurn({ prompt: 'A', cwd: root, abortSignal: new AbortController().signal }))
+
+  await collect(new ApiAdapter({
+    id: 'anthropic',
+    name: 'Anthropic',
+    format: 'anthropic',
+    apiKey: 'sk-anthropic',
+    baseUrl: 'https://api.anthropic.com/v1/messages',
+    models: ['claude'],
+    defaultModel: 'claude'
+  }, guard).runTurn({ prompt: 'B', cwd: root, abortSignal: new AbortController().signal }))
+
+  assert.deepEqual(calls[0].model.options, {
+    authToken: 'sk-glm',
+    baseURL: 'https://open.bigmodel.cn/api/anthropic/v1'
+  })
+  assert.deepEqual(calls[1].model.options, {
+    apiKey: 'sk-anthropic',
+    baseURL: 'https://api.anthropic.com/v1'
   })
 })

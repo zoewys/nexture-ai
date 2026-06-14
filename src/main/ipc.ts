@@ -8,6 +8,11 @@ import {
   type RunConfig,
   type RunStartResult,
   type RunEventEnvelope,
+  type SingleSession,
+  type SingleSessionCreateInput,
+  type SingleSessionDetail,
+  type SingleSessionEventEnvelope,
+  type SingleSessionSendInput,
   type CliCheckResult,
   type CliVersionResult,
   type AgentDefinition,
@@ -33,6 +38,8 @@ import { TranscriptStore } from './TranscriptStore'
 import { AgentStore } from './AgentStore'
 import { WorkflowStore } from './WorkflowStore'
 import { WorkflowManager } from './WorkflowManager'
+import { SingleSessionStore } from './SingleSessionStore'
+import { SingleSessionManager } from './SingleSessionManager'
 import { ScheduleStore, type ScheduleSaveInput } from './ScheduleStore'
 import { Scheduler } from './Scheduler'
 import { describeCron, isValidCron, nextFireTime } from './cronParser'
@@ -48,7 +55,7 @@ import { AppSettingsStore } from './AppSettingsStore'
 import { getRecommendation } from './routeRecommendation'
 import { ProviderStore } from './ProviderStore'
 import { respondToPermissionRequest } from './adapters/api-tools/PermissionGuard'
-import { resolveModel } from './adapters/apiAdapter'
+import { normalizeProviderBaseUrl, resolveModel, shouldUseAnthropicBearerAuth } from './adapters/apiAdapter'
 import { FeishuNotifier } from './FeishuNotifier'
 
 /** Minimal JSON fetch using Node.js http/https (no dependency on the global
@@ -117,6 +124,7 @@ export function registerIpc(
   const transcriptStore = new TranscriptStore()
   const agentStore = new AgentStore()
   const workflowStore = new WorkflowStore()
+  const singleSessionStore = new SingleSessionStore()
   const scheduleStore = new ScheduleStore()
   const appSettingsStore = new AppSettingsStore()
   const providerStore = new ProviderStore()
@@ -197,6 +205,13 @@ export function registerIpc(
     }
   }
 
+  const emitSingleSession = (envelope: SingleSessionEventEnvelope): void => {
+    const win = getWindow()
+    if (win && !win.isDestroyed()) {
+      win.webContents.send(IPC.singleSessionEvent, envelope)
+    }
+  }
+
   const workflowManager = new WorkflowManager(
     agentStore,
     workflowStore,
@@ -205,6 +220,13 @@ export function registerIpc(
     emitWorkflow,
     signalCollector,
     memoryInjector
+  )
+  const singleSessionManager = new SingleSessionManager(
+    singleSessionStore,
+    runManager,
+    transcriptStore,
+    memoryInjector,
+    emitSingleSession
   )
   const scheduler = new Scheduler(
     scheduleStore,
@@ -267,6 +289,26 @@ export function registerIpc(
     runManager.abort(runId)
   })
 
+  ipcMain.handle(IPC.singleSessionsList, (): SingleSession[] =>
+    singleSessionManager.listSessions()
+  )
+
+  ipcMain.handle(IPC.singleSessionCreate, (_e, input: SingleSessionCreateInput): SingleSession =>
+    singleSessionManager.createSession(input)
+  )
+
+  ipcMain.handle(IPC.singleSessionGet, (_e, id: string): SingleSessionDetail =>
+    singleSessionManager.getSessionDetail(id)
+  )
+
+  ipcMain.handle(IPC.singleSessionSend, (_e, input: SingleSessionSendInput): SingleSessionDetail =>
+    singleSessionManager.sendMessage(input)
+  )
+
+  ipcMain.handle(IPC.singleSessionAbort, (_e, id: string): SingleSessionDetail =>
+    singleSessionManager.abortSessionRun(id)
+  )
+
   ipcMain.handle(IPC.checkClis, (): Promise<CliCheckResult> => checkClis())
 
   ipcMain.handle(IPC.cliVersions, (): Promise<CliVersionResult> => getCliVersions())
@@ -292,21 +334,23 @@ export function registerIpc(
   ipcMain.handle(IPC.providersTest, async (_e, id: string): Promise<{ ok: boolean; message: string }> => {
     try {
       const provider = providerStore.getDecrypted(id)
-      const base = (provider.baseUrl ?? '').replace(/\/+$/, '')
-      if (!base) return { ok: false, message: '未配置 Base URL，请先在编辑表单中填写' }
+      const rawBase = (provider.baseUrl ?? '').replace(/\/+$/, '')
+      if (!rawBase) return { ok: false, message: '未配置 Base URL，请先在编辑表单中填写' }
+      const base = normalizeProviderBaseUrl(provider)
       const modelId = provider.defaultModel ?? provider.models[0]
       if (!modelId) return { ok: false, message: '未配置模型，请先添加模型或使用「自动获取」' }
 
       // Step 1 — verify API reachability via the models endpoint.
       const headers: Record<string, string> = { 'Accept': 'application/json' }
       if (provider.format === 'anthropic') {
-        headers['x-api-key'] = provider.apiKey
+        if (shouldUseAnthropicBearerAuth(provider)) headers['Authorization'] = `Bearer ${provider.apiKey}`
+        else headers['x-api-key'] = provider.apiKey
         headers['anthropic-version'] = '2023-06-01'
       } else {
         headers['Authorization'] = `Bearer ${provider.apiKey}`
       }
       const modelCandidates = provider.format === 'anthropic'
-        ? [`${base}/v1/models`]
+        ? [`${base}/models`]
         : [`${base}/models`, `${base.replace(/\/v1\/?$/, '')}/models`]
       let modelsReachable = false
       let modelFetchError = ''
@@ -350,20 +394,22 @@ export function registerIpc(
       if (!apiKey && providerId) {
         try { apiKey = providerStore.getDecrypted(providerId).apiKey } catch { /* not found */ }
       }
-      const base = (provider.baseUrl ?? '').replace(/\/+$/, '')
+      const rawBase = (provider.baseUrl ?? '').replace(/\/+$/, '')
       if (!apiKey) return { models: [], error: '请先填写 API Key' }
-      if (!base) return { models: [], error: '请先填写 Base URL' }
+      if (!rawBase) return { models: [], error: '请先填写 Base URL' }
+      const base = normalizeProviderBaseUrl(provider)
 
       const headers: Record<string, string> = { 'Accept': 'application/json' }
       if (provider.format === 'anthropic') {
-        headers['x-api-key'] = apiKey
+        if (shouldUseAnthropicBearerAuth(provider)) headers['Authorization'] = `Bearer ${apiKey}`
+        else headers['x-api-key'] = apiKey
         headers['anthropic-version'] = '2023-06-01'
       } else {
         headers['Authorization'] = `Bearer ${apiKey}`
       }
 
       const candidates = provider.format === 'anthropic'
-        ? [`${base}/v1/models`]
+        ? [`${base}/models`]
         : [`${base}/models`, `${base.replace(/\/v1\/?$/, '')}/models`]
 
       for (const url of [...new Set(candidates)]) {

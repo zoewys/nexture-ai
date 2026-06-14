@@ -91,6 +91,8 @@ export type AgentEventKind = AgentEvent['kind']
 export interface AdapterCapabilities {
   /** Process stays resident; user input can be appended mid-turn (claude only). */
   bidirectionalStdin: boolean
+  /** Adapter can resume a previous native CLI/API session id. */
+  nativeResume: boolean
   /** Final output can be constrained to a JSON schema (claude/codex). */
   structuredOutputSchema: boolean
   /** Emits incremental token deltas (claude). */
@@ -109,6 +111,96 @@ export interface ResumeHandle {
    *  fails. Filled in by the main process (TranscriptStore); the renderer
    *  neither knows nor needs the on-disk path. */
   transcriptPath?: string
+}
+
+// ── Product-level sessions ─────────────────────────────────────────────────
+
+export type SessionScope = 'single' | 'workflow-step'
+
+export type SessionStatus = 'active' | 'archived' | 'deleted'
+
+export type SessionContinuationStrategy =
+  | 'new'
+  | 'live-push'
+  | 'native-resume'
+  | 'logic-replay'
+
+export interface SessionRoute {
+  vendor: AgentVendor
+  model?: string
+  agentId?: string
+  apiProviderId?: string
+  codexReasoningEffort?: CodexReasoningEffort
+  codexServiceTier?: string
+  permissionMode?: PermissionMode
+}
+
+export interface SessionSegment {
+  id: string
+  scope: SessionScope
+  route: SessionRoute
+  runId?: string
+  /** Native session id emitted by Claude/Codex/API for this segment. */
+  nativeSessionId?: string
+  continuationStrategy: SessionContinuationStrategy
+  startedAt: number
+  finishedAt?: number
+}
+
+export interface ConversationState {
+  scope: SessionScope
+  activeSegmentId?: string
+  segments: SessionSegment[]
+  events: AgentEvent[]
+}
+
+export interface SingleSession {
+  id: string
+  scope: 'single'
+  title: string
+  preview?: string
+  status: SessionStatus
+  cwd: string
+  route?: SessionRoute
+  conversation: ConversationState
+  injectedMemoryIds?: string[]
+  createdAt: number
+  updatedAt: number
+}
+
+export interface SingleSessionDetail extends SingleSession {
+  activeSegment?: SessionSegment
+  running: boolean
+}
+
+export interface SingleSessionCreateInput {
+  cwd: string
+  route?: SessionRoute
+  title?: string
+}
+
+export interface SingleSessionSendInput {
+  sessionId: string
+  text: string
+  route: SessionRoute
+  appendSystemPrompt?: string
+  addDirs?: string[]
+  apiMaxSteps?: number
+}
+
+export type SingleSessionEvent =
+  | { kind: 'session-updated'; session: SingleSessionDetail }
+  | {
+      kind: 'agent-event'
+      sessionId: string
+      segmentId: string
+      runId: string
+      event: AgentEvent
+    }
+
+export interface SingleSessionEventEnvelope {
+  sessionId: string
+  event: SingleSessionEvent
 }
 
 /** Everything the UI must collect to launch one turn of one agent. */
@@ -275,6 +367,7 @@ export interface WorkflowStepExecution {
   startedAt?: number
   finishedAt?: number
   handoff?: HandoffArtifact
+  conversation?: ConversationState
   injectedMemoryIds?: string[]
   events: AgentEvent[]
   error?: string
@@ -486,6 +579,18 @@ export const IPC = {
   runAbort: 'run:abort',
   /** main → renderer: a normalized AgentEvent for a given runId. */
   runEvent: 'run:event',
+  /** renderer → main: list Single sessions. */
+  singleSessionsList: 'single:sessions:list',
+  /** renderer → main: create a Single session. */
+  singleSessionCreate: 'single:sessions:create',
+  /** renderer → main: get one Single session detail. */
+  singleSessionGet: 'single:sessions:get',
+  /** renderer → main: send a message into one Single session. */
+  singleSessionSend: 'single:sessions:send',
+  /** renderer → main: abort one Single session's active run. */
+  singleSessionAbort: 'single:sessions:abort',
+  /** main → renderer: Single session updates and nested agent events. */
+  singleSessionEvent: 'single:sessions:event',
   /** main → renderer: incremental transcript delta from file tailing. */
   transcriptDelta: 'transcript:delta',
   /** renderer → main: detect which CLIs are installed. */

@@ -196,15 +196,6 @@ export function WorkflowRunDetail({
             })()}
           </div>
           <div className="workflow-run-detail-actions">
-            {awaitingInput && (
-              <button
-                type="button"
-                className="primary"
-                onClick={() => onFinishInteractiveStep(selectedStepIndex)}
-              >
-                <MessageCircle size={14} /> 结束对话，进入下一步 <ArrowRight size={14} />
-              </button>
-            )}
             {awaitingConfirm && (
               <>
                 <button type="button" className="primary workflow-confirm-step" onClick={() => onConfirm(selectedStepIndex)}>
@@ -238,12 +229,6 @@ export function WorkflowRunDetail({
         <div className="workflow-step-nav">
           {renderStepChips(run, agents, selectedStepIndex, onSelectStep)}
         </div>
-
-        {awaitingInput && (
-          <div className="workflow-awaiting-input-bar">
-            <span><span className="workflow-awaiting-input-dot" />Agent 正在等待你的回复</span>
-          </div>
-        )}
 
         {/* parallel transcript tabs */}
         {selectedStep?.parallelGroupId && (() => {
@@ -320,6 +305,32 @@ export function WorkflowRunDetail({
             >
               采纳
             </button>
+          </div>
+        )}
+
+        {selectedExecution?.conversation && (
+          <div className="workflow-step-conversation-bar workflow-awaiting-input-bar">
+            <div className="workflow-step-conversation-meta">
+              <span className="workflow-step-conversation-status">
+                Step {selectedStepIndex + 1} · {selectedStep?.displayName || selectedStep?.role || selectedAgent?.name || 'Step'}
+              </span>
+              <span>{(selectedStep?.status ?? selectedExecution.status).toUpperCase()}</span>
+              <span>{workflowStepRouteLabel(selectedAgent)}</span>
+            </div>
+            <div className="workflow-step-conversation-copy">
+              <span className="workflow-awaiting-input-dot" />Agent 正在等待你的回复。你正在当前步骤内与 Agent 对话；对话结束后才会进入下一步，不会进入 Single 的全局会话列表。
+            </div>
+            <div className="workflow-step-conversation-actions">
+              {awaitingInput && (
+                <button
+                  type="button"
+                  className="primary"
+                  onClick={() => onFinishInteractiveStep(selectedStepIndex)}
+                >
+                  <MessageCircle size={14} /> 结束对话，进入下一步 <ArrowRight size={14} />
+                </button>
+              )}
+            </div>
           </div>
         )}
 
@@ -555,4 +566,9 @@ function formatTokens(n: number): string {
   if (n >= 1_000_000) return `${(n / 1_000_000).toFixed(1)}M`
   if (n >= 1_000) return `${(n / 1_000).toFixed(0)}k`
   return String(n)
+}
+
+function workflowStepRouteLabel(agent: AgentDefinition | null): string {
+  if (!agent) return 'Agent route unavailable'
+  return [agent.name || agent.role || agent.vendor, agent.vendor, agent.model].filter(Boolean).join(' · ')
 }

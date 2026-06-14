@@ -4,9 +4,11 @@ import { join } from 'node:path'
 import type { AgentEvent } from '@shared/types'
 
 /** One line in a transcript .jsonl file. */
-type TranscriptRecord =
+export type TranscriptRecord =
   | { kind: 'user'; text: string }
   | { kind: 'event'; event: AgentEvent }
+
+const MAX_RESUME_TURNS = 10
 
 /**
  * Persists every run's normalized event stream — plus the user's own inputs,
@@ -67,25 +69,56 @@ export class TranscriptStore {
    * which already blocks the turn pump — the sync I/O is negligible here.
    */
   buildResumePrompt(sessionId: string, newText: string): string {
-    const path = this.getTranscriptPath(sessionId)
-    const lines: string[] = []
-    if (existsSync(path)) {
+    return this.buildTimelinePrompt(
+      this.readSessionTimeline([sessionId]),
+      newText,
+      'Continue our earlier conversation. Here is the transcript so far:'
+    )
+  }
+
+  readSessionTimeline(sessionIds: string[]): TranscriptRecord[] {
+    const records: TranscriptRecord[] = []
+    for (const sessionId of sessionIds) {
+      const path = this.getTranscriptPath(sessionId)
+      if (!existsSync(path)) continue
       for (const raw of readFileSync(path, 'utf8').split('\n')) {
         if (!raw.trim()) continue
-        let rec: TranscriptRecord
         try {
-          rec = JSON.parse(raw) as TranscriptRecord
+          const rec = JSON.parse(raw) as TranscriptRecord
+          if (rec.kind === 'user') {
+            records.push(rec)
+          } else if (rec.kind === 'event' && rec.event.kind === 'message') {
+            records.push(rec)
+          }
         } catch {
           continue
         }
-        if (rec.kind === 'user') {
-          lines.push(`User: ${rec.text}`)
-        } else if (rec.event.kind === 'message') {
-          lines.push(`Assistant: ${rec.event.text}`)
-        }
       }
     }
-    const MAX_RESUME_TURNS = 10
+    return records
+  }
+
+  buildReplayPromptFromTimeline(sessionIds: string[], newText: string): string {
+    return this.buildTimelinePrompt(
+      this.readSessionTimeline(sessionIds),
+      newText,
+      '这是继续之前的逻辑会话。Use the transcript below as the prior context across earlier session segments:'
+    )
+  }
+
+  private buildTimelinePrompt(
+    records: TranscriptRecord[],
+    newText: string,
+    intro: string
+  ): string {
+    const lines: string[] = []
+    for (const rec of records) {
+      if (rec.kind === 'user') {
+        lines.push(`User: ${rec.text}`)
+      } else if (rec.event.kind === 'message') {
+        lines.push(`Assistant: ${rec.event.text}`)
+      }
+    }
     const truncated = lines.length > MAX_RESUME_TURNS
     const recent = truncated ? lines.slice(-MAX_RESUME_TURNS) : lines
     const history = [
@@ -93,9 +126,9 @@ export class TranscriptStore {
       ...recent
     ].join('\n\n')
     return [
-      'Continue our earlier conversation. Here is the transcript so far:',
+      intro,
       '',
-      history,
+      history || '(no prior transcript records were available)',
       '',
       '---',
       '',

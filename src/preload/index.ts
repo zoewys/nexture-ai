@@ -4,6 +4,11 @@ import {
   type RunConfig,
   type RunStartResult,
   type RunEventEnvelope,
+  type SingleSession,
+  type SingleSessionCreateInput,
+  type SingleSessionDetail,
+  type SingleSessionEventEnvelope,
+  type SingleSessionSendInput,
   type CliCheckResult,
   type CliVersionResult,
   type AgentDefinition,
@@ -39,6 +44,21 @@ const api = {
     ipcRenderer.invoke(IPC.runPush, runId, text),
 
   abortRun: (runId: string): Promise<void> => ipcRenderer.invoke(IPC.runAbort, runId),
+
+  listSingleSessions: (): Promise<SingleSession[]> =>
+    ipcRenderer.invoke(IPC.singleSessionsList),
+
+  createSingleSession: (input: SingleSessionCreateInput): Promise<SingleSession> =>
+    ipcRenderer.invoke(IPC.singleSessionCreate, input),
+
+  getSingleSession: (id: string): Promise<SingleSessionDetail> =>
+    ipcRenderer.invoke(IPC.singleSessionGet, id),
+
+  sendSingleSessionMessage: (input: SingleSessionSendInput): Promise<SingleSessionDetail> =>
+    ipcRenderer.invoke(IPC.singleSessionSend, input),
+
+  abortSingleSession: (id: string): Promise<SingleSessionDetail> =>
+    ipcRenderer.invoke(IPC.singleSessionAbort, id),
 
   checkClis: (): Promise<CliCheckResult> => ipcRenderer.invoke(IPC.checkClis),
 
@@ -179,6 +199,12 @@ const api = {
     const listener = (_e: unknown, envelope: RunEventEnvelope): void => cb(envelope)
     ipcRenderer.on(IPC.runEvent, listener)
     return () => ipcRenderer.removeListener(IPC.runEvent, listener)
+  },
+
+  onSingleSessionEvent: (cb: (envelope: SingleSessionEventEnvelope) => void): (() => void) => {
+    const listener = (_e: unknown, envelope: SingleSessionEventEnvelope): void => cb(envelope)
+    ipcRenderer.on(IPC.singleSessionEvent, listener)
+    return () => ipcRenderer.removeListener(IPC.singleSessionEvent, listener)
   },
 
   onWorkflowEvent: (cb: (envelope: WorkflowEventEnvelope) => void): (() => void) => {

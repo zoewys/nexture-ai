@@ -49,3 +49,26 @@ const defaultArgs = buildCodexExecArgs({}, 'plain')
 assert.equal(defaultArgs.includes('model_reasoning_effort="high"'), false)
 assert.equal(defaultArgs.includes('service_tier="priority"'), false)
 assert.equal(defaultArgs.includes('--output-schema'), false)
+
+const resumeArgs = buildCodexExecArgs(
+  {
+    resumeFrom: 'codex-session-123',
+    model: 'gpt-5.5',
+    outputSchemaPath: '/tmp/agent-studio-schema.json'
+  },
+  'continue please'
+)
+
+assert.deepEqual(resumeArgs, [
+  'exec',
+  'resume',
+  'codex-session-123',
+  '--model',
+  'gpt-5.5',
+  '--output-schema',
+  '/tmp/agent-studio-schema.json',
+  '--json',
+  '--dangerously-bypass-approvals-and-sandbox',
+  '--skip-git-repo-check',
+  'continue please'
+])

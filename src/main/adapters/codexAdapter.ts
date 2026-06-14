@@ -20,6 +20,7 @@ export class CodexAdapter implements CliAdapter {
   readonly vendor = 'codex' as const
   readonly capabilities: AdapterCapabilities = {
     bidirectionalStdin: false,
+    nativeResume: true,
     structuredOutputSchema: true,
     partialTokenStream: true
   }
@@ -36,7 +37,10 @@ export class CodexAdapter implements CliAdapter {
       : input.prompt
     const outputSchemaPath = input.outputSchema ? writeCodexOutputSchema(input.outputSchema) : undefined
     const cleanupOutputSchema = createOutputSchemaCleanup(outputSchemaPath)
-    const args = buildCodexExecArgs({ ...input, outputSchemaPath }, prompt)
+    const args = buildCodexExecArgs(
+      { ...input, outputSchemaPath, resumeFrom: input.resumeFrom?.sessionId },
+      prompt
+    )
 
     const handle = spawnProcess(
       { cmd, args, cwd: input.cwd, abortSignal: input.abortSignal },

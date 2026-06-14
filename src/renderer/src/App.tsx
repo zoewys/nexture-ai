@@ -14,10 +14,10 @@
 
 import { useEffect, useState } from 'react'
 import type { CliCheckResult } from '@shared/types'
-import { useRun } from './useRun'
 import { useAgents } from './useAgents'
 import { useCliModels } from './useCliModels'
 import { useWorkflows } from './useWorkflows'
+import { useSingleSessions } from './useSingleSessions'
 import { AgentManager } from './AgentManager'
 import { TemplatesView } from './TemplatesView'
 import { UiReviewMockNav } from './UiReviewMockNav'
@@ -33,10 +33,10 @@ import { CliSetupDialog } from './CliSetupDialog'
 type UiReviewWorkflowSurface = 'workflow' | 'new-run'
 
 export function App(): JSX.Element {
-  const run = useRun()
   const { agents: savedAgents, save: saveAgent, remove: removeAgent } = useAgents()
   const { models: modelCatalog, loading: modelsLoading } = useCliModels()
   const savedWorkflows = useWorkflows()
+  const singleSessions = useSingleSessions()
   const appSettings = useAppSettings()
   const uiReview = useUiReviewFixture()
   const agents = uiReview.enabled ? uiReview.agents : savedAgents
@@ -44,7 +44,6 @@ export function App(): JSX.Element {
   const [clis, setClis] = useState<CliCheckResult | null>(null)
   const [showCliSetup, setShowCliSetup] = useState(false)
   const [mode, setMode] = useState<WorkspaceMode>('workflow')
-  const [configOpen, setConfigOpen] = useState(true)
   const [uiReviewWorkflowSurface, setUiReviewWorkflowSurface] =
     useState<UiReviewWorkflowSurface>('workflow')
 
@@ -71,6 +70,7 @@ export function App(): JSX.Element {
   const isAgents = mode === 'agents'
   const isWorkflow = mode === 'workflow'
   const isTemplates = mode === 'templates'
+  const isSingle = mode === 'single'
   const isSettings = mode === 'settings'
   const topbarChips = uiReview.enabled
     ? uiReview.topbarChips[mode]
@@ -125,7 +125,7 @@ export function App(): JSX.Element {
           'app-body',
           isAgents || isTemplates || isSettings ? 'app-body-agents' : '',
           isWorkflow ? 'app-body-workflow' : '',
-          !isAgents && !isTemplates && !isWorkflow && !isSettings && !configOpen ? 'app-body-config-collapsed' : ''
+          isSingle ? 'app-body-single' : ''
         ].filter(Boolean).join(' ')}
       >
         <ModeRail mode={mode} onModeChange={setMode} />
@@ -175,14 +175,13 @@ export function App(): JSX.Element {
             clis={clis}
             modelCatalog={modelCatalog}
             modelsLoading={modelsLoading}
-            runState={run.state}
-            configOpen={configOpen}
-            onConfigOpenChange={setConfigOpen}
-            onStart={run.start}
-            onContinueSession={run.continueSession}
-            onPush={run.push}
-            onAbort={run.abort}
-            onReset={run.reset}
+            sessions={singleSessions.sessions}
+            selectedSession={singleSessions.selectedSession}
+            selectedSessionId={singleSessions.selectedSessionId}
+            onCreateSession={singleSessions.createSession}
+            onSelectSession={singleSessions.selectSession}
+            onSendMessage={singleSessions.sendMessage}
+            onAbortSession={singleSessions.abortSession}
             onModeAgents={() => setMode('agents')}
             showMemoryReferences={appSettings.settings.showMemoryReferences}
           />

@@ -1,8 +1,8 @@
 import { randomUUID } from 'node:crypto'
-import { streamText, stepCountIs } from 'ai'
+import { generateText, streamText, stepCountIs } from 'ai'
 import { createAnthropic } from '@ai-sdk/anthropic'
 import { createOpenAI } from '@ai-sdk/openai'
-import type { AgentEvent, ApiProviderConfig } from '@shared/types'
+import type { AdapterCapabilities, AgentEvent, ApiProviderConfig } from '@shared/types'
 import type { CliAdapter, RunTurnInput } from './types'
 import { AsyncQueue } from './AsyncQueue'
 import { buildToolSet } from './api-tools'
@@ -10,8 +10,9 @@ import type { PermissionGuard } from './api-tools/PermissionGuard'
 
 export class ApiAdapter implements CliAdapter {
   readonly vendor = 'api' as const
-  readonly capabilities = {
+  readonly capabilities: AdapterCapabilities = {
     bidirectionalStdin: false,
+    nativeResume: false,
     structuredOutputSchema: false,
     partialTokenStream: true
   }
@@ -35,7 +36,7 @@ export class ApiAdapter implements CliAdapter {
       const modelId = input.model ?? this.config.defaultModel ?? this.config.models[0]
       if (!modelId) throw new Error(`No model configured for API provider: ${this.config.name}`)
 
-      const result = await streamText({
+      const options = {
         model: resolveModel(this.config, modelId) as any,
         prompt: input.prompt,
         system: input.appendSystemPrompt,
@@ -46,10 +47,40 @@ export class ApiAdapter implements CliAdapter {
         }),
         stopWhen: stepCountIs(input.apiMaxSteps ?? 10),
         abortSignal: input.abortSignal
-      })
+      }
 
-      for await (const part of result.fullStream as AsyncIterable<Record<string, unknown>>) {
-        mapStreamPart(part, sessionId, queue)
+      let sawModelEvent = false
+      let sawTurnDone = false
+      let sawNoOutputError = false
+      try {
+        const result = await streamText(options)
+        for await (const part of result.fullStream as AsyncIterable<Record<string, unknown>>) {
+          const mapped = mapStreamPart(part, sessionId, queue)
+          sawModelEvent ||= mapped.meaningful
+          sawTurnDone ||= mapped.turnDone
+          sawNoOutputError ||= mapped.noOutput
+        }
+
+        if (sawNoOutputError && !sawTurnDone) {
+          if (sawModelEvent) {
+            queue.push({ kind: 'turn-done', sessionId, reason: 'complete' })
+          } else {
+            await runGenerateFallback(options, sessionId, queue)
+          }
+        } else if (!sawTurnDone) {
+          if (sawModelEvent) {
+            queue.push({ kind: 'turn-done', sessionId, reason: 'complete' })
+          } else {
+            await runGenerateFallback(options, sessionId, queue)
+          }
+        }
+      } catch (err) {
+        if (!isNoOutputGeneratedError(err)) throw err
+        if (sawModelEvent) {
+          queue.push({ kind: 'turn-done', sessionId, reason: 'complete' })
+        } else {
+          await runGenerateFallback(options, sessionId, queue)
+        }
       }
     } catch (err) {
       queue.push({
@@ -65,20 +96,49 @@ export class ApiAdapter implements CliAdapter {
 }
 
 export function resolveModel(config: ApiProviderConfig, modelId: string): unknown {
-  const baseURL = (config.baseUrl ?? '').trim().replace(/\/+$/, '')
-  if (!baseURL) throw new Error('未配置 Base URL')
-  const options = { apiKey: config.apiKey, baseURL }
-  if (config.format === 'anthropic') return createAnthropic(options)(modelId)
+  const baseURL = normalizeProviderBaseUrl(config)
+  if (config.format === 'anthropic') {
+    const options = shouldUseAnthropicBearerAuth(config)
+      ? { authToken: config.apiKey, baseURL }
+      : { apiKey: config.apiKey, baseURL }
+    return createAnthropic(options)(modelId)
+  }
   // 必须用 .chat() 走 /v1/chat/completions，不能用默认的 Responses API (/v1/responses)
   // 因为 DeepSeek / Moonshot / SiliconFlow 等第三方只支持 Chat Completions
+  const options = { apiKey: config.apiKey, baseURL }
   return createOpenAI(options).chat(modelId)
 }
 
-function mapStreamPart(part: Record<string, unknown>, sessionId: string, queue: AsyncQueue<AgentEvent>): void {
+export function normalizeProviderBaseUrl(config: Pick<ApiProviderConfig, 'format' | 'baseUrl'>): string {
+  const baseURL = (config.baseUrl ?? '').trim().replace(/\/+$/, '')
+  if (!baseURL) throw new Error('未配置 Base URL')
+  if (config.format !== 'anthropic') return baseURL
+
+  const baseWithoutEndpoint = baseURL.replace(/\/(?:messages|models)$/i, '')
+  return /\/v1$/i.test(baseWithoutEndpoint) ? baseWithoutEndpoint : `${baseWithoutEndpoint}/v1`
+}
+
+export function shouldUseAnthropicBearerAuth(
+  config: Pick<ApiProviderConfig, 'format' | 'baseUrl' | 'name'>
+): boolean {
+  if (config.format !== 'anthropic') return false
+  const marker = `${config.name} ${config.baseUrl ?? ''}`.toLowerCase()
+  return marker.includes('bigmodel.cn') || marker.includes('zhipu') || /\bglm\b/.test(marker)
+}
+
+interface MappedStreamPart {
+  meaningful: boolean
+  turnDone: boolean
+  noOutput: boolean
+}
+
+function mapStreamPart(part: Record<string, unknown>, sessionId: string, queue: AsyncQueue<AgentEvent>): MappedStreamPart {
   switch (part.type) {
-    case 'text-delta':
-      queue.push({ kind: 'message-delta', text: stringValue(part.textDelta ?? part.text) })
-      return
+    case 'text-delta': {
+      const text = stringValue(part.textDelta ?? part.text)
+      if (text) queue.push({ kind: 'message-delta', text })
+      return { meaningful: text.length > 0, turnDone: false, noOutput: false }
+    }
     case 'tool-call':
       queue.push({
         kind: 'tool-call',
@@ -86,7 +146,7 @@ function mapStreamPart(part: Record<string, unknown>, sessionId: string, queue: 
         name: stringValue(part.toolName),
         input: part.args ?? part.input
       })
-      return
+      return { meaningful: true, turnDone: false, noOutput: false }
     case 'tool-result':
       queue.push({
         kind: 'tool-result',
@@ -94,28 +154,56 @@ function mapStreamPart(part: Record<string, unknown>, sessionId: string, queue: 
         ok: !part.error,
         output: part.result ?? part.output ?? part.error
       })
-      return
+      return { meaningful: true, turnDone: false, noOutput: false }
     case 'step-finish': {
       const usage = isRecord(part.usage) ? part.usage : part
       const inputTokens = numberValue(usage.inputTokens ?? usage.promptTokens)
       const outputTokens = numberValue(usage.outputTokens ?? usage.completionTokens)
       if (inputTokens > 0 || outputTokens > 0) queue.push({ kind: 'usage', inputTokens, outputTokens })
-      return
+      return { meaningful: inputTokens > 0 || outputTokens > 0, turnDone: false, noOutput: false }
     }
-    case 'finish':
+    case 'finish': {
       queue.push({ kind: 'turn-done', sessionId, reason: 'complete' })
-      return
-    case 'error':
+      return { meaningful: true, turnDone: true, noOutput: false }
+    }
+    case 'error': {
+      const error = part.error ?? part
+      if (isNoOutputGeneratedError(error)) return { meaningful: false, turnDone: false, noOutput: true }
       queue.push({
         kind: 'error',
         recoverable: false,
-        message: errorMessage(part.error ?? part),
-        raw: part.error ?? part
+        message: errorMessage(error),
+        raw: error
       })
-      return
+      return { meaningful: false, turnDone: false, noOutput: false }
+    }
     default:
-      return
+      return { meaningful: false, turnDone: false, noOutput: false }
   }
+}
+
+async function runGenerateFallback(
+  options: Parameters<typeof generateText>[0],
+  sessionId: string,
+  queue: AsyncQueue<AgentEvent>
+): Promise<void> {
+  const result = await generateText(options)
+  const text = result.text.trim()
+  if (!text) {
+    queue.push({
+      kind: 'error',
+      recoverable: false,
+      message: 'API provider returned an empty response.',
+      raw: result
+    })
+    return
+  }
+
+  queue.push({ kind: 'message', role: 'assistant', text })
+  const inputTokens = numberValue(result.totalUsage?.inputTokens)
+  const outputTokens = numberValue(result.totalUsage?.outputTokens)
+  if (inputTokens > 0 || outputTokens > 0) queue.push({ kind: 'usage', inputTokens, outputTokens })
+  queue.push({ kind: 'turn-done', sessionId, reason: 'complete' })
 }
 
 function isRecord(value: unknown): value is Record<string, unknown> {
@@ -132,4 +220,13 @@ function numberValue(value: unknown): number {
 
 function errorMessage(value: unknown): string {
   return value instanceof Error ? value.message : String(value)
+}
+
+function isNoOutputGeneratedError(value: unknown): boolean {
+  if (!(value instanceof Error)) return false
+  return (
+    value.name === 'AI_NoOutputGeneratedError' ||
+    value.constructor.name === 'NoOutputGeneratedError' ||
+    value.message.includes('No output generated')
+  )
 }

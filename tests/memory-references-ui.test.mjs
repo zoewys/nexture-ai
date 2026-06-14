@@ -40,7 +40,7 @@ test('useRun stores and dedupes single run memory references across turns', () =
 test('single and workflow surfaces render the shared MemoryReferences component', () => {
   assert.match(singleRun, /import \{ MemoryReferences \}/)
   assert.match(singleRun, /agentId: selectedAgent\?\.id/)
-  assert.match(singleRun, /<MemoryReferences[\s\S]*agentId=\{state\.agentId\}[\s\S]*projectPath=\{state\.projectPath\}[\s\S]*memoryIds=\{state\.injectedMemoryIds\}/)
+  assert.match(singleRun, /<MemoryReferences[\s\S]*agentId=\{selectedAgentId\}[\s\S]*projectPath=\{cwd\}[\s\S]*memoryIds=\{selectedSession\?\.injectedMemoryIds\}/)
 
   assert.match(workflowDetail, /import \{ MemoryReferences \}/)
   assert.match(workflowDetail, /<MemoryReferences[\s\S]*agentId=\{selectedExecution\?\.agentId\}[\s\S]*projectPath=\{run\.projectPath\}[\s\S]*memoryIds=\{selectedExecution\?\.injectedMemoryIds\}/)
