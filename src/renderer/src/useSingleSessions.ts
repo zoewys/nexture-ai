@@ -88,21 +88,23 @@ export function useSingleSessions() {
   const sendMessage = useCallback(async (
     text: string,
     route: SessionRoute,
-    options: Omit<SingleSessionSendInput, 'sessionId' | 'text' | 'route'> = {},
+    options: Partial<Omit<SingleSessionSendInput, 'sessionId' | 'text' | 'route'>> = {},
     sessionIdOverride?: string
   ) => {
     const targetSessionId = sessionIdOverride ?? selectedSessionId
     if (!targetSessionId) throw new Error('No selected Single session')
+    const { cwd = selectedSession?.cwd ?? '', ...restOptions } = options
     const updated = await window.api.sendSingleSessionMessage({
       sessionId: targetSessionId,
       text,
       route,
-      ...options
+      ...restOptions,
+      cwd
     })
     setSelectedSession(updated)
     setSessions((prev) => sortSessions([updated, ...prev.filter((session) => session.id !== updated.id)]))
     return updated
-  }, [selectedSessionId])
+  }, [selectedSession?.cwd, selectedSessionId])
 
   const abortSession = useCallback(async () => {
     if (!selectedSessionId) return null
@@ -111,6 +113,16 @@ export function useSingleSessions() {
     setSessions((prev) => sortSessions([updated, ...prev.filter((session) => session.id !== updated.id)]))
     return updated
   }, [selectedSessionId])
+
+  const deleteSession = useCallback(async (id: string) => {
+    await window.api.deleteSingleSession(id)
+    setSessions((prev) => {
+      const next = prev.filter((session) => session.id !== id)
+      setSelectedSessionId((current) => (current === id ? next[0]?.id ?? null : current))
+      setSelectedSession((current) => (current?.id === id ? null : current))
+      return next
+    })
+  }, [])
 
   return {
     sessions: visibleSessions,
@@ -121,7 +133,8 @@ export function useSingleSessions() {
     createSession,
     selectSession,
     sendMessage,
-    abortSession
+    abortSession,
+    deleteSession
   }
 }
 

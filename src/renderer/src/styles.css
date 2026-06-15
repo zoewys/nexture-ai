@@ -189,11 +189,17 @@ body {
   grid-template-rows: auto auto;
   gap: 3px;
   text-align: left;
+  cursor: pointer;
 }
 
-.single-session-card:hover:not(:disabled) {
+.single-session-card:hover {
   border-color: rgba(108, 140, 255, 0.45);
   background: #202633;
+}
+
+.single-session-card:focus-visible {
+  outline: 1px solid rgba(108, 140, 255, 0.72);
+  outline-offset: 2px;
 }
 
 .single-session-card-active {
@@ -217,6 +223,36 @@ body {
   overflow: hidden;
   white-space: nowrap;
   text-overflow: ellipsis;
+}
+
+.single-session-card-tools {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  min-width: 0;
+}
+
+.single-session-card-delete {
+  width: 16px;
+  height: 16px;
+  min-height: 16px;
+  padding: 0;
+  border-color: transparent;
+  border-radius: 5px;
+  background: transparent;
+  color: var(--text-dim);
+  opacity: 0;
+}
+
+.single-session-card:hover .single-session-card-delete,
+.single-session-card:focus-within .single-session-card-delete {
+  opacity: 1;
+}
+
+.single-session-card-delete:hover {
+  border-color: rgba(219, 107, 107, 0.45);
+  background: rgba(219, 107, 107, 0.12);
+  color: #ffd0d0;
 }
 
 .single-session-card-meta {

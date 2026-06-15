@@ -70,6 +70,16 @@ export class SingleSessionStore {
     }
   }
 
+  delete(id: string): void {
+    const session = this.get(id)
+    if (!session) return
+    this.save({
+      ...session,
+      status: 'deleted',
+      updatedAt: Date.now()
+    })
+  }
+
   private pathFor(id: string): string {
     return join(this.dir, `${id}.json`)
   }

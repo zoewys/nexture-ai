@@ -309,6 +309,10 @@ export function registerIpc(
     singleSessionManager.abortSessionRun(id)
   )
 
+  ipcMain.handle(IPC.singleSessionDelete, (_e, id: string): void => {
+    singleSessionManager.deleteSession(id)
+  })
+
   ipcMain.handle(IPC.checkClis, (): Promise<CliCheckResult> => checkClis())
 
   ipcMain.handle(IPC.cliVersions, (): Promise<CliVersionResult> => getCliVersions())

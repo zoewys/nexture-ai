@@ -43,12 +43,15 @@ test('shared session contract exposes session types, workflow conversation, nati
   }
   assert.match(shared, /nativeResume: boolean/)
   assert.match(shared, /conversation\?: ConversationState/)
+  assert.match(shared, /cwd: string[\s\S]*route: SessionRoute/)
+  assert.match(shared, /Working directory used when this segment was launched/)
   for (const channel of [
     'singleSessionsList',
     'singleSessionCreate',
     'singleSessionGet',
     'singleSessionSend',
     'singleSessionAbort',
+    'singleSessionDelete',
     'singleSessionEvent'
   ]) {
     assert.match(shared, new RegExp(`${channel}: 'single:sessions:`))
@@ -67,6 +70,8 @@ test('single session store persists one active JSON file per session', () => {
   assert.match(singleStore, /\.filter\(\(session\) => session\.status === 'active'\)/)
   assert.match(singleStore, /\.sort\(\(a, b\) => b\.updatedAt - a\.updatedAt\)/)
   assert.match(singleStore, /writeFileSync\(this\.pathFor\(next\.id\), JSON\.stringify\(next, null, 2\)\)/)
+  assert.match(singleStore, /delete\(id: string\): void/)
+  assert.match(singleStore, /status: 'deleted'/)
 })
 
 test('transcript store can aggregate logical session timelines and build replay prompts', () => {
@@ -103,17 +108,25 @@ test('single session manager implements continuation decisions and emits session
     'createSession',
     'getSessionDetail',
     'sendMessage',
-    'abortSessionRun'
+    'abortSessionRun',
+    'deleteSession'
   ]) {
     assert.match(singleManager, new RegExp(`${method}\\(`))
   }
   assert.match(singleManager, /liveCapabilities\?\.bidirectionalStdin/)
+  assert.match(singleManager, /const sameContext = sameRoute && sameCwd/)
+  assert.match(singleManager, /sameContext && liveRunId && liveCapabilities\?\.bidirectionalStdin/)
   assert.match(singleManager, /this\.runManager\.push\(liveRunId, clean\)/)
+  assert.match(singleManager, /cwdEqual\(activeSegment\.cwd \?\? session\.cwd, targetCwd\)/)
+  assert.match(singleManager, /项目目录已切换/)
+  assert.match(singleManager, /cwd: input\.cwd\.trim\(\)/)
   assert.match(singleManager, /nativeResume/)
   assert.match(singleManager, /buildReplayPromptFromTimeline/)
   assert.match(singleManager, /continuationStrategy: strategy/)
   assert.match(singleManager, /session\.title === 'New Session'/)
   assert.match(singleManager, /session\.preview = truncate/)
+  assert.match(singleManager, /this\.runManager\.abort\(activeSegment\.runId\)/)
+  assert.match(singleManager, /this\.store\.delete\(sessionId\)/)
   assert.match(singleManager, /SingleSessionEventEnvelope/)
   assert.match(singleManager, /kind: 'session-updated'/)
   assert.match(singleManager, /kind: 'agent-event'/)
@@ -127,7 +140,8 @@ test('ipc and preload expose single session CRUD, send, abort, and event APIs', 
     'singleSessionCreate',
     'singleSessionGet',
     'singleSessionSend',
-    'singleSessionAbort'
+    'singleSessionAbort',
+    'singleSessionDelete'
   ]) {
     assert.match(ipc, new RegExp(`ipcMain\\.handle\\(IPC\\.${channel}`))
   }
@@ -138,6 +152,7 @@ test('ipc and preload expose single session CRUD, send, abort, and event APIs', 
     'getSingleSession',
     'sendSingleSessionMessage',
     'abortSingleSession',
+    'deleteSingleSession',
     'onSingleSessionEvent'
   ]) {
     assert.match(preload, new RegExp(`${method}:`))
@@ -151,19 +166,25 @@ test('single renderer uses session hook, sidebar cards, route header, and route-
   assert.doesNotMatch(app, /const run = useRun\(\)/)
   assert.match(singleHook, /window\.api\.listSingleSessions\(\)/)
   assert.match(singleHook, /window\.api\.onSingleSessionEvent/)
+  assert.match(singleHook, /window\.api\.deleteSingleSession\(id\)/)
   assert.match(singleHook, /sendMessage/)
   assert.match(singleSidebar, /single-session-sidebar/)
   assert.match(singleSidebar, /single-session-cards/)
   assert.match(singleSidebar, /single-session-card-active/)
+  assert.match(singleSidebar, /Trash2/)
+  assert.match(singleSidebar, /onDeleteSession/)
+  assert.match(singlePanel, /onDeleteSession/)
   assert.match(singlePanel, /SingleSessionSidebar/)
   assert.match(singlePanel, /single-session-header/)
   assert.match(singlePanel, /variant="chat"/)
+  assert.match(singlePanel, /cwd: cwd\.trim\(\)/)
   assert.match(singlePanel, /single-session-banner/)
   assert.match(singlePanel, /当前话题不变，后续由新模型接手/)
   assert.match(singlePanel, /跨模型不会复用旧模型的原生 session/)
   assert.match(singlePanel, /window\.confirm/)
   assert.match(styles, /\.single-session-sidebar/)
   assert.match(styles, /\.single-session-card/)
+  assert.match(styles, /\.single-session-card-delete/)
   assert.match(styles, /\.single-session-card-meta/)
   assert.match(styles, /\.transcript-chat/)
   assert.match(styles, /\.chat-bubble-user/)

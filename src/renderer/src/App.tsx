@@ -182,6 +182,7 @@ export function App(): JSX.Element {
             onSelectSession={singleSessions.selectSession}
             onSendMessage={singleSessions.sendMessage}
             onAbortSession={singleSessions.abortSession}
+            onDeleteSession={singleSessions.deleteSession}
             onModeAgents={() => setMode('agents')}
             showMemoryReferences={appSettings.settings.showMemoryReferences}
           />

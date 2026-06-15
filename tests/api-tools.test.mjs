@@ -79,23 +79,25 @@ test('file_read applies offset and limit', async () => {
   }
 })
 
-test('file_read returns errors for missing and relative paths and handles empty files', async () => {
+test('file_read resolves relative paths from cwd, returns missing errors, and handles empty files', async () => {
   const { dir, cleanup } = tempProject()
   try {
     const empty = join(dir, 'empty.txt')
+    const relative = join(dir, 'relative.txt')
     writeFileSync(empty, '', 'utf8')
+    writeFileSync(relative, 'from cwd', 'utf8')
     const { createFileReadTool } = await importTs('src/main/adapters/api-tools/fileRead.ts')
     const tool = createFileReadTool(dir)
 
     assert.match(await tool.execute({ file_path: join(dir, 'missing.txt') }), /文件不存在|not found/i)
-    assert.match(await tool.execute({ file_path: 'relative.txt' }), /绝对路径|absolute/i)
+    assert.match(await tool.execute({ file_path: 'relative.txt' }), /0\tfrom cwd/)
     assert.equal(await tool.execute({ file_path: empty }), '')
   } finally {
     cleanup()
   }
 })
 
-test('file_write creates, overwrites, creates parent directories, and rejects relative paths', async () => {
+test('file_write creates, overwrites, creates parent directories, and resolves relative paths from cwd', async () => {
   const { dir, cleanup } = tempProject()
   try {
     const changes = []
@@ -108,9 +110,12 @@ test('file_write creates, overwrites, creates parent directories, and rejects re
     assert.equal(readFileSync(file, 'utf8'), 'hello')
     assert.match(await tool.execute({ file_path: file, content: 'updated' }), /写入|wrote|success/i)
     assert.equal(readFileSync(file, 'utf8'), 'updated')
-    assert.match(await tool.execute({ file_path: 'relative.txt', content: 'bad' }), /绝对路径|absolute/i)
-    assert.deepEqual(changes.map((entry) => entry[1]), ['create', 'modify'])
-    assert.deepEqual(calls.map((entry) => entry[0]), ['file_write', 'file_write'])
+    assert.match(await tool.execute({ file_path: 'relative.txt', content: 'from cwd' }), /写入|wrote|success/i)
+    assert.equal(readFileSync(join(dir, 'relative.txt'), 'utf8'), 'from cwd')
+    assert.deepEqual(changes.map((entry) => entry[1]), ['create', 'modify', 'create'])
+    assert.deepEqual(changes.map((entry) => entry[0]), [file, file, join(dir, 'relative.txt')])
+    assert.deepEqual(calls.map((entry) => entry[0]), ['file_write', 'file_write', 'file_write'])
+    assert.deepEqual(calls.map((entry) => entry[1]), [file, file, join(dir, 'relative.txt')])
   } finally {
     cleanup()
   }
@@ -126,11 +131,13 @@ test('file_edit replaces exact text and handles mismatch cases', async () => {
 
     assert.match(await tool.execute({ file_path: file, old_string: 'one', new_string: 'ONE' }), /替换|success/i)
     assert.equal(readFileSync(file, 'utf8'), 'ONE two two')
+    assert.match(await tool.execute({ file_path: 'edit.txt', old_string: 'ONE', new_string: 'one' }), /替换|success/i)
+    assert.equal(readFileSync(file, 'utf8'), 'one two two')
     assert.match(await tool.execute({ file_path: file, old_string: 'two', new_string: 'TWO' }), /多个匹配|multiple/i)
     assert.match(await tool.execute({ file_path: file, old_string: 'missing', new_string: 'x' }), /未找到|not found/i)
     assert.match(await tool.execute({ file_path: file, old_string: 'TWO', new_string: 'TWO' }), /相同|same/i)
     assert.match(await tool.execute({ file_path: file, old_string: 'two', new_string: 'TWO', replace_all: true }), /替换|success/i)
-    assert.equal(readFileSync(file, 'utf8'), 'ONE TWO TWO')
+    assert.equal(readFileSync(file, 'utf8'), 'one TWO TWO')
   } finally {
     cleanup()
   }

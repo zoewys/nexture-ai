@@ -1,18 +1,20 @@
 import type { SingleSession } from '@shared/types'
-import { MessageSquare, Plus } from 'lucide-react'
+import { MessageSquare, Plus, Trash2 } from 'lucide-react'
 
 interface SingleSessionSidebarProps {
   sessions: SingleSession[]
   selectedSessionId: string | null
   onNewSession: () => void
   onSelectSession: (id: string) => void
+  onDeleteSession: (id: string) => void
 }
 
 export function SingleSessionSidebar({
   sessions,
   selectedSessionId,
   onNewSession,
-  onSelectSession
+  onSelectSession,
+  onDeleteSession
 }: SingleSessionSidebarProps): JSX.Element {
   return (
     <aside className="single-session-sidebar">
@@ -37,24 +39,46 @@ export function SingleSessionSidebar({
             <span>No sessions yet</span>
           </div>
         ) : sessions.map((session) => (
-          <button
+          <div
             key={session.id}
-            type="button"
+            role="button"
+            tabIndex={0}
             className={[
               'single-session-card',
               selectedSessionId === session.id ? 'single-session-card-active' : ''
             ].filter(Boolean).join(' ')}
             onClick={() => onSelectSession(session.id)}
+            onKeyDown={(event) => {
+              if (event.key === 'Enter' || event.key === ' ') {
+                event.preventDefault()
+                onSelectSession(session.id)
+              }
+            }}
           >
             <span className="single-session-card-head">
               <span className="single-session-card-title">{session.title}</span>
-              <span className="single-session-card-time">{formatTime(session.updatedAt)}</span>
+              <span className="single-session-card-tools">
+                <span className="single-session-card-time">{formatTime(session.updatedAt)}</span>
+                <button
+                  type="button"
+                  className="single-session-card-delete"
+                  title="删除 session"
+                  aria-label={`删除 session ${session.title}`}
+                  onClick={(event) => {
+                    event.stopPropagation()
+                    onDeleteSession(session.id)
+                  }}
+                  onKeyDown={(event) => event.stopPropagation()}
+                >
+                  <Trash2 size={12} />
+                </button>
+              </span>
             </span>
             <span className="single-session-card-meta">
               <span className="single-session-card-route">{routeSummary(session)}</span>
               <span className="single-session-card-preview">{session.preview || 'No messages yet'}</span>
             </span>
-          </button>
+          </div>
         ))}
       </div>
     </aside>

@@ -1,27 +1,32 @@
 import { existsSync, mkdirSync, writeFileSync } from 'node:fs'
-import { dirname, isAbsolute } from 'node:path'
+import { dirname, isAbsolute, resolve } from 'node:path'
 import { tool } from 'ai'
 import { z } from 'zod'
 import type { PermissionGuard } from './PermissionGuard'
 
 export type FileChangedCallback = (filePath: string, op: 'create' | 'modify') => void
 
+const FILE_PATH_DESCRIPTION = '文件路径。相对路径会按当前项目目录解析；也可以传绝对路径'
+
 export function createFileWriteTool(cwd: string, guard: PermissionGuard, onFileChanged?: FileChangedCallback) {
-  void cwd
   return tool({
     inputSchema: z.object({
-      file_path: z.string().describe('文件的绝对路径'),
+      file_path: z.string().describe(FILE_PATH_DESCRIPTION),
       content: z.string().describe('要写入的内容')
     }),
     execute: async (input: { file_path: string; content: string }) => {
-      if (!isAbsolute(input.file_path)) return `错误: file_path 必须是绝对路径: ${input.file_path}`
-      if (!(await guard.request('file_write', input.file_path))) return `错误: 权限被拒绝: ${input.file_path}`
+      const filePath = resolveToolPath(cwd, input.file_path)
+      if (!(await guard.request('file_write', filePath))) return `错误: 权限被拒绝: ${filePath}`
 
-      const existed = existsSync(input.file_path)
-      mkdirSync(dirname(input.file_path), { recursive: true })
-      writeFileSync(input.file_path, input.content, 'utf8')
-      onFileChanged?.(input.file_path, existed ? 'modify' : 'create')
+      const existed = existsSync(filePath)
+      mkdirSync(dirname(filePath), { recursive: true })
+      writeFileSync(filePath, input.content, 'utf8')
+      onFileChanged?.(filePath, existed ? 'modify' : 'create')
       return `写入成功: ${Buffer.byteLength(input.content, 'utf8')} bytes`
     }
   })
+}
+
+function resolveToolPath(cwd: string, filePath: string): string {
+  return isAbsolute(filePath) ? filePath : resolve(cwd, filePath)
 }

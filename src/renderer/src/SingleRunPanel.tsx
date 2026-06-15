@@ -42,10 +42,11 @@ interface SingleRunPanelProps {
   onSendMessage: (
     text: string,
     route: SessionRoute,
-    options?: { appendSystemPrompt?: string; addDirs?: string[]; apiMaxSteps?: number },
+    options?: { cwd: string; appendSystemPrompt?: string; addDirs?: string[]; apiMaxSteps?: number },
     sessionIdOverride?: string
   ) => Promise<SingleSessionDetail>
   onAbortSession: () => Promise<SingleSessionDetail | null>
+  onDeleteSession: (id: string) => Promise<void>
   onModeAgents: () => void
   showMemoryReferences?: boolean
 }
@@ -62,6 +63,7 @@ export function SingleRunPanel({
   onSelectSession,
   onSendMessage,
   onAbortSession,
+  onDeleteSession,
   onModeAgents,
   showMemoryReferences = false
 }: SingleRunPanelProps): JSX.Element {
@@ -170,6 +172,16 @@ export function SingleRunPanel({
     onSelectSession(id)
   }
 
+  const handleDeleteSession = (id: string): void => {
+    const session = sessions.find((item) => item.id === id)
+    const runningHint = selectedSession?.id === id && selectedSession.running
+      ? '\n\n当前 live run 会被停止。'
+      : ''
+    const title = session?.title || 'this session'
+    if (!window.confirm(`删除 session "${title}"?${runningHint}`)) return
+    void onDeleteSession(id)
+  }
+
   const handleSend = async (): Promise<void> => {
     const text = message.trim()
     if ((!text && attachedFiles.length === 0) || (vendor === 'api' && !selectedProvider)) return
@@ -185,6 +197,7 @@ export function SingleRunPanel({
       fullText,
       currentRoute,
       {
+        cwd: cwd.trim(),
         appendSystemPrompt: selectedAgent?.systemPrompt,
         apiMaxSteps: vendor === 'api' ? 10 : undefined
       },
@@ -213,6 +226,7 @@ export function SingleRunPanel({
         selectedSessionId={selectedSessionId}
         onNewSession={() => { void handleCreateSession() }}
         onSelectSession={handleSelectSession}
+        onDeleteSession={handleDeleteSession}
       />
 
       <main className="panel panel-runtime single-session-main">

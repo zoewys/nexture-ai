@@ -1,4 +1,5 @@
 import { randomUUID } from 'node:crypto'
+import { resolve } from 'node:path'
 import type {
   AgentEvent,
   RunConfig,
@@ -42,16 +43,21 @@ export class SingleSessionManager {
   sendMessage(input: SingleSessionSendInput): SingleSessionDetail {
     const clean = input.text.trim()
     if (!clean) return this.getSessionDetail(input.sessionId)
+    const targetCwd = input.cwd.trim()
+    if (!targetCwd) throw new Error('Project directory is required')
 
     const session = this.requireSession(input.sessionId)
     const activeSegment = this.getActiveSegment(session)
     const sameRoute = !!activeSegment && routesEqual(activeSegment.route, input.route)
+    const sameCwd = !!activeSegment && cwdEqual(activeSegment.cwd ?? session.cwd, targetCwd)
+    const sameContext = sameRoute && sameCwd
     const liveRunId = activeSegment?.runId
     const liveCapabilities = liveRunId ? this.runManager.getLiveRunCapabilities(liveRunId) : null
 
     this.recordVisibleUserInput(session, clean)
 
-    if (sameRoute && liveRunId && liveCapabilities?.bidirectionalStdin) {
+    if (sameContext && liveRunId && liveCapabilities?.bidirectionalStdin) {
+      session.cwd = targetCwd
       this.persistAndEmit(session)
       this.transcripts.recordUserInput(liveRunId, clean)
       void this.runManager.push(liveRunId, clean).catch((err) => {
@@ -64,8 +70,9 @@ export class SingleSessionManager {
       return this.toDetail(session)
     }
 
-    const strategy = this.chooseStrategy(session, activeSegment, input.route, sameRoute)
-    const segment = this.createSegment(session, input.route, strategy)
+    const strategy = this.chooseStrategy(session, activeSegment, input.route, sameContext)
+    const previousCwd = session.cwd
+    const segment = this.createSegment(session, input.route, strategy, targetCwd, !cwdEqual(previousCwd, targetCwd))
     const prompt = strategy === 'logic-replay'
       ? this.transcripts.buildReplayPromptFromTimeline(
           this.nativeSessionIdsBefore(session, segment.id),
@@ -100,9 +107,19 @@ export class SingleSessionManager {
     return this.toDetail(session)
   }
 
+  deleteSession(sessionId: string): void {
+    const session = this.store.get(sessionId)
+    if (!session || session.status !== 'active') return
+    const activeSegment = this.getActiveSegment(session)
+    if (activeSegment?.runId && this.runManager.hasLiveRun(activeSegment.runId)) {
+      this.runManager.abort(activeSegment.runId)
+    }
+    this.store.delete(sessionId)
+  }
+
   private requireSession(id: string): SingleSession {
     const session = this.store.get(id)
-    if (!session) throw new Error(`Single session not found: ${id}`)
+    if (!session || session.status !== 'active') throw new Error(`Single session not found: ${id}`)
     return session
   }
 
@@ -127,10 +144,10 @@ export class SingleSessionManager {
     session: SingleSession,
     activeSegment: SessionSegment | undefined,
     route: SessionRoute,
-    sameRoute: boolean
+    sameContext: boolean
   ): SessionContinuationStrategy {
     if (!activeSegment) return 'new'
-    if (!sameRoute) return 'logic-replay'
+    if (!sameContext) return 'logic-replay'
     const nativeSessionId = activeSegment.nativeSessionId
     const canNativeResume = this.runManager.getAdapterCapabilities(route.vendor).nativeResume
     if (nativeSessionId && canNativeResume) return 'native-resume'
@@ -140,22 +157,28 @@ export class SingleSessionManager {
   private createSegment(
     session: SingleSession,
     route: SessionRoute,
-    strategy: SessionContinuationStrategy
+    strategy: SessionContinuationStrategy,
+    cwd: string,
+    cwdChanged: boolean
   ): SessionSegment {
     const segment: SessionSegment = {
       id: randomUUID(),
       scope: 'single',
       route,
+      cwd,
       continuationStrategy: strategy,
       startedAt: Date.now()
     }
     session.conversation.segments.push(segment)
     session.conversation.activeSegmentId = segment.id
+    session.cwd = cwd
     session.route = route
     if (strategy === 'logic-replay') {
       session.conversation.events.push({
         kind: 'system',
-        text: '模型已切换，会话保持不变；后续由新的底层 session 接手当前话题。'
+        text: cwdChanged
+          ? '项目目录已切换，会话保持不变；后续由新的底层 session 在新目录接手当前话题。'
+          : '模型已切换，会话保持不变；后续由新的底层 session 接手当前话题。'
       })
     }
     return segment
@@ -179,7 +202,7 @@ export class SingleSessionManager {
     return {
       vendor: route.vendor,
       prompt,
-      cwd: session.cwd,
+      cwd: input.cwd.trim(),
       agentId: route.agentId,
       model: route.model,
       codexReasoningEffort: route.vendor === 'codex' ? route.codexReasoningEffort : undefined,
@@ -214,7 +237,7 @@ export class SingleSessionManager {
     event: AgentEvent
   ): void {
     const session = this.store.get(sessionId)
-    if (!session) return
+    if (!session || session.status !== 'active') return
     const segment = session.conversation.segments.find((item) => item.id === segmentId)
     if (!segment) return
 
@@ -282,6 +305,10 @@ function routesEqual(a: SessionRoute, b: SessionRoute): boolean {
     empty(a.codexServiceTier) === empty(b.codexServiceTier) &&
     empty(a.permissionMode) === empty(b.permissionMode)
   )
+}
+
+function cwdEqual(a: string, b: string): boolean {
+  return resolve(a) === resolve(b)
 }
 
 function empty(value: string | undefined): string {

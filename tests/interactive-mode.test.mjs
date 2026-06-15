@@ -54,6 +54,8 @@ test('interactive manager flow enters awaiting-input, resumes, and can finish ma
   assert.match(manager, /this\.extractConversationSummary\(execution\.events\)/)
   assert.match(manager, /step\.status === 'awaiting-input'/)
   assert.match(manager, /execution\.status = 'running'/)
+  assert.match(manager, /!this\.runManager\.hasLiveRun\(live\.childRunId\)/)
+  assert.match(manager, /this\.removeLiveStep\(run\.id, live\.executionId\)/)
   assert.match(manager, /await this\.runManager\.push\(live\.childRunId, clean\)/)
   assert.match(manager, /this\.completeLiveStep\(run\.id, execution\.id, true\)/)
 })

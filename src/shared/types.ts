@@ -139,6 +139,8 @@ export interface SessionSegment {
   id: string
   scope: SessionScope
   route: SessionRoute
+  /** Working directory used when this segment was launched. */
+  cwd?: string
   runId?: string
   /** Native session id emitted by Claude/Codex/API for this segment. */
   nativeSessionId?: string
@@ -182,6 +184,7 @@ export interface SingleSessionCreateInput {
 export interface SingleSessionSendInput {
   sessionId: string
   text: string
+  cwd: string
   route: SessionRoute
   appendSystemPrompt?: string
   addDirs?: string[]
@@ -589,6 +592,8 @@ export const IPC = {
   singleSessionSend: 'single:sessions:send',
   /** renderer → main: abort one Single session's active run. */
   singleSessionAbort: 'single:sessions:abort',
+  /** renderer → main: delete one Single session. */
+  singleSessionDelete: 'single:sessions:delete',
   /** main → renderer: Single session updates and nested agent events. */
   singleSessionEvent: 'single:sessions:event',
   /** main → renderer: incremental transcript delta from file tailing. */

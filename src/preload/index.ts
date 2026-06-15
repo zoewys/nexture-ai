@@ -60,6 +60,9 @@ const api = {
   abortSingleSession: (id: string): Promise<SingleSessionDetail> =>
     ipcRenderer.invoke(IPC.singleSessionAbort, id),
 
+  deleteSingleSession: (id: string): Promise<void> =>
+    ipcRenderer.invoke(IPC.singleSessionDelete, id),
+
   checkClis: (): Promise<CliCheckResult> => ipcRenderer.invoke(IPC.checkClis),
 
   getCliVersions: (): Promise<CliVersionResult> => ipcRenderer.invoke(IPC.cliVersions),

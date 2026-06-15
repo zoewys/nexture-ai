@@ -1,0 +1,1272 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Agent Studio — Workflow Workspace 设计稿</title>
+<script src="https://unpkg.com/react@18/umd/react.development.js" crossorigin></script>
+<script src="https://unpkg.com/react-dom@18/umd/react-dom.development.js" crossorigin></script>
+<script src="https://unpkg.com/@babel/standalone/babel.min.js"></script>
+<script src="https://unpkg.com/lucide@latest"></script>
+<style>
+  @import url('https://fonts.googleapis.com/css2?family=JetBrains+Mono:wght@400;500;600;700&display=swap');
+
+  :root {
+    --brand-primary: #3d8e86;
+    --brand-primary-hover: #206864;
+    --brand-secondary: #55bb8b;
+    --brand-accent: #6abd79;
+    --brand-muted: #9ab378;
+    --brand-surface: #77d2d1;
+    --brand-deep: #28414a;
+    --brand-dark: #364e36;
+
+    --semantic-success: #6abd79;
+    --semantic-warning: #e5a832;
+    --semantic-error: #d64545;
+    --semantic-info: #3d8e86;
+    --semantic-running: #3d8e86;
+
+    --neutral-bg: #ffffff;
+    --neutral-surface: #f5f7f6;
+    --neutral-surface-raised: #ffffff;
+    --neutral-border: #d8ddd9;
+    --neutral-border-subtle: #e8ece9;
+    --neutral-text-primary: #1a2e2e;
+    --neutral-text-secondary: #5a7070;
+    --neutral-text-muted: #8a9e96;
+    --neutral-canvas: #eef1f0;
+    --neutral-canvas-dot: #d0d8d4;
+
+    --shadow-sm: 0 2px 4px rgba(26, 46, 46, 0.08);
+    --shadow-md: 0 4px 12px rgba(26, 46, 46, 0.1);
+    --shadow-lg: 0 8px 24px rgba(26, 46, 46, 0.12);
+  }
+
+  .dark {
+    --neutral-bg: #1a2a2a;
+    --neutral-surface: #223535;
+    --neutral-surface-raised: #2a4040;
+    --neutral-border: #3a5050;
+    --neutral-border-subtle: #2e4242;
+    --neutral-text-primary: #e0ebe6;
+    --neutral-text-secondary: #8aada0;
+    --neutral-text-muted: #5a7a70;
+    --neutral-canvas: #162222;
+    --neutral-canvas-dot: #2a4040;
+    --shadow-sm: 0 2px 4px rgba(0,0,0,0.25);
+    --shadow-md: 0 4px 12px rgba(0,0,0,0.3);
+    --shadow-lg: 0 8px 24px rgba(0,0,0,0.4);
+  }
+
+  * { box-sizing: border-box; }
+  html, body, #root { height: 100%; margin: 0; }
+  body {
+    font-family: "JetBrains Mono", "Fira Code", "SF Mono", "Cascadia Code", monospace;
+    font-size: 14px;
+    line-height: 1.6;
+    color: var(--neutral-text-primary);
+    background: var(--neutral-bg);
+    -webkit-font-smoothing: antialiased;
+  }
+
+  /* Animations */
+  @keyframes pulse-ring {
+    0% { box-shadow: 0 0 0 0 rgba(61, 142, 134, 0.35); }
+    70% { box-shadow: 0 0 0 6px rgba(61, 142, 134, 0); }
+    100% { box-shadow: 0 0 0 0 rgba(61, 142, 134, 0); }
+  }
+  @keyframes flow-dash {
+    to { stroke-dashoffset: -20; }
+  }
+  @keyframes typing-dot {
+    0%, 60%, 100% { transform: translateY(0); }
+    30% { transform: translateY(-4px); }
+  }
+
+  /* App Shell */
+  .app { display: flex; flex-direction: column; height: 100vh; overflow: hidden; }
+  .app-header {
+    height: 48px;
+    border-bottom: 1px solid var(--neutral-border);
+    display: flex; align-items: center; justify-content: space-between;
+    padding: 0 16px;
+    background: var(--neutral-surface-raised);
+    flex-shrink: 0;
+  }
+  .app-brand { display: flex; align-items: baseline; gap: 10px; }
+  .app-brand h1 { font-size: 15px; font-weight: 700; margin: 0; letter-spacing: -0.2px; }
+  .app-subtitle { font-size: 12px; color: var(--neutral-text-muted); }
+  .topbar-chips { display: flex; gap: 8px; }
+  .topbar-chip {
+    font-size: 11px; font-weight: 500; color: var(--neutral-text-secondary);
+    background: var(--neutral-surface);
+    border: 1px solid var(--neutral-border-subtle);
+    padding: 2px 10px; border-radius: 4px; letter-spacing: 0.2px;
+  }
+
+  .app-body { display: flex; flex: 1; overflow: hidden; }
+
+  /* ModeRail */
+  .mode-rail {
+    width: 48px; flex-shrink: 0;
+    border-right: 1px solid var(--neutral-border);
+    background: var(--neutral-surface);
+    display: flex; flex-direction: column; align-items: center;
+    padding: 8px 0; gap: 4px;
+  }
+  .mode-rail-btn {
+    width: 36px; height: 36px; border-radius: 6px;
+    border: none; background: transparent; color: var(--neutral-text-muted);
+    cursor: pointer; display: flex; align-items: center; justify-content: center;
+    transition: all 150ms;
+  }
+  .mode-rail-btn:hover { background: var(--neutral-surface-raised); color: var(--neutral-text-primary); }
+  .mode-rail-btn.active { background: rgba(61, 142, 134, 0.1); color: var(--brand-primary); }
+
+  /* Workflow Workspace */
+  .workflow-workspace { display: flex; flex: 1; overflow: hidden; position: relative; }
+
+  /* Sidebar Shell */
+  .workflow-sidebar-shell {
+    width: 280px; flex-shrink: 0;
+    border-right: 1px solid var(--neutral-border);
+    background: var(--neutral-bg);
+    display: flex; flex-direction: column; overflow: hidden;
+  }
+  .workflow-tabs {
+    display: flex; border-bottom: 1px solid var(--neutral-border);
+    padding: 0 12px;
+  }
+  .workflow-tabs button {
+    flex: 1; padding: 10px 0; border: none; background: transparent;
+    font-family: inherit; font-size: 12px; font-weight: 600;
+    color: var(--neutral-text-muted); cursor: pointer;
+    border-bottom: 2px solid transparent; margin-bottom: -1px;
+    transition: all 150ms;
+  }
+  .workflow-tabs button.active {
+    color: var(--brand-primary);
+    border-bottom-color: var(--brand-primary);
+  }
+
+  /* Runs List */
+  .workflow-runs-header {
+    padding: 14px 14px 10px;
+    border-bottom: 1px solid var(--neutral-border-subtle);
+  }
+  .workflow-runs-title { font-size: 14px; font-weight: 700; margin-bottom: 2px; }
+  .workflow-runs-header p { margin: 0; font-size: 11px; color: var(--neutral-text-muted); line-height: 1.4; }
+  .workflow-runs-actions { margin-top: 10px; }
+  .btn {
+    font-family: inherit; font-size: 13px; font-weight: 500; cursor: pointer;
+    border-radius: 4px; padding: 7px 14px; border: 1px solid var(--neutral-border);
+    background: transparent; color: var(--neutral-text-primary);
+    transition: all 150ms; display: inline-flex; align-items: center; gap: 6px;
+  }
+  .btn:hover { background: var(--neutral-surface); }
+  .btn-primary {
+    background: var(--brand-primary); color: #fff; border-color: var(--brand-primary);
+  }
+  .btn-primary:hover { background: var(--brand-primary-hover); }
+  .btn-primary:disabled { opacity: 0.4; cursor: not-allowed; }
+  .btn-danger { background: var(--semantic-error); color: #fff; border-color: var(--semantic-error); }
+
+  .workflow-run-filters {
+    display: flex; gap: 4px; padding: 8px 12px; border-bottom: 1px solid var(--neutral-border-subtle);
+    overflow-x: auto;
+  }
+  .workflow-run-filters button {
+    font-family: inherit; font-size: 11px; font-weight: 500;
+    padding: 4px 10px; border-radius: 4px; border: none;
+    background: transparent; color: var(--neutral-text-muted); cursor: pointer; white-space: nowrap;
+  }
+  .workflow-run-filters button.active {
+    background: rgba(61, 142, 134, 0.1); color: var(--brand-primary); font-weight: 600;
+  }
+
+  .workflow-run-cards { flex: 1; overflow-y: auto; padding: 8px; }
+  .workflow-run-card {
+    border-radius: 6px; border: 1px solid var(--neutral-border-subtle);
+    background: var(--neutral-surface-raised);
+    padding: 10px 12px; margin-bottom: 8px; cursor: pointer;
+    transition: all 150ms; position: relative;
+  }
+  .workflow-run-card:hover { border-color: var(--neutral-border); box-shadow: var(--shadow-sm); }
+  .workflow-run-card-active {
+    border-color: var(--brand-primary);
+    background: rgba(61, 142, 134, 0.04);
+  }
+  .workflow-run-card-waiting { border-left: 3px solid var(--semantic-warning); }
+  .workflow-run-card-error { border-left: 3px solid var(--semantic-error); }
+
+  .workflow-run-card-main {
+    display: flex; align-items: center; justify-content: space-between; gap: 8px;
+    margin-bottom: 6px;
+  }
+  .workflow-run-card-title strong { font-size: 13px; font-weight: 600; }
+  .workflow-run-scheduled-badge { font-size: 10px; color: var(--brand-muted); margin-right: 4px; }
+  .workflow-run-card-status {
+    font-size: 10px; font-weight: 600; letter-spacing: 0.4px;
+    padding: 2px 8px; border-radius: 4px; white-space: nowrap;
+  }
+  .workflow-run-card-status-running { background: rgba(61, 142, 134, 0.12); color: var(--brand-primary); }
+  .workflow-run-card-status-awaiting-input { background: rgba(229, 168, 50, 0.12); color: #b07d1a; }
+  .workflow-run-card-status-awaiting-confirm { background: rgba(229, 168, 50, 0.12); color: #b07d1a; }
+  .workflow-run-card-status-completed { background: rgba(106, 189, 121, 0.12); color: #4a9e5a; }
+  .workflow-run-card-status-error { background: rgba(214, 69, 69, 0.10); color: #c43a3a; }
+
+  .workflow-run-card > p { margin: 0 0 8px; font-size: 11px; color: var(--neutral-text-muted); }
+  .workflow-run-card-progress { display: flex; gap: 2px; height: 3px; margin-bottom: 8px; }
+  .workflow-run-card-segment { flex: 1; border-radius: 2px; background: var(--neutral-border-subtle); }
+  .workflow-run-card-segment-done { background: var(--semantic-success); }
+  .workflow-run-card-segment-running { background: var(--semantic-running); animation: pulse-ring 2s infinite; }
+  .workflow-run-card-segment-error { background: var(--semantic-error); }
+  .workflow-run-card-segment-pending { background: var(--neutral-border-subtle); }
+
+  .workflow-run-card-tail { font-size: 11px; color: var(--neutral-text-muted); line-height: 1.45; }
+  .workflow-run-card-tail span { display: block; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+
+  /* Run Detail */
+  .workflow-run-detail { flex: 1; display: flex; overflow: hidden; background: var(--neutral-bg); }
+  .workflow-run-detail-empty {
+    flex-direction: column; align-items: center; justify-content: center;
+    gap: 8px; color: var(--neutral-text-muted);
+  }
+  .codex-left { flex: 1; display: flex; flex-direction: column; min-width: 0; overflow: hidden; }
+  .codex-right {
+    width: 380px; flex-shrink: 0; border-left: 1px solid var(--neutral-border);
+    background: var(--neutral-surface-raised); display: flex; flex-direction: column;
+  }
+  .codex-resize-handle {
+    width: 4px; cursor: col-resize; background: transparent;
+    border-left: 1px solid var(--neutral-border);
+  }
+
+  .workflow-run-detail-header {
+    padding: 14px 18px; border-bottom: 1px solid var(--neutral-border);
+    display: flex; align-items: flex-start; justify-content: space-between; gap: 12px;
+    flex-shrink: 0;
+  }
+  .workflow-detail-title { display: flex; align-items: center; gap: 10px; flex-wrap: wrap; }
+  .workflow-detail-title h2 { margin: 0; font-size: 18px; font-weight: 600; letter-spacing: -0.2px; }
+  .workflow-run-status {
+    font-size: 11px; font-weight: 600; letter-spacing: 0.3px;
+    padding: 3px 10px; border-radius: 4px;
+  }
+  .workflow-run-status-running { background: rgba(61, 142, 134, 0.12); color: var(--brand-primary); }
+  .workflow-run-status-awaiting-confirm { background: rgba(229, 168, 50, 0.12); color: #b07d1a; }
+  .workflow-run-status-completed { background: rgba(106, 189, 121, 0.12); color: #4a9e5a; }
+  .workflow-run-cost { font-size: 11px; color: var(--neutral-text-muted); }
+
+  .workflow-run-detail-actions { display: flex; gap: 8px; flex-shrink: 0; }
+
+  .workflow-step-nav {
+    display: flex; align-items: center; gap: 6px;
+    padding: 10px 18px; border-bottom: 1px solid var(--neutral-border-subtle);
+    overflow-x: auto; flex-shrink: 0;
+  }
+  .workflow-step-chip {
+    display: inline-flex; align-items: center; gap: 6px;
+    padding: 5px 10px; border-radius: 6px; border: 1.5px solid var(--neutral-border);
+    background: var(--neutral-surface-raised); cursor: pointer; font-family: inherit;
+    font-size: 12px; color: var(--neutral-text-primary); white-space: nowrap;
+    transition: all 150ms;
+  }
+  .workflow-step-chip:hover { border-color: var(--neutral-border); background: var(--neutral-surface); }
+  .workflow-step-chip-active { border-color: var(--brand-primary); background: rgba(61, 142, 134, 0.06); }
+  .workflow-step-chip-running { border-color: var(--semantic-running); animation: pulse-ring 2s infinite; }
+  .workflow-step-chip-success { border-color: var(--semantic-success); border-left: 3px solid var(--semantic-success); }
+  .workflow-step-chip-error { border-color: var(--semantic-error); border-left: 3px solid var(--semantic-error); }
+  .workflow-step-chip-num {
+    width: 18px; height: 18px; display: flex; align-items: center; justify-content: center;
+    border-radius: 4px; background: var(--neutral-surface);
+    font-size: 10px; font-weight: 700; color: var(--neutral-text-muted);
+  }
+  .workflow-step-chip-active .workflow-step-chip-num { background: var(--brand-primary); color: #fff; }
+  .workflow-step-chip-arrow { color: var(--neutral-text-muted); display: flex; align-items: center; }
+
+  .parallel-group-stack { display: flex; align-items: center; gap: 4px; position: relative; padding-left: 8px; }
+  .parallel-group-bracket {
+    position: absolute; left: 0; top: 2px; bottom: 2px; width: 3px;
+    border-left: 2px solid var(--neutral-border); border-top: 2px solid var(--neutral-border); border-bottom: 2px solid var(--neutral-border);
+    border-radius: 4px 0 0 4px;
+  }
+
+  .parallel-transcript-tabs {
+    display: flex; gap: 2px; padding: 8px 18px 0; border-bottom: 1px solid var(--neutral-border-subtle);
+    flex-shrink: 0;
+  }
+  .parallel-tab {
+    font-family: inherit; font-size: 12px; padding: 6px 12px;
+    border: none; background: transparent; color: var(--neutral-text-muted); cursor: pointer;
+    border-bottom: 2px solid transparent; margin-bottom: -1px; display: inline-flex; align-items: center; gap: 6px;
+  }
+  .parallel-tab-active { color: var(--brand-primary); border-bottom-color: var(--brand-primary); font-weight: 600; }
+  .parallel-tab-dot { width: 7px; height: 7px; border-radius: 50%; background: var(--neutral-border); }
+  .parallel-tab-dot-running { background: var(--semantic-running); }
+  .parallel-tab-dot-done { background: var(--semantic-success); }
+  .parallel-tab-dot-error { background: var(--semantic-error); }
+
+  .workflow-prompt-section {
+    padding: 10px 18px; border-bottom: 1px solid var(--neutral-border-subtle); flex-shrink: 0;
+  }
+  .workflow-prompt-display {
+    background: var(--neutral-surface); border: 1px solid var(--neutral-border-subtle);
+    border-radius: 6px; padding: 10px 12px; cursor: pointer; transition: all 150ms;
+  }
+  .workflow-prompt-display:hover { border-color: var(--neutral-border); }
+  .workflow-prompt-label { font-size: 10px; font-weight: 600; color: var(--neutral-text-muted); text-transform: uppercase; letter-spacing: 0.4px; display: block; margin-bottom: 4px; }
+  .workflow-prompt-text { font-size: 13px; color: var(--neutral-text-primary); display: block; line-height: 1.5; }
+  .workflow-prompt-edit-hint { font-size: 11px; color: var(--neutral-text-muted); display: block; margin-top: 6px; }
+
+  .workflow-run-warning {
+    margin: 10px 18px 0; padding: 8px 12px; border-radius: 6px;
+    background: rgba(229, 168, 50, 0.08); border: 1px solid rgba(229, 168, 50, 0.25);
+    font-size: 12px; color: #9a7418;
+  }
+  .workflow-detail-error {
+    margin: 10px 18px 0; padding: 8px 12px; border-radius: 6px;
+    background: rgba(214, 69, 69, 0.08); border: 1px solid rgba(214, 69, 69, 0.25);
+    font-size: 12px; color: #b53535;
+  }
+
+  .route-suggestion-inline {
+    margin: 10px 18px 0; padding: 10px 14px; border-radius: 6px;
+    background: rgba(61, 142, 134, 0.06); border: 1px solid rgba(61, 142, 134, 0.2);
+    display: flex; align-items: center; gap: 10px; font-size: 12px;
+  }
+  .route-suggestion-icon { color: var(--brand-primary); display: flex; }
+  .route-suggestion-inline-text { flex: 1; color: var(--neutral-text-primary); }
+  .route-suggestion-adopt {
+    font-family: inherit; font-size: 11px; font-weight: 600;
+    padding: 4px 10px; border-radius: 4px; border: 1px solid var(--brand-primary);
+    background: rgba(61, 142, 134, 0.1); color: var(--brand-primary); cursor: pointer;
+  }
+
+  .workflow-step-conversation-bar {
+    margin: 10px 18px 0; padding: 10px 14px; border-radius: 6px;
+    background: rgba(61, 142, 134, 0.06); border: 1px solid rgba(61, 142, 134, 0.2);
+    flex-shrink: 0;
+  }
+  .workflow-step-conversation-meta {
+    display: flex; align-items: center; gap: 10px; font-size: 11px; color: var(--neutral-text-muted); margin-bottom: 6px;
+  }
+  .workflow-step-conversation-copy { font-size: 12px; color: var(--neutral-text-primary); line-height: 1.5; }
+  .workflow-awaiting-input-dot {
+    display: inline-block; width: 7px; height: 7px; border-radius: 50%;
+    background: var(--semantic-running); margin-right: 6px; vertical-align: middle;
+    animation: pulse-ring 2s infinite;
+  }
+
+  .codex-transcript-area { flex: 1; overflow-y: auto; padding: 14px 18px; min-height: 0; }
+
+  .transcript-event { margin-bottom: 16px; }
+  .transcript-event-meta { font-size: 11px; color: var(--neutral-text-muted); margin-bottom: 6px; display: flex; align-items: center; gap: 6px; }
+  .transcript-event-role { font-weight: 600; color: var(--neutral-text-secondary); }
+  .transcript-message {
+    padding: 12px 16px; border-radius: 4px; font-size: 14px; line-height: 1.65;
+  }
+  .transcript-message-user {
+    background: rgba(61, 142, 134, 0.08);
+    border-radius: 4px 4px 4px 0;
+  }
+  .transcript-message-ai {
+    background: var(--neutral-surface); border: 1px solid var(--neutral-border-subtle);
+    border-radius: 4px 4px 0 4px;
+  }
+  .transcript-message-tool {
+    background: var(--neutral-surface); border: 1px solid var(--neutral-border);
+    border-radius: 4px; font-size: 12px; color: var(--neutral-text-secondary);
+  }
+  .transcript-tool-call { padding: 8px 12px; border-bottom: 1px solid var(--neutral-border-subtle); }
+  .transcript-tool-result { padding: 8px 12px; background: rgba(61, 142, 134, 0.03); }
+
+  .artifact-cards { margin-top: 16px; }
+  .artifact-cards-header { font-size: 12px; font-weight: 600; color: var(--neutral-text-secondary); margin-bottom: 8px; }
+  .artifact-cards-count { color: var(--brand-primary); margin-left: 4px; }
+  .artifact-card-row {
+    display: flex; align-items: center; gap: 10px;
+    padding: 8px 12px; border-radius: 6px; border: 1px solid var(--neutral-border-subtle);
+    background: var(--neutral-surface-raised); cursor: pointer; margin-bottom: 6px;
+    transition: all 150ms;
+  }
+  .artifact-card-row:hover { border-color: var(--neutral-border); box-shadow: var(--shadow-sm); }
+  .artifact-card-row-active { border-color: var(--brand-primary); background: rgba(61, 142, 134, 0.04); }
+  .artifact-card-icon { color: var(--neutral-text-muted); display: flex; }
+  .artifact-card-info { flex: 1; min-width: 0; }
+  .artifact-card-name { font-size: 12px; font-weight: 600; color: var(--neutral-text-primary); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+  .artifact-card-meta { font-size: 11px; color: var(--neutral-text-muted); }
+  .artifact-card-open { font-size: 11px; color: var(--brand-primary); font-weight: 500; }
+
+  /* Composer */
+  .composer-bar {
+    border-top: 1px solid var(--neutral-border);
+    background: var(--neutral-bg);
+    padding: 10px 18px;
+    display: flex; align-items: flex-end; gap: 10px;
+    flex-shrink: 0;
+  }
+  .composer-input-wrap { flex: 1; display: flex; flex-direction: column; gap: 6px; }
+  .composer-textarea {
+    width: 100%; resize: none; border: 1px solid var(--neutral-border);
+    border-radius: 6px; padding: 10px 12px; font-family: inherit; font-size: 14px;
+    color: var(--neutral-text-primary); background: var(--neutral-bg);
+    outline: none; line-height: 1.5; min-height: 44px; max-height: 160px;
+  }
+  .composer-textarea:focus { border-color: var(--brand-primary); box-shadow: 0 0 0 2px rgba(61, 142, 134, 0.15); }
+  .composer-textarea::placeholder { color: var(--neutral-text-muted); }
+  .composer-attachments { display: flex; gap: 6px; flex-wrap: wrap; }
+  .composer-attachment {
+    font-size: 11px; color: var(--neutral-text-secondary);
+    background: var(--neutral-surface); border: 1px solid var(--neutral-border-subtle);
+    padding: 3px 8px; border-radius: 4px; display: inline-flex; align-items: center; gap: 4px;
+  }
+  .composer-send {
+    width: 36px; height: 36px; border-radius: 6px;
+    border: none; background: var(--brand-primary); color: #fff;
+    cursor: pointer; display: flex; align-items: center; justify-content: center;
+    transition: all 150ms; flex-shrink: 0;
+  }
+  .composer-send:hover { background: var(--brand-primary-hover); }
+  .composer-send:disabled { opacity: 0.4; cursor: not-allowed; }
+
+  /* File Preview Pane */
+  .codex-preview-pane { display: flex; flex-direction: column; height: 100%; overflow: hidden; }
+  .codex-preview-breadcrumb {
+    padding: 10px 14px; border-bottom: 1px solid var(--neutral-border-subtle);
+    font-size: 11px; color: var(--neutral-text-muted); white-space: nowrap; overflow: hidden; text-overflow: ellipsis;
+  }
+  .codex-breadcrumb-sep { color: var(--neutral-border); margin: 0 2px; }
+  .codex-breadcrumb-last { color: var(--neutral-text-primary); font-weight: 600; }
+  .codex-preview-toolbar {
+    display: flex; align-items: center; justify-content: space-between;
+    padding: 8px 14px; border-bottom: 1px solid var(--neutral-border-subtle);
+  }
+  .codex-preview-filename { font-size: 12px; font-weight: 600; }
+  .codex-preview-open-btn { font-family: inherit; font-size: 11px; padding: 3px 8px; border-radius: 4px; border: 1px solid var(--neutral-border); background: transparent; cursor: pointer; color: var(--neutral-text-secondary); }
+  .codex-preview-body { flex: 1; overflow-y: auto; padding: 14px; }
+  .codex-preview-code {
+    font-family: inherit; font-size: 13px; line-height: 1.7;
+    margin: 0; white-space: pre-wrap; word-break: break-word;
+  }
+
+  /* Drawer */
+  .drawer-overlay {
+    position: absolute; inset: 0; background: rgba(0,0,0,0.25); z-index: 50;
+  }
+  .drawer {
+    position: absolute; right: 0; top: 0; bottom: 0; width: 420px;
+    background: var(--neutral-surface-raised);
+    border-left: 1px solid var(--neutral-border);
+    box-shadow: var(--shadow-lg);
+    display: flex; flex-direction: column; z-index: 51;
+  }
+  .drawer-header {
+    padding: 14px 18px; border-bottom: 1px solid var(--neutral-border);
+    display: flex; align-items: flex-start; justify-content: space-between;
+  }
+  .drawer-header strong { font-size: 15px; display: block; }
+  .drawer-header span { font-size: 12px; color: var(--neutral-text-muted); }
+  .drawer-header button { font-family: inherit; font-size: 12px; border: none; background: transparent; color: var(--neutral-text-muted); cursor: pointer; }
+  .drawer-body { flex: 1; overflow-y: auto; padding: 18px; display: flex; flex-direction: column; gap: 16px; }
+  .drawer-actions {
+    padding: 14px 18px; border-top: 1px solid var(--neutral-border);
+    display: flex; justify-content: flex-end; gap: 10px;
+  }
+
+  .field { display: flex; flex-direction: column; gap: 6px; }
+  .field > span { font-size: 12px; font-weight: 600; color: var(--neutral-text-secondary); }
+  .field input, .field textarea, .field select {
+    font-family: inherit; font-size: 13px; padding: 8px 12px;
+    border: 1px solid var(--neutral-border); border-radius: 4px;
+    background: var(--neutral-bg); color: var(--neutral-text-primary); outline: none;
+  }
+  .field input:focus, .field textarea:focus, .field select:focus {
+    border-color: var(--brand-primary); box-shadow: 0 0 0 2px rgba(61, 142, 134, 0.15);
+  }
+  .field textarea { resize: vertical; min-height: 80px; line-height: 1.5; }
+  .field-row { display: flex; gap: 8px; }
+  .field-row input { flex: 1; }
+
+  .workflow-git-safety {
+    padding: 10px 12px; border-radius: 6px; font-size: 12px; line-height: 1.5;
+  }
+  .workflow-git-safety-warning { background: rgba(229, 168, 50, 0.08); border: 1px solid rgba(229, 168, 50, 0.25); color: #9a7418; }
+  .workflow-git-safety-error { background: rgba(214, 69, 69, 0.08); border: 1px solid rgba(214, 69, 69, 0.25); color: #b53535; }
+
+  .workflow-template-preview {
+    background: var(--neutral-surface); border: 1px solid var(--neutral-border-subtle);
+    border-radius: 6px; padding: 12px;
+  }
+  .pill-small {
+    font-size: 11px; color: var(--neutral-text-secondary);
+    background: var(--neutral-bg); border: 1px solid var(--neutral-border-subtle);
+    padding: 3px 10px; border-radius: 4px; display: inline-block;
+  }
+  .workflow-template-preview-pills { display: flex; flex-wrap: wrap; gap: 6px; margin-top: 8px; }
+
+  /* Canvas View */
+  .canvas-view { flex: 1; display: flex; overflow: hidden; background: var(--neutral-canvas); position: relative; }
+  .canvas-area { flex: 1; position: relative; overflow: hidden; }
+  .canvas-grid {
+    position: absolute; inset: 0;
+    background-image: radial-gradient(circle, var(--neutral-canvas-dot) 1px, transparent 1px);
+    background-size: 20px 20px;
+  }
+  .canvas-floating-toolbar {
+    position: absolute; top: 12px; left: 50%; transform: translateX(-50%);
+    display: flex; align-items: center; gap: 2px;
+    background: var(--neutral-surface-raised); border: 1px solid var(--neutral-border);
+    border-radius: 8px; padding: 4px 6px; box-shadow: var(--shadow-sm);
+  }
+  .canvas-toolbar-btn {
+    width: 28px; height: 28px; border-radius: 5px; border: none; background: transparent;
+    color: var(--neutral-text-secondary); cursor: pointer; display: flex; align-items: center; justify-content: center;
+  }
+  .canvas-toolbar-btn:hover { background: var(--neutral-surface); }
+  .canvas-toolbar-sep { width: 1px; height: 18px; background: var(--neutral-border); margin: 0 4px; }
+
+  .canvas-node {
+    position: absolute; min-width: 180px;
+    background: var(--neutral-surface-raised); border: 1.5px solid var(--neutral-border);
+    border-radius: 6px; padding: 12px 16px;
+    box-shadow: var(--shadow-sm); cursor: default;
+    transition: all 150ms;
+  }
+  .canvas-node:hover { border-color: var(--neutral-border); box-shadow: var(--shadow-md); }
+  .canvas-node-selected { border-color: var(--brand-surface); box-shadow: 0 0 0 2px rgba(119, 210, 209, 0.25); }
+  .canvas-node-running { border-color: var(--semantic-running); animation: pulse-ring 2s infinite; }
+  .canvas-node-success { border-color: var(--semantic-success); border-left: 3px solid var(--semantic-success); }
+  .canvas-node-error { border-color: var(--semantic-error); border-left: 3px solid var(--semantic-error); }
+  .canvas-node-title { font-size: 13px; font-weight: 600; letter-spacing: 0.3px; margin-bottom: 6px; }
+  .canvas-node-meta { font-size: 11px; color: var(--neutral-text-muted); display: flex; align-items: center; gap: 6px; }
+  .canvas-node-port {
+    width: 10px; height: 10px; border-radius: 50%;
+    border: 2px solid var(--neutral-border); background: var(--neutral-bg);
+    position: absolute; top: 50%; transform: translateY(-50%);
+  }
+  .canvas-node-port-left { left: -6px; }
+  .canvas-node-port-right { right: -6px; }
+  .canvas-node-port-connected { background: var(--brand-primary); border-color: var(--brand-primary); }
+
+  .canvas-edge {
+    position: absolute; height: 2px; background: var(--neutral-border); border-radius: 1px;
+    transform-origin: left center;
+  }
+  .canvas-edge-active { background: var(--brand-primary); }
+
+  .agent-sidebar {
+    width: 220px; flex-shrink: 0; background: var(--neutral-surface-raised);
+    border-right: 1px solid var(--neutral-border); display: flex; flex-direction: column;
+  }
+  .agent-sidebar-header {
+    padding: 8px 10px; border-bottom: 1px solid var(--neutral-border);
+    display: flex; align-items: center; justify-content: space-between;
+  }
+  .agent-sidebar-header span { font-size: 10px; text-transform: uppercase; letter-spacing: 0.5px; color: var(--neutral-text-muted); font-weight: 600; }
+  .agent-item {
+    display: grid; grid-template-columns: 24px minmax(0, 1fr) 26px; align-items: center; gap: 8px;
+    padding: 6px 10px; cursor: grab; border-radius: 6px; margin: 2px 4px;
+    transition: background 100ms;
+  }
+  .agent-item:hover { background: var(--neutral-surface); }
+  .agent-item-icon {
+    width: 24px; height: 24px; border-radius: 5px;
+    display: flex; align-items: center; justify-content: center; flex-shrink: 0;
+  }
+  .agent-item-name { font-size: 11px; color: var(--neutral-text-primary); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+
+  .right-panel {
+    width: 260px; flex-shrink: 0; background: var(--neutral-surface-raised);
+    border-left: 1px solid var(--neutral-border); display: flex; flex-direction: column; overflow: hidden;
+  }
+  .right-panel-header {
+    display: flex; align-items: center; justify-content: space-between;
+    padding: 8px 12px; border-bottom: 1px solid var(--neutral-border);
+  }
+  .right-panel-header span { font-size: 11px; color: var(--neutral-text-muted); text-transform: uppercase; letter-spacing: 0.5px; }
+  .right-panel-body { flex: 1; overflow-y: auto; padding: 12px; display: flex; flex-direction: column; gap: 12px; }
+
+  .switch {
+    width: 32px; height: 18px; border-radius: 9px; background: var(--neutral-border);
+    border: none; cursor: pointer; position: relative; padding: 0; transition: background 150ms;
+  }
+  .switch::after {
+    content: ''; position: absolute; width: 14px; height: 14px; border-radius: 50%;
+    background: #fff; top: 2px; left: 2px; transition: transform 150ms;
+    box-shadow: 0 1px 2px rgba(0,0,0,0.15);
+  }
+  .switch.on { background: var(--brand-primary); }
+  .switch.on::after { transform: translateX(14px); }
+
+  .view-toggle {
+    position: absolute; top: 10px; right: 10px; z-index: 60;
+    display: flex; background: var(--neutral-surface-raised); border: 1px solid var(--neutral-border);
+    border-radius: 6px; overflow: hidden; box-shadow: var(--shadow-sm);
+  }
+  .view-toggle button {
+    font-family: inherit; font-size: 11px; font-weight: 600; padding: 6px 12px; border: none;
+    background: transparent; color: var(--neutral-text-muted); cursor: pointer;
+  }
+  .view-toggle button.active { background: rgba(61, 142, 134, 0.1); color: var(--brand-primary); }
+
+  .theme-toggle {
+    position: absolute; top: 10px; right: 160px; z-index: 60;
+  }
+
+  /* Memory references */
+  .memory-refs { margin-top: 12px; padding-top: 12px; border-top: 1px solid var(--neutral-border-subtle); }
+  .memory-refs-title { font-size: 11px; font-weight: 600; color: var(--neutral-text-muted); text-transform: uppercase; letter-spacing: 0.4px; margin-bottom: 8px; }
+  .memory-ref-item {
+    font-size: 12px; color: var(--neutral-text-secondary); padding: 6px 10px;
+    background: var(--neutral-surface); border-radius: 4px; margin-bottom: 4px;
+    border-left: 2px solid var(--brand-muted);
+  }
+
+  /* Scrollbar */
+  ::-webkit-scrollbar { width: 6px; height: 6px; }
+  ::-webkit-scrollbar-track { background: transparent; }
+  ::-webkit-scrollbar-thumb { background: var(--neutral-border); border-radius: 3px; }
+  ::-webkit-scrollbar-thumb:hover { background: var(--neutral-text-muted); }
+</style>
+</head>
+<body>
+<div id="root"></div>
+<script type="text/babel">
+const { useState, useEffect } = React;
+
+// ── Mock Data ───────────────────────────────────────────────────────────────
+
+const mockAgents = [
+  { id: 'a1', name: 'Code Reviewer', vendor: 'claude', model: 'claude-sonnet-4-6', role: 'review', color: '#6c8cff' },
+  { id: 'a2', name: 'Test Writer', vendor: 'codex', model: 'gpt-4.1', role: 'test', color: '#4caf7d' },
+  { id: 'a3', name: 'Doc Writer', vendor: 'claude', model: 'claude-haiku-4-5', role: 'docs', color: '#6c8cff' },
+  { id: 'a4', name: 'Refactor Bot', vendor: 'codex', model: 'o4-mini', role: 'refactor', color: '#4caf7d' },
+];
+
+const mockRuns = [
+  {
+    id: 'r1', runName: 'Add OAuth2 flow', templateName: 'Feature Dev', status: 'running',
+    startedAt: Date.now() - 3600000, projectPath: '/Users/zoe/projects/app',
+    totalInputTokens: 12400, totalOutputTokens: 5800, totalCostUsd: 0.32, budgetUsd: 2.00,
+    steps: [
+      { agentId: 'a1', status: 'done', displayName: 'Review', role: 'review', parallelGroupId: undefined },
+      { agentId: 'a2', status: 'done', displayName: 'Tests', role: 'test', parallelGroupId: 'pg1' },
+      { agentId: 'a4', status: 'running', displayName: 'Refactor', role: 'refactor', parallelGroupId: 'pg1' },
+      { agentId: 'a3', status: 'pending', displayName: 'Docs', role: 'docs', parallelGroupId: undefined },
+    ]
+  },
+  {
+    id: 'r2', runName: 'Fix memory leak', templateName: 'Bug Fix', status: 'awaiting-confirm',
+    startedAt: Date.now() - 86400000, projectPath: '/Users/zoe/projects/app',
+    totalInputTokens: 8200, totalOutputTokens: 3100, totalCostUsd: 0.18,
+    steps: [
+      { agentId: 'a1', status: 'done', displayName: 'Diagnose', role: 'diagnose', parallelGroupId: undefined },
+      { agentId: 'a4', status: 'awaiting-confirm', displayName: 'Fix', role: 'fix', parallelGroupId: undefined },
+    ]
+  },
+  {
+    id: 'r3', runName: 'Update deps', templateName: 'Maintenance', status: 'completed',
+    startedAt: Date.now() - 172800000, projectPath: '/Users/zoe/projects/lib',
+    totalInputTokens: 2100, totalOutputTokens: 900, totalCostUsd: 0.05,
+    steps: [
+      { agentId: 'a2', status: 'done', displayName: 'Audit', role: 'audit', parallelGroupId: undefined },
+      { agentId: 'a4', status: 'done', displayName: 'Apply', role: 'apply', parallelGroupId: undefined },
+    ]
+  },
+  {
+    id: 'r4', runName: 'Migrate to v3', templateName: 'Migration', status: 'error',
+    startedAt: Date.now() - 200000000, projectPath: '/Users/zoe/projects/legacy',
+    totalInputTokens: 5600, totalOutputTokens: 2200, totalCostUsd: 0.14,
+    steps: [
+      { agentId: 'a1', status: 'error', displayName: 'Analyze', role: 'analyze', parallelGroupId: undefined },
+    ]
+  },
+];
+
+const mockTranscript = [
+  { role: 'user', content: '请为登录模块添加 OAuth2 支持，使用 PKCE 流程。' },
+  { role: 'assistant', content: '我来为登录模块添加 OAuth2 PKCE 支持。首先让我检查一下现有的认证结构...\n\n我看到当前使用的是基于 session 的本地认证。我将添加：\n1. OAuth2 授权端点\n2. PKCE 验证器生成\n3. Token 交换逻辑\n4. 用户info获取' },
+  { role: 'tool', tool: 'fileRead', input: 'src/auth/oauth.ts', result: '文件不存在，将创建新文件' },
+  { role: 'assistant', content: '已创建 `src/auth/oauth.ts`，包含完整的 PKCE 流程实现。现在生成测试...' },
+];
+
+const mockArtifacts = [
+  { path: 'src/auth/oauth.ts', type: 'code' },
+  { path: 'src/auth/oauth.test.ts', type: 'test' },
+  { path: 'docs/oauth-flow.md', type: 'design' },
+];
+
+const mockMemoryRefs = [
+  { id: 'm1', summary: '用户偏好：使用 TypeScript 严格模式' },
+  { id: 'm2', summary: '项目规范：auth 模块统一放在 src/auth/' },
+];
+
+// ── Icons ───────────────────────────────────────────────────────────────────
+
+function Icon({ name, size = 16 }) {
+  const icons = {
+    workflow: <svg width={size} height={size} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><rect x="3" y="3" width="7" height="7"/><rect x="14" y="3" width="7" height="7"/><rect x="14" y="14" width="7" height="7"/><rect x="3" y="14" width="7" height="7"/></svg>,
+    template: <svg width={size} height={size} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M4 19.5A2.5 2.5 0 0 1 6.5 17H20"/><path d="M6.5 2H20v20H6.5A2.5 2.5 0 0 1 4 19.5v-15A2.5 2.5 0 0 1 6.5 2z"/></svg>,
+    bot: <svg width={size} height={size} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><rect x="3" y="11" width="18" height="10" rx="2"/><circle cx="12" cy="5" r="2"/><path d="M12 7v4"/><line x1="8" y1="16" x2="8" y2="16"/><line x1="16" y1="16" x2="16" y2="16"/></svg>,
+    message: <svg width={size} height={size} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M21 15a2 2 0 0 1-2 2H7l-4 4V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2z"/></svg>,
+    settings: <svg width={size} height={size} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><circle cx="12" cy="12" r="3"/><path d="M19.4 15a1.65 1.65 0 0 0 .33 1.82l.06.06a2 2 0 0 1 0 2.83 2 2 0 0 1-2.83 0l-.06-.06a1.65 1.65 0 0 0-1.82-.33 1.65 1.65 0 0 0-1 1.51V21a2 2 0 0 1-2 2 2 2 0 0 1-2-2v-.09A1.65 1.65 0 0 0 9 19.4a1.65 1.65 0 0 0-1.82.33l-.06.06a2 2 0 0 1-2.83 0 2 2 0 0 1 0-2.83l.06-.06A1.65 1.65 0 0 0 4.68 15a1.65 1.65 0 0 0-1.51-1H3a2 2 0 0 1-2-2 2 2 0 0 1 2-2h.09A1.65 1.65 0 0 0 4.6 9a1.65 1.65 0 0 0-.33-1.82l-.06-.06a2 2 0 0 1 0-2.83 2 2 0 0 1 2.83 0l.06.06A1.65 1.65 0 0 0 9 4.68a1.65 1.65 0 0 0 1-1.51V3a2 2 0 0 1 2-2 2 2 0 0 1 2 2v.09a1.65 1.65 0 0 0 1 1.51 1.65 1.65 0 0 0 1.82-.33l.06-.06a2 2 0 0 1 2.83 0 2 2 0 0 1 0 2.83l-.06.06A1.65 1.65 0 0 0 19.4 9a1.65 1.65 0 0 0 1.51 1H21a2 2 0 0 1 2 2 2 2 0 0 1-2 2h-.09a1.65 1.65 0 0 0-1.51 1z"/></svg>,
+    plus: <svg width={size} height={size} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><line x1="12" y1="5" x2="12" y2="19"/><line x1="5" y1="12" x2="19" y2="12"/></svg>,
+    send: <svg width={size} height={size} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><line x1="22" y1="2" x2="11" y2="13"/><polygon points="22 2 15 22 11 13 2 9 22 2"/></svg>,
+    check: <svg width={size} height={size} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><polyline points="20 6 9 17 4 12"/></svg>,
+    checkCircle: <svg width={size} height={size} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M22 11.08V12a10 10 0 1 1-5.93-9.14"/><polyline points="22 4 12 14.01 9 11.01"/></svg>,
+    trash: <svg width={size} height={size} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><polyline points="3 6 5 6 21 6"/><path d="M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6m3 0V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2"/></svg>,
+    fileCode: <svg width={size} height={size} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M14.5 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V7.5L14.5 2z"/><polyline points="14 2 14 8 20 8"/><polyline points="9 13 15 13"/><polyline points="9 17 11 15 9 13"/></svg>,
+    fileText: <svg width={size} height={size} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M14.5 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V7.5L14.5 2z"/><polyline points="14 2 14 8 20 8"/><line x1="16" y1="13" x2="8" y2="13"/><line x1="16" y1="17" x2="8" y2="17"/><line x1="10" y1="9" x2="8" y2="9"/></svg>,
+    pen: <svg width={size} height={size} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M12 19l7-7 3 3-7 7-3-3z"/><path d="M18 13l-1.5-7.5L2 2l3.5 14.5L13 18l5-5z"/><path d="M2 2l7.586 7.586"/><circle cx="11" cy="11" r="2"/></svg>,
+    arrowRight: <svg width={size} height={size} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><line x1="5" y1="12" x2="19" y2="12"/><polyline points="12 5 19 12 12 19"/></svg>,
+    maximize: <svg width={size} height={size} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M15 3h6v6"/><path d="M9 21H3v-6"/><path d="M21 3l-7 7"/><path d="M3 21l7-7"/></svg>,
+    zoomIn: <svg width={size} height={size} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><circle cx="11" cy="11" r="8"/><line x1="21" y1="21" x2="16.65" y2="16.65"/><line x1="11" y1="8" x2="11" y2="14"/><line x1="8" y1="11" x2="14" y2="11"/></svg>,
+    zoomOut: <svg width={size} height={size} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><circle cx="11" cy="11" r="8"/><line x1="21" y1="21" x2="16.65" y2="16.65"/><line x1="8" y1="11" x2="14" y2="11"/></svg>,
+    undo: <svg width={size} height={size} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M3 7v6h6"/><path d="M21 17a9 9 0 0 0-9-9 9 9 0 0 0-6 2.3L3 13"/></svg>,
+    redo: <svg width={size} height={size} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M21 7v6h-6"/><path d="M3 17a9 9 0 0 1 9-9 9 9 0 0 1 6 2.3L21 13"/></svg>,
+    lightbulb: <svg width={size} height={size} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M9 18h6"/><path d="M10 22h4"/><path d="M12 2a7 7 0 0 0-4 12.7V17a1 1 0 0 0 1 1h6a1 1 0 0 0 1-1v-2.3A7 7 0 0 0 12 2z"/></svg>,
+    alert: <svg width={size} height={size} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M10.29 3.86L1.82 18a2 2 0 0 0 1.71 3h16.94a2 2 0 0 0 1.71-3L13.71 3.86a2 2 0 0 0-3.42 0z"/><line x1="12" y1="9" x2="12" y2="13"/><line x1="12" y1="17" x2="12.01" y2="17"/></svg>,
+    folder: <svg width={size} height={size} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M22 19a2 2 0 0 1-2 2H4a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h5l2 3h9a2 2 0 0 1 2 2z"/></svg>,
+    info: <svg width={size} height={size} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><circle cx="12" cy="12" r="10"/><line x1="12" y1="16" x2="12" y2="12"/><line x1="12" y1="8" x2="12.01" y2="8"/></svg>,
+    cpu: <svg width={size} height={size} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><rect x="4" y="4" width="16" height="16" rx="2"/><rect x="9" y="9" width="6" height="6"/><line x1="9" y1="1" x2="9" y2="4"/><line x1="15" y1="1" x2="15" y2="4"/><line x1="9" y1="20" x2="9" y2="23"/><line x1="15" y1="20" x2="15" y2="23"/><line x1="20" y1="9" x2="23" y2="9"/><line x1="20" y1="14" x2="23" y2="14"/><line x1="1" y1="9" x2="4" y2="9"/><line x1="1" y1="14" x2="4" y2="14"/></svg>,
+    shield: <svg width={size} height={size} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10z"/></svg>,
+    sun: <svg width={size} height={size} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><circle cx="12" cy="12" r="5"/><line x1="12" y1="1" x2="12" y2="3"/><line x1="12" y1="21" x2="12" y2="23"/><line x1="4.22" y1="4.22" x2="5.64" y2="5.64"/><line x1="18.36" y1="18.36" x2="19.78" y2="19.78"/><line x1="1" y1="12" x2="3" y2="12"/><line x1="21" y1="12" x2="23" y2="12"/><line x1="4.22" y1="19.78" x2="5.64" y2="18.36"/><line x1="18.36" y1="5.64" x2="19.78" y2="4.22"/></svg>,
+    moon: <svg width={size} height={size} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M21 12.79A9 9 0 1 1 11.21 3 7 7 0 0 0 21 12.79z"/></svg>,
+    sparkles: <svg width={size} height={size} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="m12 3-1.912 5.813a2 2 0 0 1-1.275 1.275L3 12l5.813 1.912a2 2 0 0 1 1.275 1.275L12 21l1.912-5.813a2 2 0 0 1 1.275-1.275L21 12l-5.813-1.912a2 2 0 0 1-1.275-1.275L12 3Z"/></svg>,
+  };
+  return icons[name] || null;
+}
+
+// ── Components ──────────────────────────────────────────────────────────────
+
+function ModeRail({ mode, onChange }) {
+  const modes = [
+    { key: 'workflow', icon: 'workflow' },
+    { key: 'templates', icon: 'template' },
+    { key: 'agents', icon: 'bot' },
+    { key: 'single', icon: 'message' },
+    { key: 'settings', icon: 'settings' },
+  ];
+  return (
+    <nav className="mode-rail">
+      {modes.map(m => (
+        <button key={m.key} className={`mode-rail-btn ${mode === m.key ? 'active' : ''}`} onClick={() => onChange(m.key)} title={m.key}>
+          <Icon name={m.icon} size={18} />
+        </button>
+      ))}
+    </nav>
+  );
+}
+
+function RunsList({ runs, selectedId, onSelect }) {
+  const [filter, setFilter] = useState('all');
+  const filters = [
+    { key: 'all', label: 'All' },
+    { key: 'running', label: 'Run' },
+    { key: 'awaiting-input', label: 'Input' },
+    { key: 'awaiting-confirm', label: 'Wait' },
+    { key: 'completed', label: 'Done' },
+    { key: 'error', label: 'Error' },
+  ];
+  const filtered = filter === 'all' ? runs : runs.filter(r => r.status === filter || (filter === 'error' && r.status === 'error'));
+
+  function statusLabel(s) {
+    const map = { running: 'RUN', 'awaiting-input': 'INPUT', 'awaiting-confirm': 'WAIT', completed: 'DONE', error: 'ERROR', aborted: 'STOP', interrupted: 'INT' };
+    return map[s] || s;
+  }
+
+  function segments(run) {
+    return run.steps.map(s => s.status === 'done' ? 'done' : s.status === 'running' ? 'running' : s.status === 'error' ? 'error' : 'pending');
+  }
+
+  return (
+    <aside className="workflow-runs-list">
+      <div className="workflow-runs-header">
+        <div>
+          <div className="workflow-runs-title">Workflow Tasks</div>
+          <p>按开始时间倒序；点击 run 卡片进入详情和确认。</p>
+        </div>
+        <div className="workflow-runs-actions">
+          <button className="btn btn-primary"><Icon name="plus" size={13} /> New Task</button>
+        </div>
+      </div>
+      <div className="workflow-run-filters">
+        {filters.map(f => (
+          <button key={f.key} className={filter === f.key ? 'active' : ''} onClick={() => setFilter(f.key)}>{f.label}</button>
+        ))}
+      </div>
+      <div className="workflow-run-cards">
+        {filtered.map(run => (
+          <div key={run.id}
+            className={[
+              'workflow-run-card',
+              selectedId === run.id ? 'workflow-run-card-active' : '',
+              run.status === 'awaiting-input' || run.status === 'awaiting-confirm' ? 'workflow-run-card-waiting' : '',
+              run.status === 'error' ? 'workflow-run-card-error' : ''
+            ].filter(Boolean).join(' ')}
+            onClick={() => onSelect(run.id)}
+          >
+            <div className="workflow-run-card-main">
+              <div className="workflow-run-card-title"><strong>{run.runName}</strong></div>
+              <div style={{ display: 'flex', alignItems: 'center', gap: 6 }}>
+                <span className={`workflow-run-card-status workflow-run-card-status-${run.status}`}>{statusLabel(run.status)}</span>
+                <button className="btn" style={{ width: 24, height: 24, minHeight: 24, padding: 0, opacity: 0.5 }} onClick={e => e.stopPropagation()}>
+                  <Icon name="trash" size={13} />
+                </button>
+              </div>
+            </div>
+            <p>{new Date(run.startedAt).toLocaleTimeString()} · {run.projectPath}</p>
+            <div className="workflow-run-card-progress">
+              {segments(run).map((s, i) => (
+                <span key={i} className={`workflow-run-card-segment workflow-run-card-segment-${s}`} />
+              ))}
+            </div>
+          </div>
+        ))}
+      </div>
+    </aside>
+  );
+}
+
+function StepNav({ run, selectedIndex, onSelect }) {
+  function groupSteps(steps) {
+    const groups = []; let current = null;
+    for (let i = 0; i < steps.length; i++) {
+      const s = steps[i];
+      if (s.parallelGroupId && current?.parallelGroupId === s.parallelGroupId) {
+        current.items.push({ step: s, index: i });
+      } else {
+        current = { parallelGroupId: s.parallelGroupId, items: [{ step: s, index: i }] };
+        groups.push(current);
+      }
+    }
+    return groups;
+  }
+  const groups = groupSteps(run.steps);
+
+  return (
+    <div className="workflow-step-nav">
+      {groups.map((g, gi) => (
+        <React.Fragment key={gi}>
+          {gi > 0 && <span className="workflow-step-chip-arrow"><Icon name="arrowRight" size={10} /></span>}
+          {g.items.length === 1 ? (
+            (() => {
+              const { step, index } = g.items[0];
+              return (
+                <button key={index} className={`workflow-step-chip ${selectedIndex === index ? 'workflow-step-chip-active' : ''} workflow-step-chip-${step.status}`} onClick={() => onSelect(index)}>
+                  <span className="workflow-step-chip-num">{index + 1}</span>
+                  <span>{step.role || step.displayName || `Step ${index + 1}`}</span>
+                </button>
+              );
+            })()
+          ) : (
+            <div key={`pg-${g.parallelGroupId}`} className="parallel-group-stack">
+              <div className="parallel-group-bracket" />
+              {g.items.map(({ step, index }) => (
+                <button key={index} className={`workflow-step-chip ${selectedIndex === index ? 'workflow-step-chip-active' : ''} workflow-step-chip-${step.status}`} onClick={() => onSelect(index)} style={{ marginLeft: 4 }}>
+                  <span className="workflow-step-chip-num">{index + 1}</span>
+                  <span>{step.role || step.displayName || `Step ${index + 1}`}</span>
+                </button>
+              ))}
+            </div>
+          )}
+        </React.Fragment>
+      ))}
+    </div>
+  );
+}
+
+function Transcript({ events }) {
+  return (
+    <div className="codex-transcript-area">
+      {events.map((ev, i) => (
+        <div key={i} className="transcript-event">
+          <div className="transcript-event-meta">
+            <span className="transcript-event-role">{ev.role}</span>
+            <span>·</span>
+            <span>{new Date().toLocaleTimeString()}</span>
+          </div>
+          {ev.role === 'tool' ? (
+            <div className="transcript-message transcript-message-tool">
+              <div className="transcript-tool-call"><strong>{ev.tool}</strong> {ev.input}</div>
+              <div className="transcript-tool-result">{ev.result}</div>
+            </div>
+          ) : (
+            <div className={`transcript-message transcript-message-${ev.role}`}>
+              {ev.content}
+            </div>
+          )}
+        </div>
+      ))}
+
+      <div className="artifact-cards">
+        <div className="artifact-cards-header">Created <span className="artifact-cards-count">{mockArtifacts.length}</span> files</div>
+        {mockArtifacts.map((a, i) => {
+          const icons = { code: 'fileCode', test: 'check', design: 'pen' };
+          return (
+            <div key={i} className="artifact-card-row">
+              <div className="artifact-card-icon"><Icon name={icons[a.type] || 'fileText'} size={14} /></div>
+              <div className="artifact-card-info">
+                <div className="artifact-card-name">{a.path}</div>
+                <div className="artifact-card-meta">{a.type.toUpperCase()}</div>
+              </div>
+              <span className="artifact-card-open">Open ▾</span>
+            </div>
+          );
+        })}
+      </div>
+
+      <div className="memory-refs">
+        <div className="memory-refs-title">Memory References</div>
+        {mockMemoryRefs.map(m => (
+          <div key={m.id} className="memory-ref-item">{m.summary}</div>
+        ))}
+      </div>
+    </div>
+  );
+}
+
+function Composer() {
+  const [value, setValue] = useState('');
+  return (
+    <div className="composer-bar">
+      <div className="composer-input-wrap">
+        <div className="composer-attachments">
+          <span className="composer-attachment">src/auth/oauth.ts <span style={{ cursor: 'pointer' }}>×</span></span>
+        </div>
+        <textarea className="composer-textarea" rows={2} placeholder="向运行中的 agent 发送消息..." value={value} onChange={e => setValue(e.target.value)} />
+      </div>
+      <button className="composer-send"><Icon name="send" size={16} /></button>
+    </div>
+  );
+}
+
+function RunDetail({ run, selectedStepIndex, onSelectStep }) {
+  const selectedStep = run?.steps[selectedStepIndex];
+  const awaitingConfirm = run?.status === 'awaiting-confirm' || selectedStep?.status === 'awaiting-confirm';
+
+  return (
+    <main className="workflow-run-detail">
+      <div className="codex-left">
+        <div className="workflow-run-detail-header">
+          <div className="workflow-detail-title">
+            <h2>{run?.runName || run?.templateName}</h2>
+            <span className={`workflow-run-status workflow-run-status-${run?.status}`}>
+              {run?.status === 'running' ? '运行中' : run?.status === 'awaiting-confirm' ? '等待确认' : run?.status === 'completed' ? '已完成' : run?.status}
+            </span>
+            <span className="workflow-run-cost">18.2k tokens · $0.32 / $2.00</span>
+          </div>
+          <div className="workflow-run-detail-actions">
+            {awaitingConfirm && (
+              <button className="btn btn-primary"><Icon name="checkCircle" size={14} /> 确认并继续</button>
+            )}
+            <button className="btn">Rerun Step</button>
+            {run?.status === 'running' && <button className="btn btn-danger">Stop</button>}
+          </div>
+        </div>
+
+        {run && <StepNav run={run} selectedIndex={selectedStepIndex} onSelect={onSelectStep} />}
+
+        <div className="workflow-prompt-section">
+          <div className="workflow-prompt-display">
+            <span className="workflow-prompt-label">任务描述</span>
+            <span className="workflow-prompt-text">请为登录模块添加 OAuth2 支持，使用 PKCE 流程。</span>
+            <span className="workflow-prompt-edit-hint">点击编辑</span>
+          </div>
+        </div>
+
+        <div className="route-suggestion-inline">
+          <span className="route-suggestion-icon"><Icon name="lightbulb" size={14} /></span>
+          <div className="route-suggestion-inline-text"><strong>Agent 建议：</strong> 跳过文档生成，直接进入代码审查</div>
+          <button className="route-suggestion-adopt">采纳</button>
+        </div>
+
+        <Transcript events={mockTranscript} />
+        <Composer />
+      </div>
+
+      {/* File Preview */}
+      <div className="codex-resize-handle" />
+      <div className="codex-right" style={{ width: 380 }}>
+        <div className="codex-preview-pane">
+          <div className="codex-preview-breadcrumb">
+            <span>src</span><span className="codex-breadcrumb-sep">›</span>
+            <span>auth</span><span className="codex-breadcrumb-sep">›</span>
+            <span className="codex-breadcrumb-last">oauth.ts</span>
+          </div>
+          <div className="codex-preview-toolbar">
+            <span className="codex-preview-filename">oauth.ts</span>
+            <button className="codex-preview-open-btn">关闭</button>
+          </div>
+          <div className="codex-preview-body">
+            <pre className="codex-preview-code">{`export async function initOAuthPKCE() {
+  const verifier = generateCodeVerifier();
+  const challenge = await generateCodeChallenge(verifier);
+
+  const params = new URLSearchParams({
+    response_type: 'code',
+    client_id: CLIENT_ID,
+    redirect_uri: REDIRECT_URI,
+    code_challenge: challenge,
+    code_challenge_method: 'S256',
+    scope: 'openid profile',
+  });
+
+  window.location.href = \`\${AUTH_ENDPOINT}?\${params}\`;
+}
+
+export async function exchangeCode(code: string, verifier: string) {
+  const res = await fetch(TOKEN_ENDPOINT, {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/x-www-form-urlencoded' },
+    body: new URLSearchParams({
+      grant_type: 'authorization_code',
+      client_id: CLIENT_ID,
+      code,
+      redirect_uri: REDIRECT_URI,
+      code_verifier: verifier,
+    }),
+  });
+  return res.json();
+}`}</pre>
+          </div>
+        </div>
+      </div>
+    </main>
+  );
+}
+
+function NewRunDrawer({ onClose }) {
+  return (
+    <>
+      <div className="drawer-overlay" onClick={onClose} />
+      <aside className="drawer">
+        <div className="drawer-header">
+          <div>
+            <strong>New Workflow Run</strong>
+            <span>从模板启动一个新的任务实例</span>
+          </div>
+          <button onClick={onClose}>Close</button>
+        </div>
+        <div className="drawer-body">
+          <label className="field">
+            <span>Template</span>
+            <select><option>Feature Dev · 4 steps</option><option>Bug Fix · 2 steps</option></select>
+          </label>
+          <label className="field">
+            <span>Run Name</span>
+            <input placeholder="Run name" defaultValue="Add OAuth2 flow" />
+          </label>
+          <label className="field">
+            <span>Project Directory</span>
+            <div className="field-row">
+              <input defaultValue="/Users/zoe/projects/app" />
+              <button className="btn"><Icon name="folder" size={14} /> Browse</button>
+            </div>
+          </label>
+          <div className="field-row">
+            <label className="field" style={{ flex: 1 }}>
+              <span>Git Root</span>
+              <input readOnly defaultValue="/Users/zoe/projects/app" />
+            </label>
+            <label className="field" style={{ flex: 1 }}>
+              <span>Worktree</span>
+              <input readOnly defaultValue="main" />
+            </label>
+          </div>
+          <div className="workflow-git-safety workflow-git-safety-warning">
+            当前已有 3 个 workflow 正在运行，继续启动可能增加 CPU、内存和 CLI 限流压力。
+          </div>
+          <label className="field">
+            <span>Task Prompt</span>
+            <textarea defaultValue="请为登录模块添加 OAuth2 支持，使用 PKCE 流程。" />
+          </label>
+          <div className="workflow-template-preview">
+            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+              <strong>Workflow Template</strong>
+              <span>4 steps</span>
+            </div>
+            <div className="workflow-template-preview-pills">
+              <span className="pill-small">1 review</span>
+              <span className="pill-small">2 test</span>
+              <span className="pill-small">3 refactor</span>
+              <span className="pill-small">4 docs</span>
+            </div>
+          </div>
+        </div>
+        <div className="drawer-actions">
+          <button className="btn" onClick={onClose}>Save Draft</button>
+          <button className="btn btn-primary">Start Run</button>
+        </div>
+      </aside>
+    </>
+  );
+}
+
+function CanvasView() {
+  const nodes = [
+    { id: 'n1', x: 120, y: 120, title: 'Code Reviewer', role: 'review', status: 'success', vendor: 'claude' },
+    { id: 'n2', x: 380, y: 80, title: 'Test Writer', role: 'test', status: 'success', vendor: 'codex' },
+    { id: 'n3', x: 380, y: 180, title: 'Refactor Bot', role: 'refactor', status: 'running', vendor: 'codex' },
+    { id: 'n4', x: 640, y: 120, title: 'Doc Writer', role: 'docs', status: 'pending', vendor: 'claude' },
+  ];
+
+  return (
+    <div className="canvas-view">
+      <div className="agent-sidebar">
+        <div className="agent-sidebar-header">
+          <span>Agents</span>
+          <button className="btn" style={{ padding: 2, width: 26, height: 26, minHeight: 26 }}><Icon name="arrowRight" size={14} /></button>
+        </div>
+        <div style={{ flex: 1, overflowY: 'auto', padding: '4px 0' }}>
+          {mockAgents.map(a => (
+            <div key={a.id} className="agent-item" draggable>
+              <div className="agent-item-icon" style={{ background: a.color + '22', border: `1px solid ${a.color}55` }}>
+                <Icon name={a.vendor === 'claude' ? 'bot' : 'fileCode'} size={13} />
+              </div>
+              <span className="agent-item-name">{a.name}</span>
+              <button className="btn" style={{ padding: 0, width: 26, height: 26, minHeight: 26 }}><Icon name="info" size={13} /></button>
+            </div>
+          ))}
+        </div>
+      </div>
+      <div className="canvas-area">
+        <div className="canvas-grid" />
+        <div className="canvas-floating-toolbar">
+          <button className="canvas-toolbar-btn" title="Undo"><Icon name="undo" size={14} /></button>
+          <button className="canvas-toolbar-btn" title="Redo"><Icon name="redo" size={14} /></button>
+          <button className="canvas-toolbar-btn" title="Fit view"><Icon name="maximize" size={14} /></button>
+          <div className="canvas-toolbar-sep" />
+          <button className="canvas-toolbar-btn" title="Zoom in"><Icon name="zoomIn" size={14} /></button>
+          <button className="canvas-toolbar-btn" title="Zoom out"><Icon name="zoomOut" size={14} /></button>
+        </div>
+        {nodes.map(n => (
+          <div key={n.id} className={`canvas-node ${n.status === 'running' ? 'canvas-node-running' : n.status === 'success' ? 'canvas-node-success' : ''} ${n.id === 'n3' ? 'canvas-node-selected' : ''}`}
+            style={{ left: n.x, top: n.y }}>
+            <div className="canvas-node-title">{n.title}</div>
+            <div className="canvas-node-meta">
+              <Icon name={n.vendor === 'claude' ? 'bot' : 'fileCode'} size={12} />
+              <span>{n.role} · {n.vendor}</span>
+            </div>
+            <div className="canvas-node-port canvas-node-port-left" />
+            <div className="canvas-node-port canvas-node-port-right canvas-node-port-connected" />
+          </div>
+        ))}
+        {/* Simple edges */}
+        <svg style={{ position: 'absolute', inset: 0, pointerEvents: 'none' }}>
+          <line x1="278" y1="152" x2="364" y2="104" stroke="var(--neutral-border)" strokeWidth="1.5" />
+          <line x1="278" y1="152" x2="364" y2="204" stroke="var(--neutral-border)" strokeWidth="1.5" />
+          <line x1="506" y1="104" x2="632" y2="152" stroke="var(--neutral-border)" strokeWidth="1.5" />
+          <line x1="506" y1="204" x2="632" y2="152" stroke="var(--brand-primary)" strokeWidth="2" strokeDasharray="4 4" />
+        </svg>
+      </div>
+      <div className="right-panel">
+        <div className="right-panel-header">
+          <span>Properties</span>
+          <button className="btn" style={{ padding: 2, width: 26, height: 26, minHeight: 26 }}><Icon name="arrowRight" size={14} /></button>
+        </div>
+        <div className="right-panel-body">
+          <div style={{ fontSize: 13, fontWeight: 600 }}>Refactor Bot</div>
+          <label className="field">
+            <span>Agent</span>
+            <select><option>Refactor Bot</option><option>Code Reviewer</option></select>
+          </label>
+          <label className="field">
+            <span>Role</span>
+            <input defaultValue="refactor" />
+          </label>
+          <div style={{ height: 1, background: 'var(--neutral-border)', margin: '4px 0' }} />
+          <div>
+            <div style={{ fontSize: 10, textTransform: 'uppercase', letterSpacing: 0.5, color: 'var(--neutral-text-muted)', marginBottom: 8, fontWeight: 600 }}>出错处理</div>
+            <select style={{ width: '100%', padding: '6px 10px', borderRadius: 6, border: '1px solid var(--neutral-border)', background: 'var(--neutral-bg)', color: 'var(--neutral-text-primary)', fontFamily: 'inherit', fontSize: 12 }}>
+              <option>停止运行</option><option>自动重试</option><option>跳过继续</option>
+            </select>
+          </div>
+          <div>
+            <div style={{ fontSize: 10, textTransform: 'uppercase', letterSpacing: 0.5, color: 'var(--neutral-text-muted)', marginBottom: 8, fontWeight: 600 }}>交互模式</div>
+            <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
+              <span style={{ fontSize: 12 }}>允许步骤内对话</span>
+              <button className="switch on" />
+            </div>
+          </div>
+          <button className="btn" style={{ marginTop: 8, color: 'var(--brand-primary)', borderColor: 'rgba(61,142,134,0.3)', background: 'rgba(61,142,134,0.08)' }}>
+            <Icon name="sparkles" size={12} /> Recommend
+          </button>
+        </div>
+      </div>
+    </div>
+  );
+}
+
+function App() {
+  const [mode, setMode] = useState('workflow');
+  const [view, setView] = useState('detail'); // detail | canvas | new-run
+  const [selectedRunId, setSelectedRunId] = useState('r1');
+  const [selectedStepIndex, setSelectedStepIndex] = useState(2);
+  const [dark, setDark] = useState(false);
+
+  const selectedRun = mockRuns.find(r => r.id === selectedRunId);
+
+  useEffect(() => {
+    document.documentElement.classList.toggle('dark', dark);
+  }, [dark]);
+
+  return (
+    <div className="app">
+      <header className="app-header">
+        <div className="app-brand">
+          <h1>Agent Studio</h1>
+          <span className="app-subtitle">Workflow</span>
+        </div>
+        <div className="topbar-chips">
+          <span className="topbar-chip">1 running</span>
+          <span className="topbar-chip">1 waiting</span>
+          <span className="topbar-chip">sound per run</span>
+        </div>
+      </header>
+
+      <div className="app-body">
+        <ModeRail mode={mode} onChange={setMode} />
+
+        <section className="workflow-workspace">
+          {/* View toggles */}
+          <div className="theme-toggle">
+            <button className="btn" onClick={() => setDark(!dark)}>
+              <Icon name={dark ? 'sun' : 'moon'} size={14} />
+            </button>
+          </div>
+          <div className="view-toggle">
+            <button className={view === 'detail' ? 'active' : ''} onClick={() => setView('detail')}>Run Detail</button>
+            <button className={view === 'canvas' ? 'active' : ''} onClick={() => setView('canvas')}>Canvas</button>
+            <button className={view === 'new-run' ? 'active' : ''} onClick={() => setView('new-run')}>New Run</button>
+          </div>
+
+          {view === 'detail' && (
+            <>
+              <div className="workflow-sidebar-shell">
+                <div className="workflow-tabs" role="tablist">
+                  <button className="active">Runs</button>
+                  <button>Schedules</button>
+                </div>
+                <RunsList runs={mockRuns} selectedId={selectedRunId} onSelect={setSelectedRunId} />
+              </div>
+              <RunDetail run={selectedRun} selectedStepIndex={selectedStepIndex} onSelectStep={setSelectedStepIndex} />
+            </>
+          )}
+
+          {view === 'canvas' && <CanvasView />}
+
+          {view === 'new-run' && <NewRunDrawer onClose={() => setView('detail')} />}
+        </section>
+      </div>
+    </div>
+  );
+}
+
+const root = ReactDOM.createRoot(document.getElementById('root'));
+root.render(<App />);
+</script>
+</body>
+</html>

@@ -6,7 +6,6 @@ import type {
   HandoffArtifact,
   JSONSchema,
   MemorySignal,
-  RouteSuggestion,
   RunConfig,
   StepRule,
   WorkflowEventEnvelope,
@@ -28,6 +27,7 @@ import { inspectWorkflowGitSafety } from './gitSafety'
 import type { MemoryInjector } from './memory/MemoryInjector'
 import type { SignalCollector } from './memory/SignalCollector'
 import { summarizeTranscript } from './memory/transcriptSummarizer'
+import { parseHandoff } from './handoffParser'
 import {
   createWorktree,
   removeWorktree,
@@ -62,6 +62,8 @@ const HANDOFF_HINT = [
   '}',
   '',
   'Output ONLY the JSON object. Do not wrap it in ``` fences. Do not add any other text before or after.',
+  'Do not output the sample object above. Replace every placeholder with facts from completed work.',
+  'If the step is not complete yet, do not output JSON. Continue working or report the blocker instead.',
   'The routeSuggestion field is optional — only include it if you believe the workflow should deviate from the default next step.'
 ].join('\n')
 
@@ -320,24 +322,28 @@ export class WorkflowManager {
     const liveSteps = this.liveByRunId.get(run.id) ?? []
     const live = liveSteps.find((ls) => ls.stepIndex === stepIndex)
     if (live) {
-      const step = run.steps[live.stepIndex]
-      const execution = step?.executions.find(
-        (item) => item.id === live.executionId
-      )
-      if (!execution) throw new Error('Live workflow execution not found')
-      if (step.status === 'awaiting-input') {
-        execution.status = 'running'
-        step.status = 'running'
-        run.status = 'running'
-        run.finishedAt = undefined
+      if (!this.runManager.hasLiveRun(live.childRunId)) {
+        this.removeLiveStep(run.id, live.executionId)
+      } else {
+        const step = run.steps[live.stepIndex]
+        const execution = step?.executions.find(
+          (item) => item.id === live.executionId
+        )
+        if (!execution) throw new Error('Live workflow execution not found')
+        if (step.status === 'awaiting-input') {
+          execution.status = 'running'
+          step.status = 'running'
+          run.status = 'running'
+          run.finishedAt = undefined
+        }
+        execution.events.push({ kind: 'system', text: `↳ ${clean}` })
+        execution.conversation = ensureWorkflowConversation(execution.conversation, undefined)
+        execution.conversation.events.push({ kind: 'system', text: `↳ ${clean}` })
+        this.persistAndEmit(run)
+        this.transcripts.recordUserInput(live.childRunId, clean)
+        await this.runManager.push(live.childRunId, clean)
+        return run
       }
-      execution.events.push({ kind: 'system', text: `↳ ${clean}` })
-      execution.conversation = ensureWorkflowConversation(execution.conversation, undefined)
-      execution.conversation.events.push({ kind: 'system', text: `↳ ${clean}` })
-      this.persistAndEmit(run)
-      this.transcripts.recordUserInput(live.childRunId, clean)
-      await this.runManager.push(live.childRunId, clean)
-      return run
     }
 
     const step = run.steps[stepIndex]
@@ -1429,68 +1435,4 @@ function buildWorkflowProgress(run: WorkflowRun, currentStepIndex: number): stri
   }
   if (lines.length === 0) return null
   return ['# Workflow progress', ...lines].join('\n')
-}
-
-function parseHandoff(events: AgentEvent[]): HandoffArtifact | null {
-  const messages = events
-    .filter((e): e is Extract<AgentEvent, { kind: 'message' }> => e.kind === 'message')
-    .reverse()
-
-  for (const msg of messages) {
-    const result = tryParseHandoffFromText(msg.text)
-    if (result) return result
-  }
-  return null
-}
-
-function tryParseHandoffFromText(text: string): HandoffArtifact | null {
-  const candidates = [text, ...Array.from(text.matchAll(/```(?:json)?\s*([\s\S]*?)```/gi), (match) => match[1])]
-  for (const candidate of candidates) {
-    const json = extractJson(candidate)
-    if (!json) continue
-    try {
-      const parsed = JSON.parse(json) as Partial<HandoffArtifact>
-      if (typeof parsed.summary !== 'string' || !Array.isArray(parsed.artifacts)) continue
-      const artifacts = parsed.artifacts
-        .filter((artifact): artifact is HandoffArtifact['artifacts'][number] => {
-          return (
-            artifact !== null &&
-            typeof artifact === 'object' &&
-            typeof (artifact as any).path === 'string' &&
-            typeof (artifact as any).description === 'string'
-          )
-        })
-        .map((artifact) => ({
-          path: artifact.path,
-          description: artifact.description,
-          type: artifact.type
-        }))
-      return {
-        summary: parsed.summary,
-        artifacts,
-        nextStepGuidance:
-          typeof parsed.nextStepGuidance === 'string' ? parsed.nextStepGuidance : undefined,
-        routeSuggestion: isValidRouteSuggestion((parsed as any).routeSuggestion)
-          ? (parsed as any).routeSuggestion
-          : undefined
-      }
-    } catch {
-      // Try the next candidate.
-    }
-  }
-  return null
-}
-
-function extractJson(text: string): string | null {
-  const trimmed = text.trim()
-  if (trimmed.startsWith('{') && trimmed.endsWith('}')) return trimmed
-  const start = trimmed.indexOf('{')
-  const end = trimmed.lastIndexOf('}')
-  return start >= 0 && end > start ? trimmed.slice(start, end + 1) : null
-}
-
-function isValidRouteSuggestion(val: unknown): val is RouteSuggestion {
-  if (!val || typeof val !== 'object') return false
-  const rs = val as Record<string, unknown>
-  return ['continue', 'retry-prev', 'skip-next', 'goto'].includes(rs.action as string)
 }
