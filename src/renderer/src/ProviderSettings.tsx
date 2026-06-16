@@ -71,9 +71,13 @@ export function ProviderSettings({ providers, loading, save, remove, testConnect
 
   const openEdit = async (provider: ApiProviderConfig): Promise<void> => {
     setEditingId(provider.id)
-    // Fetch the decrypted key so the user can see it (masked by default).
+    let keyMessage = ''
     let decryptedKey = ''
-    try { decryptedKey = (await getDecrypted(provider.id)).apiKey } catch { /* keep empty */ }
+    try {
+      decryptedKey = (await getDecrypted(provider.id)).apiKey
+    } catch (err) {
+      keyMessage = toErrorMessage(err)
+    }
     setDraft({
       name: provider.name,
       format: provider.format,
@@ -83,8 +87,8 @@ export function ProviderSettings({ providers, loading, save, remove, testConnect
       defaultModel: provider.defaultModel ?? provider.models[0] ?? '',
       maxOutputTokens: provider.maxOutputTokens ? String(provider.maxOutputTokens) : ''
     })
-    setTestMessage('')
-    setShowKey(false)
+    setTestMessage(keyMessage)
+    setShowKey(true)
     setFetchedModels([])
     setFormOpen(true)
   }
@@ -101,6 +105,10 @@ export function ProviderSettings({ providers, loading, save, remove, testConnect
   const submit = async (): Promise<void> => {
     const models = draft.models.map((m) => m.trim()).filter(Boolean)
     if (!draft.name.trim() || models.length === 0) return
+    if (!draft.apiKey.trim()) {
+      setTestMessage('请输入 API Key')
+      return
+    }
     await save({
       id: editingId ?? undefined,
       name: draft.name.trim(),
@@ -245,7 +253,7 @@ export function ProviderSettings({ providers, loading, save, remove, testConnect
                 className="pf-input"
                 type={showKey ? 'text' : 'password'}
                 value={draft.apiKey}
-                placeholder={editingProvider ? '留空则沿用已保存的 Key' : 'sk-...'}
+                placeholder="sk-..."
                 onChange={(e) => setDraft((d) => ({ ...d, apiKey: e.target.value }))}
               />
               <button
@@ -419,4 +427,8 @@ function providerIconClass(provider: ApiProviderConfig): string {
 function parseOptionalPositiveInt(value: string): number | undefined {
   const parsed = Number.parseInt(value.trim(), 10)
   return Number.isFinite(parsed) && parsed > 0 ? parsed : undefined
+}
+
+function toErrorMessage(value: unknown): string {
+  return value instanceof Error ? value.message : String(value)
 }

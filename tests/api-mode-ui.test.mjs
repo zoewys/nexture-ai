@@ -50,6 +50,14 @@ test('ProviderSettings implements compact provider list and inline form with luc
   assert.match(component, /最大输出 Tokens/)
 })
 
+test('ProviderSettings shows decrypted API keys directly when editing providers', () => {
+  const component = source('src/renderer/src/ProviderSettings.tsx')
+
+  assert.match(component, /decryptedKey = \(await getDecrypted\(provider\.id\)\)\.apiKey/)
+  assert.match(component, /setShowKey\(true\)/)
+  assert.doesNotMatch(component, /留空则沿用已保存的 Key/)
+})
+
 test('single run panel supports API vendor tabs, provider selection, and API run config', () => {
   const panel = source('src/renderer/src/SingleRunPanel.tsx')
 

@@ -42,12 +42,18 @@ export class RunManager {
    */
   start(config: RunConfig, onEvent: (runId: string, event: AgentEvent) => void): string {
     const id = randomUUID()
-    const adapter = createAdapter(config.vendor, {
-      providerStore: this.providerStore,
-      apiCallLogStore: this.apiCallLogStore,
-      runConfig: config,
-      emitEvent: (ev) => onEvent(id, ev)
-    })
+    let adapter: CliAdapter
+    try {
+      adapter = createAdapter(config.vendor, {
+        providerStore: this.providerStore,
+        apiCallLogStore: this.apiCallLogStore,
+        runConfig: config,
+        emitEvent: (ev) => onEvent(id, ev)
+      })
+    } catch (err) {
+      queueMicrotask(() => this.emitStartupFailure(id, err, onEvent))
+      return id
+    }
     const abort = new AbortController()
     this.runs.set(id, { id, adapter, abort })
 
@@ -86,12 +92,18 @@ export class RunManager {
 
       // Swap in a fresh adapter (claude keeps per-process state) but keep the
       // same AbortController so a user abort still targets the live process.
-      const retryAdapter = createAdapter(config.vendor, {
-        providerStore: this.providerStore,
-        apiCallLogStore: this.apiCallLogStore,
-        runConfig: retryConfig,
-        emitEvent: (ev) => onEvent(id, ev)
-      })
+      let retryAdapter: CliAdapter
+      try {
+        retryAdapter = createAdapter(config.vendor, {
+          providerStore: this.providerStore,
+          apiCallLogStore: this.apiCallLogStore,
+          runConfig: retryConfig,
+          emitEvent: (ev) => onEvent(id, ev)
+        })
+      } catch (err) {
+        this.emitStartupFailure(id, err, onEvent)
+        return
+      }
       const live = this.runs.get(id)
       if (live) live.adapter = retryAdapter
 
@@ -159,6 +171,19 @@ export class RunManager {
     }
 
     return { sawProgress, sawError }
+  }
+
+  private emitStartupFailure(
+    id: string,
+    err: unknown,
+    onEvent: (runId: string, event: AgentEvent) => void
+  ): void {
+    onEvent(id, {
+      kind: 'error',
+      recoverable: false,
+      message: err instanceof Error ? err.message : String(err)
+    })
+    onEvent(id, { kind: 'turn-done', sessionId: '', reason: 'error' })
   }
 
   async push(id: string, text: string): Promise<void> {

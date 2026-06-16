@@ -174,3 +174,20 @@ test('base64 fallback is used when safeStorage encryption is unavailable', () =>
       console.warn = originalWarn
     }
   }))
+
+test('getDecrypted reports an actionable error when safeStorage cannot decrypt a stored key', () =>
+  withTempDir(async (dir) => {
+    const { ProviderStore } = await importProviderStore(dir, {
+      decryptString: () => {
+        throw new Error('low-level decrypt failure')
+      }
+    })
+    const store = new ProviderStore()
+
+    const saved = store.save({ name: 'DeepSeek', format: 'openai-compatible', apiKey: 'sk-stale', models: ['deepseek-chat'] })
+
+    assert.throws(
+      () => store.getDecrypted(saved.id),
+      /API Key 无法解密.*DeepSeek.*重新输入/
+    )
+  }))

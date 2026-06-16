@@ -9,16 +9,25 @@ const workflowManager = readFileSync(resolve(root, 'src/main/WorkflowManager.ts'
 const claudeAdapter = readFileSync(resolve(root, 'src/main/adapters/claudeAdapter.ts'), 'utf8')
 const codexAdapter = readFileSync(resolve(root, 'src/main/adapters/codexAdapter.ts'), 'utf8')
 const codexArgs = readFileSync(resolve(root, 'src/main/adapters/codexArgs.ts'), 'utf8')
+const handoffSchema = evaluateObjectLiteral(
+  extractObjectLiteral(workflowManager, 'const HANDOFF_OUTPUT_SCHEMA: JSONSchema = ')
+)
 
 test('workflow handoff steps provide a structured output schema', () => {
   assert.match(workflowManager, /const HANDOFF_OUTPUT_SCHEMA: JSONSchema = \{/)
-  assert.match(workflowManager, /required: \['summary', 'artifacts'\]/)
+  assert.match(workflowManager, /required: \['summary', 'artifacts', 'nextStepGuidance', 'routeSuggestion'\]/)
+  assert.match(workflowManager, /required: \['path', 'description', 'type'\]/)
+  assert.match(workflowManager, /required: \['action', 'target', 'reason'\]/)
   assert.match(workflowManager, /enum: \['requirement', 'design', 'code', 'test', 'other'\]/)
   assert.equal(
     [...workflowManager.matchAll(/outputSchema: HANDOFF_OUTPUT_SCHEMA/g)].length,
     2,
     'start and resumed workflow steps should both constrain handoff output'
   )
+})
+
+test('workflow handoff schema is valid for strict Codex response_format', () => {
+  assertStrictResponseSchema(handoffSchema)
 })
 
 test('workflow handoff hint describes the expected JSON structure in the prompt', () => {
@@ -55,3 +64,57 @@ test('codex exec args include output schema file path when present', () => {
   assert.match(codexArgs, /input\.outputSchemaPath/)
   assert.match(codexArgs, /\['exec', 'resume', sessionId\]/)
 })
+
+function extractObjectLiteral(source, marker) {
+  const markerIndex = source.indexOf(marker)
+  assert.notEqual(markerIndex, -1, `missing marker ${marker}`)
+  const start = source.indexOf('{', markerIndex)
+  assert.notEqual(start, -1, `missing object start after ${marker}`)
+
+  let depth = 0
+  let quote = ''
+  let escaped = false
+  for (let i = start; i < source.length; i++) {
+    const ch = source[i]
+    if (quote) {
+      if (escaped) escaped = false
+      else if (ch === '\\') escaped = true
+      else if (ch === quote) quote = ''
+      continue
+    }
+    if (ch === '"' || ch === "'" || ch === '`') {
+      quote = ch
+      continue
+    }
+    if (ch === '{') depth += 1
+    if (ch === '}') {
+      depth -= 1
+      if (depth === 0) return source.slice(start, i + 1)
+    }
+  }
+  assert.fail(`unterminated object literal after ${marker}`)
+}
+
+function evaluateObjectLiteral(literal) {
+  return Function(`"use strict"; return (${literal});`)()
+}
+
+function assertStrictResponseSchema(schema, path = 'schema') {
+  if (!schema || typeof schema !== 'object') return
+  const type = schema.type
+  const isObject = type === 'object' || (Array.isArray(type) && type.includes('object'))
+  if (isObject) {
+    const propertyKeys = Object.keys(schema.properties ?? {})
+    assert.equal(schema.additionalProperties, false, `${path}.additionalProperties must be false`)
+    assert.ok(Array.isArray(schema.required), `${path}.required must be an array`)
+    assert.deepEqual(
+      [...schema.required].sort(),
+      [...propertyKeys].sort(),
+      `${path}.required must include every property key`
+    )
+  }
+  for (const [key, child] of Object.entries(schema.properties ?? {})) {
+    assertStrictResponseSchema(child, `${path}.properties.${key}`)
+  }
+  if (schema.items) assertStrictResponseSchema(schema.items, `${path}.items`)
+}

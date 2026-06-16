@@ -65,7 +65,14 @@ export class ProviderStore {
   getDecrypted(id: string): ApiProviderConfig {
     const provider = this.list().find((item) => item.id === id)
     if (!provider) throw new Error(`Provider not found: ${id}`)
-    return { ...provider, apiKey: this.decrypt(provider.apiKey) }
+    try {
+      return { ...provider, apiKey: this.decrypt(provider.apiKey) }
+    } catch (err) {
+      throw new Error(
+        `API Key 无法解密（${provider.name || provider.id}）。请重新输入并保存该供应商的 API Key。`,
+        { cause: err }
+      )
+    }
   }
 
   private encrypt(value: string): string {

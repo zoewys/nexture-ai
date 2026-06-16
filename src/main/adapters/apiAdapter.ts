@@ -59,7 +59,7 @@ export class ApiAdapter implements CliAdapter {
     let status: ApiCallLogStatus = 'success'
     let error: unknown
     let usage = { inputTokens: 0, outputTokens: 0 }
-    let structuredOutput: 'native' | 'fallback' | 'none' = input.outputSchema ? 'native' : 'none'
+    let structuredOutput: 'native' | 'fallback' | 'none' = 'none'
 
     queue.push({ kind: 'session-started', sessionId, vendor: 'api' })
 
@@ -83,14 +83,20 @@ export class ApiAdapter implements CliAdapter {
         stopWhen: stepCountIs(input.apiMaxSteps ?? 10),
         abortSignal: input.abortSignal,
       }
+      const useNativeStructuredOutput = Boolean(input.outputSchema && supportsNativeStructuredOutput(this.config, modelId))
+      structuredOutput = input.outputSchema
+        ? useNativeStructuredOutput ? 'native' : 'fallback'
+        : 'none'
       const options = input.outputSchema
-        ? { ...baseOptions, output: output.object({ schema: jsonSchema(input.outputSchema), name: 'workflow_handoff' }) }
+        ? useNativeStructuredOutput
+          ? { ...baseOptions, output: output.object({ schema: jsonSchema(input.outputSchema), name: 'workflow_handoff' }) }
+          : { ...baseOptions, system: withStructuredOutputFallbackHint(baseOptions.system, input.outputSchema) }
         : baseOptions
       callOptions = options
       try {
         usage = await executeModelTurn(options as Parameters<typeof streamText>[0], sessionId, queue)
       } catch (err) {
-        if (!input.outputSchema || !isStructuredOutputUnsupportedError(err)) throw err
+        if (!input.outputSchema || !useNativeStructuredOutput || !isStructuredOutputUnsupportedError(err)) throw err
         structuredOutput = 'fallback'
         const fallbackOptions = {
           ...baseOptions,
@@ -184,6 +190,15 @@ export function shouldUseAnthropicBearerAuth(
   if (config.format !== 'anthropic') return false
   const marker = `${config.name} ${config.baseUrl ?? ''}`.toLowerCase()
   return marker.includes('bigmodel.cn') || marker.includes('zhipu') || /\bglm\b/.test(marker)
+}
+
+function supportsNativeStructuredOutput(config: ApiProviderConfig, modelId: string): boolean {
+  return !isKnownJsonSchemaUnsupportedProvider(config, modelId)
+}
+
+function isKnownJsonSchemaUnsupportedProvider(config: ApiProviderConfig, modelId: string): boolean {
+  const marker = `${config.name} ${config.baseUrl ?? ''} ${modelId}`.toLowerCase()
+  return marker.includes('deepseek')
 }
 
 interface StreamState {
@@ -302,6 +317,9 @@ async function executeModelTurn(
   try {
     const result = await streamText(options)
     for await (const part of result.fullStream as AsyncIterable<Record<string, unknown>>) {
+      if (part.type === 'error' && isStructuredOutputUnsupportedError(part.error ?? part)) {
+        throw part.error ?? part
+      }
       mapStreamPart(part, sessionId, queue, state)
     }
 
@@ -575,6 +593,24 @@ function errorMessage(value: unknown): string {
   return value instanceof Error ? value.message : String(value)
 }
 
+const NESTED_ERROR_KEYS = ['cause', 'error', 'message', 'responseBody', 'body', 'data'] as const
+
+function collectErrorText(value: unknown, seen = new Set<object>()): string[] {
+  if (value == null) return []
+  if (typeof value === 'string') return [value]
+  if (typeof value !== 'object') return [String(value)]
+  if (seen.has(value)) return []
+  seen.add(value)
+
+  const record = value as Record<string, unknown>
+  const parts: string[] = value instanceof Error && value.message ? [value.message] : []
+  for (const key of NESTED_ERROR_KEYS) {
+    const nested = record[key]
+    if (nested !== undefined) parts.push(...collectErrorText(nested, seen))
+  }
+  return parts
+}
+
 function isNoOutputGeneratedError(value: unknown): boolean {
   if (!(value instanceof Error)) return false
   return (
@@ -585,7 +621,7 @@ function isNoOutputGeneratedError(value: unknown): boolean {
 }
 
 function isStructuredOutputUnsupportedError(value: unknown): boolean {
-  const message = errorMessage(value).toLowerCase()
+  const message = collectErrorText(value).join('\n').toLowerCase()
   return (
     message.includes('json_schema') ||
     message.includes('response_format') ||

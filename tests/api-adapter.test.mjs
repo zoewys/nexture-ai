@@ -437,6 +437,42 @@ test('ApiAdapter uses tunable generation settings, max output tokens, prompt cac
   })
 })
 
+test('ApiAdapter uses schema prompt fallback immediately for DeepSeek providers', async () => {
+  const calls = []
+  const logs = []
+  const { ApiAdapter } = await importApiAdapter(mocksFor([
+    { type: 'text-delta', textDelta: '{"summary":"ok","artifacts":[]}' },
+    { type: 'finish' }
+  ], calls))
+  const adapter = new ApiAdapter({
+    id: 'p1',
+    name: 'DeepSeek',
+    format: 'openai-compatible',
+    apiKey: 'sk-test',
+    baseUrl: 'https://api.deepseek.com/v1',
+    models: ['deepseek-v4-pro']
+  }, guard, {
+    record: (entry) => {
+      logs.push(entry)
+      return { ...entry, id: 'log-1', timestamp: '2026-06-15T00:00:00.000Z' }
+    }
+  })
+
+  const events = await collect(adapter.runTurn({
+    prompt: 'Return handoff',
+    cwd: root,
+    outputSchema: { type: 'object', required: ['summary'], properties: { summary: { type: 'string' } } },
+    abortSignal: new AbortController().signal
+  }))
+
+  assert.equal(calls.length, 1)
+  assert.equal(calls[0].output, undefined)
+  assert.match(systemText(calls[0].system), /Structured Output Fallback/)
+  assert.match(systemText(calls[0].system), /"required": \[\s*"summary"\s*\]/)
+  assert.deepEqual(events[1], { kind: 'message-delta', text: '{"summary":"ok","artifacts":[]}' })
+  assert.equal(logs[0].structuredOutput, 'fallback')
+})
+
 test('ApiAdapter retries with schema prompt fallback when native structured output is unsupported', async () => {
   const calls = []
   const logs = []
@@ -454,11 +490,11 @@ test('ApiAdapter retries with schema prompt fallback when native structured outp
   const { ApiAdapter } = await importApiAdapter(mocks)
   const adapter = new ApiAdapter({
     id: 'p1',
-    name: 'DeepSeek',
+    name: 'Generic OpenAI-compatible',
     format: 'openai-compatible',
     apiKey: 'sk-test',
-    baseUrl: 'https://deepseek.example/v1',
-    models: ['deepseek-chat']
+    baseUrl: 'https://llm.example/v1',
+    models: ['generic-chat']
   }, guard, {
     record: (entry) => {
       logs.push(entry)
@@ -479,6 +515,109 @@ test('ApiAdapter retries with schema prompt fallback when native structured outp
   assert.match(systemText(calls[1].system), /Structured Output Fallback/)
   assert.match(systemText(calls[1].system), /"required": \[\s*"summary"\s*\]/)
   assert.deepEqual(events[1], { kind: 'message-delta', text: '{"summary":"ok","artifacts":[]}' })
+  assert.equal(logs[0].structuredOutput, 'fallback')
+})
+
+test('ApiAdapter detects nested response_format unsupported errors before falling back', async () => {
+  const calls = []
+  const logs = []
+  const mocks = mocksFor([])
+  mocks.streamText = async (args) => {
+    calls.push(args)
+    if (args.output) {
+      const err = new Error('Provider rejected request')
+      err.cause = { error: { message: 'This response_format type is unavailable now' } }
+      throw err
+    }
+    return {
+      fullStream: (async function* () {
+        yield { type: 'text-delta', textDelta: '{"summary":"ok","artifacts":[]}' }
+        yield { type: 'finish' }
+      })()
+    }
+  }
+  const { ApiAdapter } = await importApiAdapter(mocks)
+  const adapter = new ApiAdapter({
+    id: 'p1',
+    name: 'Generic OpenAI-compatible',
+    format: 'openai-compatible',
+    apiKey: 'sk-test',
+    baseUrl: 'https://llm.example/v1',
+    models: ['generic-chat']
+  }, guard, {
+    record: (entry) => {
+      logs.push(entry)
+      return { ...entry, id: 'log-1', timestamp: '2026-06-15T00:00:00.000Z' }
+    }
+  })
+
+  const events = await collect(adapter.runTurn({
+    prompt: 'Return handoff',
+    cwd: root,
+    outputSchema: { type: 'object', required: ['summary'], properties: { summary: { type: 'string' } } },
+    abortSignal: new AbortController().signal
+  }))
+
+  assert.equal(calls.length, 2)
+  assert.equal(calls[0].output.mode, 'object')
+  assert.equal(calls[1].output, undefined)
+  assert.match(systemText(calls[1].system), /Structured Output Fallback/)
+  assert.deepEqual(events[1], { kind: 'message-delta', text: '{"summary":"ok","artifacts":[]}' })
+  assert.equal(logs[0].structuredOutput, 'fallback')
+})
+
+test('ApiAdapter retries when native structured output is rejected as a stream error part', async () => {
+  const calls = []
+  const logs = []
+  const responseFormatError = new Error('This response_format type is unavailable now')
+  responseFormatError.responseBody = '{"error":{"message":"This response_format type is unavailable now"}}'
+  responseFormatError.data = {
+    error: { message: 'This response_format type is unavailable now' }
+  }
+  const mocks = mocksFor([])
+  mocks.streamText = async (args) => {
+    calls.push(args)
+    if (args.output) {
+      return {
+        fullStream: (async function* () {
+          yield { type: 'error', error: responseFormatError }
+        })()
+      }
+    }
+    return {
+      fullStream: (async function* () {
+        yield { type: 'text-delta', textDelta: '{"summary":"ok","artifacts":[]}' }
+        yield { type: 'finish' }
+      })()
+    }
+  }
+  const { ApiAdapter } = await importApiAdapter(mocks)
+  const adapter = new ApiAdapter({
+    id: 'p1',
+    name: 'Generic OpenAI-compatible',
+    format: 'openai-compatible',
+    apiKey: 'sk-test',
+    baseUrl: 'https://llm.example/v1',
+    models: ['generic-chat']
+  }, guard, {
+    record: (entry) => {
+      logs.push(entry)
+      return { ...entry, id: 'log-1', timestamp: '2026-06-15T00:00:00.000Z' }
+    }
+  })
+
+  const events = await collect(adapter.runTurn({
+    prompt: 'Return handoff',
+    cwd: root,
+    outputSchema: { type: 'object', required: ['summary'], properties: { summary: { type: 'string' } } },
+    abortSignal: new AbortController().signal
+  }))
+
+  assert.equal(calls.length, 2)
+  assert.equal(calls[0].output.mode, 'object')
+  assert.equal(calls[1].output, undefined)
+  assert.deepEqual(events[1], { kind: 'message-delta', text: '{"summary":"ok","artifacts":[]}' })
+  assert.equal(events.some((event) => event.kind === 'error'), false)
   assert.equal(logs[0].structuredOutput, 'fallback')
 })
 

@@ -57,14 +57,15 @@ const HANDOFF_HINT = [
   '      "type": "requirement|design|code|test|other"',
   '    }',
   '  ],',
-  '  "nextStepGuidance": "<optional: what the next agent should focus on>",',
+  '  "nextStepGuidance": "<what the next agent should focus on, or null if none>",',
   '  "routeSuggestion": { "action": "continue|retry-prev|skip-next|goto", "target": 0, "reason": "..." }',
   '}',
   '',
   'Output ONLY the JSON object. Do not wrap it in ``` fences. Do not add any other text before or after.',
   'Do not output the sample object above. Replace every placeholder with facts from completed work.',
   'If the step is not complete yet, do not output JSON. Continue working or report the blocker instead.',
-  'The routeSuggestion field is optional — only include it if you believe the workflow should deviate from the default next step.'
+  'Always include all top-level keys. Use null for nextStepGuidance when there is no guidance.',
+  'Use null for routeSuggestion unless you believe the workflow should deviate from the default next step.'
 ].join('\n')
 
 const INTERACTIVE_HINT = [
@@ -80,7 +81,7 @@ const INTERACTIVE_HINT = [
 const HANDOFF_OUTPUT_SCHEMA: JSONSchema = {
   type: 'object',
   additionalProperties: false,
-  required: ['summary', 'artifacts'],
+  required: ['summary', 'artifacts', 'nextStepGuidance', 'routeSuggestion'],
   properties: {
     summary: { type: 'string' },
     artifacts: {
@@ -88,7 +89,7 @@ const HANDOFF_OUTPUT_SCHEMA: JSONSchema = {
       items: {
         type: 'object',
         additionalProperties: false,
-        required: ['path', 'description'],
+        required: ['path', 'description', 'type'],
         properties: {
           path: { type: 'string' },
           description: { type: 'string' },
@@ -96,14 +97,15 @@ const HANDOFF_OUTPUT_SCHEMA: JSONSchema = {
         }
       }
     },
-    nextStepGuidance: { type: 'string' },
+    nextStepGuidance: { type: ['string', 'null'] },
     routeSuggestion: {
-      type: 'object',
+      type: ['object', 'null'],
       additionalProperties: false,
+      required: ['action', 'target', 'reason'],
       properties: {
         action: { type: 'string', enum: ['continue', 'retry-prev', 'skip-next', 'goto'] },
-        target: { type: 'number' },
-        reason: { type: 'string' }
+        target: { type: ['number', 'null'] },
+        reason: { type: ['string', 'null'] }
       }
     }
   }
