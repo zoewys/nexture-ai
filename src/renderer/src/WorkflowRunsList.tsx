@@ -97,9 +97,6 @@ function WorkflowRunCard({
           <strong>{displayName}</strong>
         </div>
         <div className="workflow-run-card-actions">
-          <span className={`workflow-run-card-status workflow-run-card-status-${run.status}`}>
-            {runStatusShortLabel(run.status)}
-          </span>
           <button
             type="button"
             className="workflow-run-card-delete icon-only"
@@ -127,9 +124,14 @@ function WorkflowRunCard({
           />
         ))}
       </div>
-      <div className="workflow-run-card-time">
-        <Clock3 size={14} />
-        <span>{formatRunAge(run.startedAt)}</span>
+      <div className="workflow-run-card-footer">
+        <div className="workflow-run-card-time">
+          <Clock3 size={14} />
+          <span>{formatRunAge(run.startedAt)}</span>
+        </div>
+        <span className={`workflow-run-card-status workflow-run-card-status-${run.status}`}>
+          {runStatusShortLabel(run.status)}
+        </span>
       </div>
     </div>
   )

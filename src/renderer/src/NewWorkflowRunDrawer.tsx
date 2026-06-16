@@ -10,7 +10,6 @@
  */
 
 import { useEffect, useMemo, useState } from 'react'
-import { createPortal } from 'react-dom'
 import type {
   AgentDefinition,
   WorkflowRunGitSafety,
@@ -18,7 +17,7 @@ import type {
   WorkflowTemplate
 } from '@shared/types'
 import { isParallelGroup } from '@shared/types'
-import { Check, FolderOpen, GitBranch, Play, TriangleAlert, X } from 'lucide-react'
+import { Check, FolderOpen, GitBranch, Play, TriangleAlert } from 'lucide-react'
 import { readLastProjectPath, rememberProjectPath } from './projectPathMemory'
 import { Select } from './Select'
 
@@ -119,159 +118,149 @@ export function NewWorkflowRunDrawer({
     if (dir) setProjectPath(dir)
   }
 
-  return createPortal(
-    <div
-      className="workflow-new-run-overlay"
-      role="presentation"
-      onMouseDown={(event) => {
-        if (event.target === event.currentTarget) onClose()
-      }}
+  return (
+    <aside
+      className="workflow-new-run-drawer workflow-run-create-drawer workflow-schedule-drawer"
+      aria-label="New Workflow Task"
     >
-      <aside
-        className="workflow-new-run-drawer"
-        aria-label="New Workflow Task"
-        onMouseDown={(event) => event.stopPropagation()}
-      >
-        <div className="workflow-new-run-header">
-          <div>
-            <strong>新建工作流</strong>
-            <span>从模板启动一个新的任务实例</span>
+      <div className="workflow-new-run-header">
+        <div>
+          <strong>新建工作流</strong>
+          <span>从模板启动一个新的任务实例</span>
+        </div>
+        <button type="button" onClick={onClose} aria-label="Close">
+          Close
+        </button>
+      </div>
+
+      <div className="workflow-new-run-body">
+        <label className="field">
+          <span>工作流模板</span>
+          <Select value={templateId} onChange={setTemplateId}>
+            {templates.map((template) => (
+              <Select.Item key={template.id} value={template.id}>{formatTemplateOption(template)}</Select.Item>
+            ))}
+          </Select>
+        </label>
+
+        <label className="field">
+          <span>运行名称</span>
+          <input
+            value={runName}
+            placeholder={selectedTemplate?.name ?? 'Run name'}
+            onChange={(event) => setRunName(event.target.value)}
+          />
+        </label>
+
+        <label className="field">
+          <span>项目路径</span>
+          <div className="field-row">
+            <input value={projectPath} onChange={(event) => setProjectPath(event.target.value)} />
+            {!uiReviewEnabled && (
+              <button type="button" onClick={pickDir} aria-label="Browse project directory" title="Browse project directory">
+                <FolderOpen size={16} />
+              </button>
+            )}
           </div>
-          <button type="button" className="workflow-new-run-close" onClick={onClose} aria-label="Close">
-            <X size={16} />
-          </button>
+        </label>
+
+        <div className="workflow-new-run-split">
+          <label className="field">
+            <span>Git Root</span>
+            <input value={gitRoot} readOnly />
+          </label>
+          <label className="field">
+            <span>Worktree</span>
+            <input value={worktree} readOnly />
+          </label>
         </div>
 
-        <div className="workflow-new-run-body">
-          <label className="field">
-            <span>工作流模板</span>
-            <Select value={templateId} onChange={setTemplateId}>
-              {templates.map((template) => (
-                <Select.Item key={template.id} value={template.id}>{formatTemplateOption(template)}</Select.Item>
-              ))}
-            </Select>
-          </label>
-
-          <label className="field">
-            <span>运行名称</span>
-            <input
-              value={runName}
-              placeholder={selectedTemplate?.name ?? 'Run name'}
-              onChange={(event) => setRunName(event.target.value)}
-            />
-          </label>
-
-          <label className="field">
-            <span>项目路径</span>
-            <div className="field-row">
-              <input value={projectPath} onChange={(event) => setProjectPath(event.target.value)} />
-              {!uiReviewEnabled && (
-                <button type="button" onClick={pickDir} aria-label="Browse project directory" title="Browse project directory">
-                  <FolderOpen size={16} />
-                </button>
-              )}
-            </div>
-          </label>
-
-          <div className="workflow-new-run-split">
-            <label className="field">
-              <span>Git Root</span>
-              <input value={gitRoot} readOnly />
-            </label>
-            <label className="field">
-              <span>Worktree</span>
-              <input value={worktree} readOnly />
-            </label>
+        <div className={`workflow-git-safety-card workflow-git-safety-card-${safety?.level ?? 'checking'}`}>
+          <div className="workflow-git-safety-title">
+            <GitBranch size={15} />
+            <span>Git 安全检查</span>
           </div>
-
-          <div className={`workflow-git-safety-card workflow-git-safety-card-${safety?.level ?? 'checking'}`}>
-            <div className="workflow-git-safety-title">
-              <GitBranch size={15} />
-              <span>Git 安全检查</span>
-            </div>
-            <div className="workflow-git-safety-lines">
-              {safetyLines.map((line, index) => (
-                <span key={`${line.kind}-${index}`} className={`workflow-git-safety-line workflow-git-safety-line-${line.kind}`}>
-                  {line.kind === 'safe' ? <Check size={14} /> : <TriangleAlert size={14} />}
-                  {line.text}
-                </span>
-              ))}
-            </div>
-          </div>
-
-          {safety?.message && (
-            <div className={`workflow-git-safety workflow-git-safety-${safety.level}`}>
-              {safety.message}
-            </div>
-          )}
-
-          {safety?.level === 'requires-confirmation' && (
-            <label className="workflow-confirm-unsafe">
-              <input
-                type="checkbox"
-                checked={allowUnsafeSameGitRoot}
-                onChange={(event) => setAllowUnsafeSameGitRoot(event.target.checked)}
-              />
-              <span>仍然启动</span>
-            </label>
-          )}
-
-          {runningRunCount >= 3 && (
-            <div className="workflow-git-safety workflow-git-safety-warning">
-              当前已有 {runningRunCount} 个 workflow 正在运行，继续启动可能增加 CPU、内存和 CLI 限流压力。
-            </div>
-          )}
-
-          {runningRunCount >= 5 && (
-            <label className="workflow-confirm-unsafe">
-              <input
-                type="checkbox"
-                checked={allowHighConcurrency}
-                onChange={(event) => setAllowHighConcurrency(event.target.checked)}
-              />
-              <span>确认超过 5 个 workflow 同时运行</span>
-            </label>
-          )}
-
-          <label className="field">
-            <span>初始指令</span>
-            <textarea rows={5} value={initialPrompt} onChange={(event) => setInitialPrompt(event.target.value)} />
-          </label>
-
-          <div className="workflow-template-preview">
-            <div className="field-row field-row-between">
-              <strong>步骤预览</strong>
-              <span>
-                {uiReviewEnabled ? selectedTemplate?.name : `${selectedTemplate?.steps.length ?? 0} steps`}
+          <div className="workflow-git-safety-lines">
+            {safetyLines.map((line, index) => (
+              <span key={`${line.kind}-${index}`} className={`workflow-git-safety-line workflow-git-safety-line-${line.kind}`}>
+                {line.kind === 'safe' ? <Check size={14} /> : <TriangleAlert size={14} />}
+                {line.text}
               </span>
-            </div>
-            <div className="workflow-template-preview-pills">
-              {previewSteps.map((step, index) => (
-                <span className="workflow-template-preview-step" key={`step-${index}`}>
-                  <b>{index + 1}</b>
-                  {isParallelGroup(step) ? '并行组' : step.role || agentPreviewName(step.agentId, agents)}
-                </span>
-              ))}
-              {(selectedTemplate?.steps.length ?? 0) > previewSteps.length && (
-                <span className="workflow-template-preview-step">
-                  <b>+</b>
-                  还有 {(selectedTemplate?.steps.length ?? 0) - previewSteps.length} 步
-                </span>
-              )}
-            </div>
+            ))}
           </div>
         </div>
 
-        <div className="workflow-new-run-actions">
-          <button type="button" onClick={onClose}>取消</button>
-          <button type="button" className="primary" disabled={!canStart} onClick={start}>
-            <Play size={15} />
-            启动运行
-          </button>
+        {safety?.message && (
+          <div className={`workflow-git-safety workflow-git-safety-${safety.level}`}>
+            {safety.message}
+          </div>
+        )}
+
+        {safety?.level === 'requires-confirmation' && (
+          <label className="workflow-confirm-unsafe">
+            <input
+              type="checkbox"
+              checked={allowUnsafeSameGitRoot}
+              onChange={(event) => setAllowUnsafeSameGitRoot(event.target.checked)}
+            />
+            <span>仍然启动</span>
+          </label>
+        )}
+
+        {runningRunCount >= 3 && (
+          <div className="workflow-git-safety workflow-git-safety-warning">
+            当前已有 {runningRunCount} 个 workflow 正在运行，继续启动可能增加 CPU、内存和 CLI 限流压力。
+          </div>
+        )}
+
+        {runningRunCount >= 5 && (
+          <label className="workflow-confirm-unsafe">
+            <input
+              type="checkbox"
+              checked={allowHighConcurrency}
+              onChange={(event) => setAllowHighConcurrency(event.target.checked)}
+            />
+            <span>确认超过 5 个 workflow 同时运行</span>
+          </label>
+        )}
+
+        <label className="field">
+          <span>初始指令</span>
+          <textarea rows={5} value={initialPrompt} onChange={(event) => setInitialPrompt(event.target.value)} />
+        </label>
+
+        <div className="workflow-template-preview">
+          <div className="field-row field-row-between">
+            <strong>步骤预览</strong>
+            <span>
+              {uiReviewEnabled ? selectedTemplate?.name : `${selectedTemplate?.steps.length ?? 0} steps`}
+            </span>
+          </div>
+          <div className="workflow-template-preview-pills">
+            {previewSteps.map((step, index) => (
+              <span className="workflow-template-preview-step" key={`step-${index}`}>
+                <b>{index + 1}</b>
+                {isParallelGroup(step) ? '并行组' : step.role || agentPreviewName(step.agentId, agents)}
+              </span>
+            ))}
+            {(selectedTemplate?.steps.length ?? 0) > previewSteps.length && (
+              <span className="workflow-template-preview-step">
+                <b>+</b>
+                还有 {(selectedTemplate?.steps.length ?? 0) - previewSteps.length} 步
+              </span>
+            )}
+          </div>
         </div>
-      </aside>
-    </div>,
-    document.body
+      </div>
+
+      <div className="workflow-new-run-actions">
+        <button type="button" onClick={onClose}>取消</button>
+        <button type="button" className="primary" disabled={!canStart} onClick={start}>
+          <Play size={15} />
+          启动运行
+        </button>
+      </div>
+    </aside>
   )
 }
 

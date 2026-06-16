@@ -180,7 +180,7 @@ export function SettingsPanel({ settings, loading, onSave }: SettingsPanelProps)
         <div className="settings-section-head">
           <div>
             <h3 className="settings-section-title">CLI 工具</h3>
-            <p className="settings-section-desc">Agent Studio 依赖本地 CLI 驱动 AI Agent。缺失的工具可以在此安装。</p>
+            <p className="settings-section-desc">Nexture AI 依赖本地 CLI 驱动 AI Agent。缺失的工具可以在此安装。</p>
           </div>
           <button type="button" className="settings-refresh-btn" onClick={() => void refresh()} disabled={refreshing} title="刷新 CLI 状态">
             <RefreshCw size={20} />

@@ -555,7 +555,7 @@ export function registerIpc(
   ipcMain.handle(IPC.dataExport, async (_e, options: ExportOptions) => {
     const win = getWindow()
     const result = await dialog.showSaveDialog(win ?? undefined!, {
-      defaultPath: `agent-studio-export-${new Date().toISOString().slice(0, 10)}.zip`,
+      defaultPath: `nexture-ai-export-${new Date().toISOString().slice(0, 10)}.zip`,
       filters: [{ name: 'ZIP files', extensions: ['zip'] }]
     })
     if (result.canceled || !result.filePath) return { ok: false }

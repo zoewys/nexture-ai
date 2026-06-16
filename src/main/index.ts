@@ -11,8 +11,13 @@ let tray: Tray | null = null
 let quitting = false
 let scheduleBadgeActive = false
 
+const APP_NAME = 'Nexture AI'
+const LEGACY_USER_DATA_DIR = join(app.getPath('appData'), 'agent-studio')
 const appIconPath = join(__dirname, '../../resources/icon.png')
 const trayIconPath = join(__dirname, '../../resources/tray-icon.png')
+
+app.setName(APP_NAME)
+app.setPath('userData', LEGACY_USER_DATA_DIR)
 
 function createWindow(): void {
   mainWindow = new BrowserWindow({
@@ -23,7 +28,7 @@ function createWindow(): void {
     icon: appIconPath,
     frame: false,
     show: true,
-    title: 'Agent Studio',
+    title: APP_NAME,
     titleBarStyle: process.platform === 'darwin' ? 'hiddenInset' : 'default',
     webPreferences: {
       preload: join(__dirname, '../preload/index.mjs'),
@@ -64,14 +69,14 @@ function createTray(): void {
   const fallbackSource = nativeImage.createFromPath(appIconPath)
   const icon = (traySource.isEmpty() ? fallbackSource : traySource).resize({ width: 16, height: 16 })
   tray = new Tray(icon)
-  tray.setToolTip('Agent Studio')
+  tray.setToolTip(APP_NAME)
   updateTrayMenu()
 }
 
 function updateTrayMenu(): void {
   tray?.setContextMenu(Menu.buildFromTemplate([
     {
-      label: scheduleBadgeActive ? '打开 Agent Studio（有定时任务失败）' : '打开 Agent Studio',
+      label: scheduleBadgeActive ? `打开 ${APP_NAME}（有定时任务失败）` : `打开 ${APP_NAME}`,
       click: () => {
         mainWindow?.show()
         mainWindow?.focus()
@@ -95,7 +100,7 @@ function setScheduleBadge(active: boolean): void {
     if (active) app.dock.setBadge('!')
     else app.dock.setBadge('')
   }
-  tray?.setToolTip(active ? 'Agent Studio - 有定时任务失败' : 'Agent Studio')
+  tray?.setToolTip(active ? `${APP_NAME} - 有定时任务失败` : APP_NAME)
   updateTrayMenu()
 }
 

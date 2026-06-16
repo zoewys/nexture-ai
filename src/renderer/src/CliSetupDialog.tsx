@@ -112,8 +112,8 @@ export function CliSetupDialog({ onDone }: CliSetupDialogProps): JSX.Element {
           <h2>{allDone && !hasMissing ? '环境就绪' : '准备工作环境'}</h2>
           <p>
             {allDone && !hasMissing
-              ? '所有 CLI 已安装完毕，开始使用 Agent Studio 吧。'
-              : 'Agent Studio 需要本地 CLI 来驱动 AI Agent。'}
+              ? '所有 CLI 已安装完毕，开始使用 Nexture AI 吧。'
+              : 'Nexture AI 需要本地 CLI 来驱动 AI Agent。'}
           </p>
         </div>
 

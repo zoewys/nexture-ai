@@ -1,7 +1,7 @@
 {
-  "name": "agent-studio",
+  "name": "nexture-ai",
   "version": "0.1.0",
-  "description": "Desktop app that orchestrates Claude and Codex CLIs into local multi-agent workflows",
+  "description": "Nexture AI desktop app that orchestrates Claude and Codex CLIs into local multi-agent workflows",
   "main": "./out/main/index.js",
   "author": "siyuan",
   "license": "MIT",

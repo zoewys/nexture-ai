@@ -130,7 +130,7 @@ export function App(): JSX.Element {
       )}
       <header className="app-header">
         <div className="app-brand">
-          <h1>Agent Studio</h1>
+          <h1>Nexture AI</h1>
           <span className="app-subtitle">{subtitle()}</span>
         </div>
         <div className="topbar-actions">

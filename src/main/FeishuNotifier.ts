@@ -164,7 +164,7 @@ export class FeishuNotifier {
         `test:${Date.now()}`,
         this.buildBaseCard(
           'blue',
-          '🧪 Agent Studio 测试通知',
+          '🧪 Nexture AI 测试通知',
           [{ tag: 'div', text: markdown('飞书 Bot 配置成功！') }]
         ),
         true
