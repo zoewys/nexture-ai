@@ -618,13 +618,17 @@ export const DEFAULT_FEISHU_CONFIG: FeishuConfig = {
 
 export type FeishuConnectionStatus = 'disconnected' | 'connecting' | 'connected' | 'error'
 
+export type AppearanceTheme = 'light' | 'dark'
+
 export interface AppSettings {
+  appearanceTheme: AppearanceTheme
   showMemoryReferences: boolean
   minimizeToTray: boolean
   feishu: FeishuConfig
 }
 
 export const DEFAULT_APP_SETTINGS: AppSettings = {
+  appearanceTheme: 'light',
   showMemoryReferences: false,
   minimizeToTray: true,
   feishu: DEFAULT_FEISHU_CONFIG

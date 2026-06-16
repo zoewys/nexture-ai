@@ -48,9 +48,12 @@ interface AgentInfo {
 // Layout constants
 // ---------------------------------------------------------------------------
 
-const X_SPACING = 280
+const FIRST_STEP_X = 120
+const X_SPACING = 220
 const Y_CENTER = 200
-const Y_PARALLEL_SPACING = 120
+const Y_PARALLEL_SPACING = 160
+const ROW_SPACING = 190
+const MAX_STAGES_PER_ROW = 4
 
 // ---------------------------------------------------------------------------
 // Helpers
@@ -65,6 +68,26 @@ function findAgent(agents: AgentInfo[], agentId: string): AgentInfo | undefined 
   return agents.find((a) => a.id === agentId)
 }
 
+function flowEdge(source: string, target: string, data?: Record<string, unknown>): Edge {
+  return {
+    id: edgeId(),
+    source,
+    target,
+    type: 'conditional',
+    className: 'workflow-canvas-edge',
+    data
+  }
+}
+
+function stagePosition(stageIndex: number): { x: number; y: number } {
+  const row = Math.floor(stageIndex / MAX_STAGES_PER_ROW)
+  const col = stageIndex % MAX_STAGES_PER_ROW
+  return {
+    x: FIRST_STEP_X + col * X_SPACING,
+    y: Y_CENTER + row * ROW_SPACING
+  }
+}
+
 // ---------------------------------------------------------------------------
 // templateToCanvas
 // ---------------------------------------------------------------------------
@@ -76,7 +99,7 @@ export function templateToCanvas(
   const nodes: Node[] = []
   const edges: Edge[] = []
 
-  let x = 0
+  let stageIndex = 0
   let nodeIndex = 0
 
   /** Node ids produced by the previous step / group (for edge wiring). */
@@ -90,10 +113,11 @@ export function templateToCanvas(
       const members = group.parallel
       const count = members.length
       const groupId = `pg-${stepIdx}`
+      const basePosition = stagePosition(stageIndex)
 
-      // Spread N nodes vertically, centred on Y_CENTER.
+      // Spread N nodes vertically, centred on the current stage row.
       const totalHeight = (count - 1) * Y_PARALLEL_SPACING
-      const startY = Y_CENTER - totalHeight / 2
+      const startY = basePosition.y - totalHeight / 2
 
       const currentNodeIds: string[] = []
 
@@ -117,7 +141,7 @@ export function templateToCanvas(
         nodes.push({
           id: nodeId,
           type: 'agent',
-          position: { x, y: startY + pi * Y_PARALLEL_SPACING },
+          position: { x: basePosition.x, y: startY + pi * Y_PARALLEL_SPACING },
           data
         })
 
@@ -127,12 +151,7 @@ export function templateToCanvas(
       // Fan-out edges: previous → each parallel node.
       for (const prevId of prevNodeIds) {
         for (const curId of currentNodeIds) {
-          edges.push({
-            id: edgeId(),
-            source: prevId,
-            target: curId,
-            data: { groupId, join: group.join }
-          })
+          edges.push(flowEdge(prevId, curId, { groupId, join: group.join }))
         }
       }
 
@@ -142,6 +161,7 @@ export function templateToCanvas(
       const single = step as WorkflowTemplateStep
       const nodeId = `step-${stepIdx}`
       const agent = findAgent(agents, single.agentId)
+      const position = stagePosition(stageIndex)
 
       const data: AgentNodeData = {
         agentId: single.agentId,
@@ -158,23 +178,19 @@ export function templateToCanvas(
       nodes.push({
         id: nodeId,
         type: 'agent',
-        position: { x, y: Y_CENTER },
+        position,
         data
       })
 
       // Sequential edges from previous nodes.
       for (const prevId of prevNodeIds) {
-        edges.push({
-          id: edgeId(),
-          source: prevId,
-          target: nodeId
-        })
+        edges.push(flowEdge(prevId, nodeId))
       }
 
       prevNodeIds = [nodeId]
     }
 
-    x += X_SPACING
+    stageIndex++
   }
 
   return { nodes, edges }
@@ -185,25 +201,29 @@ export function templateToCanvas(
 // ---------------------------------------------------------------------------
 
 export function canvasToTemplate(nodes: Node[], edges: Edge[]): WorkflowStepNode[] {
-  if (nodes.length === 0) return []
+  const workNodes = nodes.filter((node) => node.type === 'agent' || (node.data as Partial<AgentNodeData>)?.agentId)
+  const workNodeIds = new Set(workNodes.map((node) => node.id))
+  const workEdges = edges.filter((edge) => workNodeIds.has(edge.source) && workNodeIds.has(edge.target))
+
+  if (workNodes.length === 0) return []
 
   // 1. Build adjacency maps.
   const successors = new Map<string, string[]>()
   const predecessors = new Map<string, string[]>()
 
-  for (const n of nodes) {
+  for (const n of workNodes) {
     successors.set(n.id, [])
     predecessors.set(n.id, [])
   }
 
-  for (const e of edges) {
+  for (const e of workEdges) {
     successors.get(e.source)?.push(e.target)
     predecessors.get(e.target)?.push(e.source)
   }
 
   // 2. Topological sort (Kahn's algorithm).
   const inDegree = new Map<string, number>()
-  for (const n of nodes) {
+  for (const n of workNodes) {
     inDegree.set(n.id, (predecessors.get(n.id) ?? []).length)
   }
 
@@ -263,7 +283,7 @@ export function canvasToTemplate(nodes: Node[], edges: Edge[]): WorkflowStepNode
   }
 
   // 4. Build ordered WorkflowStepNode[].
-  const nodeMap = new Map<string, Node>(nodes.map((n) => [n.id, n]))
+  const nodeMap = new Map<string, Node>(workNodes.map((n) => [n.id, n]))
   const emittedGroups = new Set<number>()
   const result: WorkflowStepNode[] = []
 
@@ -275,7 +295,7 @@ export function canvasToTemplate(nodes: Node[], edges: Edge[]): WorkflowStepNode
 
       // Determine `join` from edge data if present, default to true.
       let join = true
-      for (const e of edges) {
+      for (const e of workEdges) {
         if (parallelGroups[gi].includes(e.source) || parallelGroups[gi].includes(e.target)) {
           if (e.data && typeof e.data === 'object' && 'join' in e.data) {
             join = Boolean(e.data.join)

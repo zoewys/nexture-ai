@@ -116,4 +116,10 @@ test('styles define provider, vendor tab, and permission request classes', () =>
   ]) {
     assert.match(styles, new RegExp(`\\.${className}`))
   }
+
+  assert.match(styles, /\[data-theme="dark"\] \.provider-form,\s*\n\[data-theme="dark"\] \.model-list\s*\{[\s\S]*background:\s*rgba\(15, 25, 45, 0\.54\) !important;/)
+  assert.match(styles, /\[data-theme="dark"\] \.pf-input,\s*\n\[data-theme="dark"\] \.pf-input-btn,\s*\n\[data-theme="dark"\] \.model-list-empty,[\s\S]*background:\s*rgba\(10, 15, 26, 0\.78\) !important;/)
+  assert.match(styles, /\[data-theme="dark"\] \.pf-input-btn\s*\{[\s\S]*border-left-color:\s*rgba\(0, 212, 170, 0\.14\) !important;/)
+  assert.match(styles, /\[data-theme="dark"\] \.pf-btn:not\(\.primary\):not\(\.success\),[\s\S]*background:\s*rgba\(15, 25, 45, 0\.72\) !important;/)
+  assert.match(styles, /\[data-theme="dark"\] \.pf-btn\.success\s*\{[\s\S]*background:\s*linear-gradient\(135deg, #00d4aa 0%, #00b894 100%\) !important;/)
 })

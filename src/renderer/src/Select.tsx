@@ -6,6 +6,7 @@
  */
 
 import * as SelectPrimitive from '@radix-ui/react-select'
+import { Check, ChevronDown, ChevronUp } from 'lucide-react'
 
 const EMPTY_SENTINEL = '__select_empty__'
 
@@ -32,19 +33,19 @@ export function Select({ value, onChange, placeholder, disabled, children }: Sel
       <SelectPrimitive.Trigger className="select-trigger">
         <SelectPrimitive.Value placeholder={placeholder} />
         <SelectPrimitive.Icon className="select-icon">
-          <ChevronIcon />
+          <ChevronDown size={12} />
         </SelectPrimitive.Icon>
       </SelectPrimitive.Trigger>
       <SelectPrimitive.Portal>
         <SelectPrimitive.Content className="select-content" position="popper" sideOffset={4}>
           <SelectPrimitive.ScrollUpButton className="select-scroll-btn">
-            <ChevronUpIcon />
+            <ChevronUp size={12} />
           </SelectPrimitive.ScrollUpButton>
           <SelectPrimitive.Viewport className="select-viewport">
             {children}
           </SelectPrimitive.Viewport>
           <SelectPrimitive.ScrollDownButton className="select-scroll-btn">
-            <ChevronIcon />
+            <ChevronDown size={12} />
           </SelectPrimitive.ScrollDownButton>
         </SelectPrimitive.Content>
       </SelectPrimitive.Portal>
@@ -58,34 +59,10 @@ function Item({ value, children, disabled }: SelectItemProps) {
     <SelectPrimitive.Item className="select-item" value={internalValue} disabled={disabled}>
       <SelectPrimitive.ItemText>{children}</SelectPrimitive.ItemText>
       <SelectPrimitive.ItemIndicator className="select-item-check">
-        <CheckIcon />
+        <Check size={12} />
       </SelectPrimitive.ItemIndicator>
     </SelectPrimitive.Item>
   )
 }
 
 Select.Item = Item
-
-function ChevronIcon() {
-  return (
-    <svg width="12" height="12" viewBox="0 0 12 12" fill="none">
-      <path d="M3 4.5l3 3 3-3" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round" />
-    </svg>
-  )
-}
-
-function ChevronUpIcon() {
-  return (
-    <svg width="12" height="12" viewBox="0 0 12 12" fill="none">
-      <path d="M3 7.5l3-3 3 3" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round" />
-    </svg>
-  )
-}
-
-function CheckIcon() {
-  return (
-    <svg width="12" height="12" viewBox="0 0 12 12" fill="none">
-      <path d="M2.5 6.5l2.5 2.5 5-5" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round" />
-    </svg>
-  )
-}

@@ -8,7 +8,7 @@
 
 import { useCallback, useEffect, useRef, useState } from 'react'
 import type { AgentDefinition, HandoffArtifactItem, WorkflowRun, WorkflowRunStep } from '@shared/types'
-import { AlertTriangle, ArrowRight, Check, CheckCircle, Code2, FileQuestion, Lightbulb, MessageCircle, PenTool } from 'lucide-react'
+import { AlertTriangle, ArrowRight, Check, CheckCircle, Code2, FileQuestion, Lightbulb, MessageCircle, PanelRight, PenTool } from 'lucide-react'
 import { TranscriptViewer } from './TranscriptViewer'
 import { MarkdownPreview } from './MarkdownPreview'
 import { MemoryReferences } from './MemoryReferences'
@@ -86,6 +86,7 @@ export function WorkflowRunDetail({
   const [editingPrompt, setEditingPrompt] = useState(false)
   const [promptDraft, setPromptDraft] = useState('')
   const [rightWidth, setRightWidth] = useState(400)
+  const [rightTab, setRightTab] = useState<'files' | 'output'>('files')
   const resizing = useRef(false)
   const bodyRef = useRef<HTMLDivElement>(null)
 
@@ -381,19 +382,27 @@ export function WorkflowRunDetail({
         {composerError && <div className="workflow-input-error">{composerError}</div>}
       </div>
 
-      {/* ── right column: preview pane (only when a file is open) ── */}
-      {openFiles.length > 0 && activeFileObj && (
-        <>
-          <div className="codex-resize-handle" onMouseDown={onResizeStart} />
-          <div className="codex-right" style={{ width: rightWidth, flex: 'none' }}>
+      <div className="codex-resize-handle" onMouseDown={onResizeStart} />
+      <div className="codex-right workflow-right-panel" style={{ width: rightWidth, flex: 'none' }}>
+        {activeFileObj ? (
             <FilePreviewPane
               file={activeFileObj}
               projectPath={run.projectPath}
               onClose={closeFile}
             />
-          </div>
-        </>
-      )}
+        ) : (
+          <WorkflowSidePanel
+            run={run}
+            selectedStep={selectedStep}
+            selectedAgent={selectedAgent}
+            selectedExecution={selectedExecution}
+            handoff={handoff}
+            activeTab={rightTab}
+            onTabChange={setRightTab}
+            onOpenFile={(path) => void openFile(path)}
+          />
+        )}
+      </div>
     </main>
   )
 }
@@ -495,8 +504,7 @@ function ArtifactCard({
   isActive: boolean
   onClick: () => void
 }): JSX.Element {
-  const TypeIcon = artifact.type === 'code' ? Code2 : artifact.type === 'design' ? PenTool : artifact.type === 'test' ? Check : FileQuestion
-  const typeLabel = artifact.type === 'code' ? 'Code' : artifact.type === 'design' ? 'Design' : artifact.type === 'test' ? 'Test' : 'Other'
+  const { TypeIcon, typeLabel } = artifactTypeUi(artifact)
   const ext = artifact.path.split('.').pop()?.toLowerCase() ?? ''
 
   return (
@@ -506,8 +514,111 @@ function ArtifactCard({
         <div className="artifact-card-name">{artifact.path}</div>
         <div className="artifact-card-meta">{typeLabel}{ext ? ` · ${ext.toUpperCase()}` : ''}</div>
       </div>
-      <span className="artifact-card-open">Open ▾</span>
+      <span className="artifact-card-open"><ArrowRight size={12} /> 打开</span>
     </div>
+  )
+}
+
+function artifactTypeUi(artifact: HandoffArtifactItem): {
+  TypeIcon: typeof Code2
+  typeLabel: string
+} {
+  if (artifact.type === 'code') return { TypeIcon: Code2, typeLabel: 'Code' }
+  if (artifact.type === 'design') return { TypeIcon: PenTool, typeLabel: 'Design' }
+  if (artifact.type === 'test') return { TypeIcon: Check, typeLabel: 'Test' }
+  return { TypeIcon: FileQuestion, typeLabel: 'Other' }
+}
+
+function WorkflowSidePanel({
+  run,
+  selectedStep,
+  selectedAgent,
+  selectedExecution,
+  handoff,
+  activeTab,
+  onTabChange,
+  onOpenFile
+}: {
+  run: WorkflowRun
+  selectedStep: WorkflowRunStep | undefined
+  selectedAgent: AgentDefinition | null
+  selectedExecution: WorkflowRun['steps'][number]['executions'][number] | null
+  handoff: NonNullable<WorkflowRun['steps'][number]['executions'][number]['handoff']> | null
+  activeTab: 'files' | 'output'
+  onTabChange: (tab: 'files' | 'output') => void
+  onOpenFile: (path: string) => void
+}): JSX.Element {
+  const artifacts = handoff?.artifacts ?? []
+  const outputLines = [
+    `Run: ${run.runName || run.templateName}`,
+    `Status: ${workflowRunStatusLabel(run.status)}`,
+    `Step: ${selectedStep?.displayName || selectedStep?.role || selectedAgent?.name || 'No step selected'}`,
+    `Agent: ${workflowStepRouteLabel(selectedAgent)}`,
+    selectedExecution?.status ? `Execution: ${selectedExecution.status}` : '',
+    selectedExecution?.error ? `Error: ${selectedExecution.error}` : '',
+    handoff?.summary ? `Handoff: ${handoff.summary}` : ''
+  ].filter(Boolean)
+
+  return (
+    <aside className="right-panel">
+      <div className="right-panel-header">
+        <span><PanelRight size={14} /> 详情</span>
+        <div className="detail-tabs-inline">
+          <button
+            type="button"
+            className={`detail-tab ${activeTab === 'files' ? 'active' : ''}`}
+            onClick={() => onTabChange('files')}
+          >
+            文件
+          </button>
+          <button
+            type="button"
+            className={`detail-tab ${activeTab === 'output' ? 'active' : ''}`}
+            onClick={() => onTabChange('output')}
+          >
+            输出
+          </button>
+        </div>
+      </div>
+      <div className="right-panel-body">
+        {activeTab === 'files' ? (
+          artifacts.length > 0 ? (
+            <div className="workflow-side-files">
+              {artifacts.map((artifact, index) => {
+                const { TypeIcon, typeLabel } = artifactTypeUi(artifact)
+                const fileName = artifact.path.split('/').pop() || artifact.path
+                const fileMeta = artifact.description && artifact.description !== artifact.path
+                  ? artifact.description
+                  : artifact.path
+                return (
+                  <button
+                    key={`${artifact.path}-${index}`}
+                    type="button"
+                    className="workflow-side-file"
+                    onClick={() => onOpenFile(artifact.path)}
+                  >
+                    <span className="workflow-side-file-icon"><TypeIcon size={14} /></span>
+                    <span className="workflow-side-file-info">
+                      <span className="workflow-side-file-name">{fileName}</span>
+                      <span className="workflow-side-file-path">{fileMeta}</span>
+                    </span>
+                    <span className={`workflow-side-file-meta workflow-side-file-meta-${artifact.type}`}>
+                      {artifact.type || typeLabel}
+                    </span>
+                  </button>
+                )
+              })}
+            </div>
+          ) : (
+            <div className="workflow-side-empty">
+              当前步骤暂无 artifact。完成步骤或选择包含 handoff 的步骤后会显示文件。
+            </div>
+          )
+        ) : (
+          <pre className="code-block workflow-side-output">{outputLines.join('\n')}</pre>
+        )}
+      </div>
+    </aside>
   )
 }
 
@@ -532,7 +643,7 @@ function FilePreviewPane({
       <div className="codex-preview-breadcrumb">
         {breadcrumbParts.map((part, i) => (
           <span key={i}>
-            {i > 0 && <span className="codex-breadcrumb-sep"> › </span>}
+            {i > 0 && <span className="codex-breadcrumb-sep"> / </span>}
             <span className={i === breadcrumbParts.length - 1 ? 'codex-breadcrumb-last' : ''}>{part}</span>
           </span>
         ))}

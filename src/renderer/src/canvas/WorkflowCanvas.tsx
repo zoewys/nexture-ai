@@ -37,14 +37,14 @@ import { useCanvasState } from './useCanvasState'
 // ── Theme tokens ──────────────────────────────────────────────────────────────
 
 const colors = {
-  bg: '#17191f',
-  bgPanel: '#20232b',
-  border: '#343946',
-  accent: '#6c8cff',
-  text: '#eef2f8',
-  textMuted: '#9aa3b5',
-  textDim: '#6b7280',
-  hover: '#282c36'
+  bg: '#edeae3',
+  bgPanel: 'rgba(255, 253, 248, 0.72)',
+  border: 'rgba(120, 140, 130, 0.18)',
+  accent: '#3d8e86',
+  text: '#1e2e28',
+  textMuted: '#5d746c',
+  textDim: '#8aa099',
+  hover: 'rgba(61, 142, 134, 0.06)'
 }
 
 // ── Vendor helpers ────────────────────────────────────────────────────────────
@@ -73,6 +73,8 @@ interface WorkflowCanvasProps {
 interface ContextMenuState {
   x: number
   y: number
+  clientX: number
+  clientY: number
   type: 'canvas' | 'selection'
 }
 
@@ -138,7 +140,7 @@ function CanvasInner({ agents, template, onMarkDirty, onStepsChange, onSave }: W
     }
     prevSelectedRef.current = selectedNodeId
   }, [selectedNodeId])
-  const [sidebarExpanded, setSidebarExpanded] = useState(false)
+  const [sidebarExpanded, setSidebarExpanded] = useState(true)
 
   // ── Context menu ────────────────────────────────────────────────────────────
   const [contextMenu, setContextMenu] = useState<ContextMenuState | null>(null)
@@ -161,10 +163,13 @@ function CanvasInner({ agents, template, onMarkDirty, onStepsChange, onSave }: W
     (event: MouseEvent | React.MouseEvent) => {
       event.preventDefault()
       const selectedNodes = nodes.filter((n) => n.selected)
+      const stageRect = canvasRef.current?.getBoundingClientRect()
+      const x = stageRect ? event.clientX - stageRect.left : event.clientX
+      const y = stageRect ? event.clientY - stageRect.top : event.clientY
       if (selectedNodes.length >= 2) {
-        setContextMenu({ x: event.clientX, y: event.clientY, type: 'selection' })
+        setContextMenu({ x, y, clientX: event.clientX, clientY: event.clientY, type: 'selection' })
       } else {
-        setContextMenu({ x: event.clientX, y: event.clientY, type: 'canvas' })
+        setContextMenu({ x, y, clientX: event.clientX, clientY: event.clientY, type: 'canvas' })
       }
     },
     [nodes]
@@ -272,13 +277,22 @@ function CanvasInner({ agents, template, onMarkDirty, onStepsChange, onSave }: W
   const zoomIn = useCallback(() => reactFlowInstance.zoomIn(), [reactFlowInstance])
   const zoomOut = useCallback(() => reactFlowInstance.zoomOut(), [reactFlowInstance])
 
+  useEffect(() => {
+    if (nodes.length === 0) return
+    const frame = window.requestAnimationFrame(() => {
+      reactFlowInstance.setViewport({ x: 0, y: 0, zoom: 1 }, { duration: 0 })
+    })
+    return () => window.cancelAnimationFrame(frame)
+  }, [nodes.length, reactFlowInstance])
+
   // ── Render ──────────────────────────────────────────────────────────────────
   const sidebarWidth = sidebarExpanded ? 220 : 40
 
   return (
-    <div style={{ display: 'flex', width: '100%', height: '100%', background: colors.bg }}>
+    <div className="workflow-canvas-shell" data-edge-count={edges.length}>
       {/* ── Agent Sidebar ─────────────────────────────────────────────────── */}
       <div
+        className={`workflow-canvas-agent-rail${sidebarExpanded ? ' expanded' : ''}`}
         style={{
           width: sidebarWidth,
           flexShrink: 0,
@@ -292,6 +306,7 @@ function CanvasInner({ agents, template, onMarkDirty, onStepsChange, onSave }: W
       >
         {/* Header */}
         <div
+          className="workflow-canvas-agent-rail-head"
           style={{
             display: 'flex',
             alignItems: 'center',
@@ -302,9 +317,10 @@ function CanvasInner({ agents, template, onMarkDirty, onStepsChange, onSave }: W
           }}
         >
           {sidebarExpanded && (
-            <span style={{ fontSize: 10, textTransform: 'uppercase', letterSpacing: 0.5, color: colors.textDim, fontWeight: 600 }}>Agents</span>
+            <span className="workflow-canvas-agent-rail-title">Agents</span>
           )}
           <button
+            className="workflow-canvas-icon-btn"
             onClick={() => setSidebarExpanded((v) => !v)}
             style={{
               background: 'transparent',
@@ -322,10 +338,11 @@ function CanvasInner({ agents, template, onMarkDirty, onStepsChange, onSave }: W
         </div>
 
         {/* Agent list */}
-        <div style={{ flex: 1, overflowY: 'auto', padding: '4px 0', display: 'flex', flexDirection: 'column', alignItems: sidebarExpanded ? 'stretch' : 'center' }}>
+        <div className="workflow-canvas-agent-list" style={{ alignItems: sidebarExpanded ? 'stretch' : 'center' }}>
           {agents.map((agent) => (
             <div
               key={agent.id}
+              className="workflow-canvas-agent-palette-item"
               draggable
               onDragStart={(e) => {
                 e.dataTransfer.setData('application/agent-id', agent.id)
@@ -343,15 +360,10 @@ function CanvasInner({ agents, template, onMarkDirty, onStepsChange, onSave }: W
                 transition: 'background 0.1s',
                 justifyContent: sidebarExpanded ? 'flex-start' : 'center'
               }}
-              onMouseEnter={(e) => {
-                ;(e.currentTarget as HTMLElement).style.background = colors.hover
-              }}
-              onMouseLeave={(e) => {
-                ;(e.currentTarget as HTMLElement).style.background = 'transparent'
-              }}
               title={agent.name}
             >
               <div
+                className="workflow-canvas-agent-palette-icon"
                 style={{
                   width: 24,
                   height: 24,
@@ -415,8 +427,9 @@ function CanvasInner({ agents, template, onMarkDirty, onStepsChange, onSave }: W
       </div>
 
       {/* ── Canvas area ───────────────────────────────────────────────────── */}
-      <div ref={canvasRef} style={{ flex: 1, position: 'relative' }}>
+      <div ref={canvasRef} className="workflow-canvas-stage">
         <ReactFlow
+          className="workflow-canvas-flow"
           nodes={nodes}
           edges={edges}
           onNodesChange={onNodesChange}
@@ -431,7 +444,7 @@ function CanvasInner({ agents, template, onMarkDirty, onStepsChange, onSave }: W
           edgeTypes={edgeTypes}
           snapToGrid
           snapGrid={[20, 20]}
-          panOnDrag={false}
+          panOnDrag
           panActivationKeyCode="Meta"
           selectionOnDrag
           selectionKeyCode={null}
@@ -439,7 +452,6 @@ function CanvasInner({ agents, template, onMarkDirty, onStepsChange, onSave }: W
           zoomOnPinch
           zoomOnDoubleClick={false}
           preventScrolling={false}
-          fitView
           proOptions={{ hideAttribution: true }}
           style={{ background: colors.bg }}
         >
@@ -448,6 +460,7 @@ function CanvasInner({ agents, template, onMarkDirty, onStepsChange, onSave }: W
           {/* ── Floating Toolbar ──────────────────────────────────────────── */}
           <Panel position="top-center">
             <div
+              className="workflow-canvas-mini-toolbar"
               style={{
                 display: 'flex',
                 alignItems: 'center',
@@ -480,10 +493,11 @@ function CanvasInner({ agents, template, onMarkDirty, onStepsChange, onSave }: W
 
           {/* ── MiniMap ───────────────────────────────────────────────────── */}
           <MiniMap
+            className="workflow-canvas-minimap"
             position="bottom-right"
             style={{ background: colors.bgPanel, border: `1px solid ${colors.border}` }}
             nodeColor={() => colors.accent}
-            maskColor="rgba(23, 25, 31, 0.7)"
+            maskColor="rgba(237, 234, 227, 0.72)"
           />
 
           <Controls
@@ -496,6 +510,7 @@ function CanvasInner({ agents, template, onMarkDirty, onStepsChange, onSave }: W
         {contextMenu && (
           <div
             ref={contextMenuRef}
+            className="workflow-canvas-context-menu"
             style={{
               position: 'absolute',
               top: contextMenu.y,
@@ -525,10 +540,11 @@ function CanvasInner({ agents, template, onMarkDirty, onStepsChange, onSave }: W
                 {agents.map((agent) => (
                   <button
                     key={agent.id}
+                    className="workflow-canvas-context-item"
                     onClick={() => {
                       const position = reactFlowInstance.screenToFlowPosition({
-                        x: contextMenu.x,
-                        y: contextMenu.y
+                        x: contextMenu.clientX,
+                        y: contextMenu.clientY
                       })
                       position.x = Math.round(position.x / 20) * 20
                       position.y = Math.round(position.y / 20) * 20
@@ -548,12 +564,6 @@ function CanvasInner({ agents, template, onMarkDirty, onStepsChange, onSave }: W
                       fontSize: 12,
                       cursor: 'pointer'
                     }}
-                    onMouseEnter={(e) => {
-                      ;(e.currentTarget as HTMLElement).style.background = colors.hover
-                    }}
-                    onMouseLeave={(e) => {
-                      ;(e.currentTarget as HTMLElement).style.background = 'transparent'
-                    }}
                   >
                     <VendorIcon vendor={agent.vendor} size={12} />
                     {agent.name}
@@ -563,6 +573,7 @@ function CanvasInner({ agents, template, onMarkDirty, onStepsChange, onSave }: W
             )}
             {contextMenu.type === 'selection' && (
               <button
+                className="workflow-canvas-context-item"
                 onClick={() => {
                   const selected = nodes.filter((n) => n.selected).map((n) => n.id)
                   if (selected.length >= 2) createParallelGroup(selected)
@@ -581,12 +592,6 @@ function CanvasInner({ agents, template, onMarkDirty, onStepsChange, onSave }: W
                   fontSize: 12,
                   cursor: 'pointer'
                 }}
-                onMouseEnter={(e) => {
-                  ;(e.currentTarget as HTMLElement).style.background = colors.hover
-                }}
-                onMouseLeave={(e) => {
-                  ;(e.currentTarget as HTMLElement).style.background = 'transparent'
-                }}
               >
                 <GitFork size={12} />
                 Create Parallel Group
@@ -599,6 +604,7 @@ function CanvasInner({ agents, template, onMarkDirty, onStepsChange, onSave }: W
       {/* ── Right Property Panel (collapsible) ──────────────────────────── */}
       {rightPanelOpen ? (
         <div
+          className="workflow-canvas-inspector"
           style={{
             width: 240,
             flexShrink: 0,
@@ -609,7 +615,7 @@ function CanvasInner({ agents, template, onMarkDirty, onStepsChange, onSave }: W
             overflow: 'hidden'
           }}
         >
-          <div style={{
+          <div className="workflow-canvas-inspector-head" style={{
             display: 'flex',
             alignItems: 'center',
             justifyContent: 'space-between',
@@ -620,6 +626,7 @@ function CanvasInner({ agents, template, onMarkDirty, onStepsChange, onSave }: W
               {rightPanelMode === 'agent-detail' ? 'Agent Details' : selectedNode ? 'Properties' : 'Template'}
             </span>
             <button
+              className="workflow-canvas-icon-btn"
               onClick={() => setRightPanelOpen(false)}
               style={{ background: 'none', border: 'none', color: colors.textMuted, cursor: 'pointer', padding: 2, display: 'flex' }}
               title="Close panel"
@@ -627,7 +634,7 @@ function CanvasInner({ agents, template, onMarkDirty, onStepsChange, onSave }: W
               <ChevronsLeft size={14} />
             </button>
           </div>
-          <div style={{ flex: 1, overflowY: 'auto', padding: 12, display: 'flex', flexDirection: 'column', gap: 12 }}>
+          <div className="workflow-canvas-inspector-body" style={{ flex: 1, overflowY: 'auto', padding: 12, display: 'flex', flexDirection: 'column', gap: 12 }}>
             {rightPanelMode === 'agent-detail' ? (
               <AgentDetailPanel
                 agent={detailAgent}
@@ -658,7 +665,7 @@ function CanvasInner({ agents, template, onMarkDirty, onStepsChange, onSave }: W
           </div>
         </div>
       ) : (
-        <div style={{
+        <div className="workflow-canvas-inspector-toggle" style={{
           width: 36,
           flexShrink: 0,
           background: colors.bgPanel,
@@ -669,6 +676,7 @@ function CanvasInner({ agents, template, onMarkDirty, onStepsChange, onSave }: W
           paddingTop: 8
         }}>
           <button
+            className="workflow-canvas-icon-btn"
             onClick={() => setRightPanelOpen(true)}
             style={{ background: 'none', border: 'none', color: colors.textMuted, cursor: 'pointer', padding: 4, display: 'flex' }}
             title="Open properties panel"
@@ -735,13 +743,10 @@ function NodePropertyPanel({
     color: colors.text,
     fontSize: 12,
     fontFamily: 'inherit',
-    appearance: 'none' as const,
+    appearance: 'auto' as const,
     cursor: 'pointer',
     outline: 'none',
-    backgroundImage: `url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='12' height='12' viewBox='0 0 24 24' fill='none' stroke='%239aa3b5' stroke-width='2'%3E%3Cpath d='M6 9l6 6 6-6'/%3E%3C/svg%3E")`,
-    backgroundRepeat: 'no-repeat',
-    backgroundPosition: 'right 8px center',
-    paddingRight: 28
+    paddingRight: 8
   }
 
   const numStyle: React.CSSProperties = {
@@ -1280,6 +1285,7 @@ function ToolbarButton({
 }) {
   return (
     <button
+      className="workflow-canvas-toolbar-button"
       onClick={onClick}
       disabled={disabled}
       title={title}

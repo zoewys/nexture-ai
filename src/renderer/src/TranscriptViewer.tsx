@@ -514,7 +514,13 @@ function BlockView({
             <span className="cli-think-dot" />
             Thinking
             <span className="cli-think-toggle">
-              {thinkExp ? <><ChevronUp size={13} /> Collapse</> : <><ChevronDown size={13} /> {needsTruncation ? 'Expand' : 'Show'}</>}
+              {thinkExp ? (
+                <><ChevronUp size={12} /> Collapse</>
+              ) : needsTruncation ? (
+                <><ChevronDown size={12} /> Expand</>
+              ) : (
+                <><ChevronDown size={12} /> Show</>
+              )}
             </span>
           </div>
           <pre className="cli-think-body">{displayText}</pre>

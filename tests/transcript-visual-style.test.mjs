@@ -14,6 +14,18 @@ function block(selector) {
   return match[1]
 }
 
+function lastBlock(selector) {
+  const matches = [...css.matchAll(new RegExp(`${selector.replace(/[.*+?^${}()|[\]\\]/g, '\\$&')}\\s*\\{([^}]*)\\}`, 'g'))]
+  assert.ok(matches.length, `Expected ${selector} style block`)
+  return matches.at(-1)[1]
+}
+
+function lastRootBlock(selector) {
+  const matches = [...css.matchAll(new RegExp(`(?:^|\\n)${selector.replace(/[.*+?^${}()|[\]\\]/g, '\\$&')}\\s*\\{([^}]*)\\}`, 'g'))]
+  assert.ok(matches.length, `Expected root ${selector} style block`)
+  return matches.at(-1)[1]
+}
+
 function rgbaAlpha(styles, property) {
   const match = styles.match(new RegExp(`${property}:\\s*rgba\\([^,]+,[^,]+,[^,]+,\\s*([0-9.]+)\\)`))
   assert.ok(match, `Expected ${property} rgba alpha`)
@@ -43,14 +55,16 @@ test('assistant messages are the primary transcript reading surface', () => {
 
 test('multi workflow layout keeps runs, detail, and step chips readable', () => {
   const workspace = block('.workflow-workspace')
-  const runTail = block('.workflow-run-card-tail')
-  const runTailLine = block('.workflow-run-card-tail span')
+  const runCard = lastRootBlock('.workflow-run-card')
+  const runTime = lastRootBlock('.workflow-run-card-time')
   const stepNav = block('.workflow-step-nav')
 
   assert.match(workspace, /grid-template-columns:\s*400px minmax\(0,\s*1fr\);/)
-  assert.match(runsList, /workflowRunTailLines\(run,\s*2\)/)
-  assert.match(runTail, /max-height:\s*4\.5em;/)
-  assert.match(runTailLine, /white-space:\s*nowrap;/)
-  assert.match(runTailLine, /text-overflow:\s*ellipsis;/)
+  assert.doesNotMatch(runsList, /workflowRunTailLines/)
+  assert.doesNotMatch(runsList, /workflow-run-card-tail/)
+  assert.match(runCard, /min-height:\s*106px;/)
+  assert.match(runCard, /flex-direction:\s*column;/)
+  assert.match(css, /\.workflow-run-card-top,\s*\n\.run-item-header,[\s\S]*justify-content:\s*space-between;/)
+  assert.match(runTime, /display:\s*inline-flex;/)
   assert.match(stepNav, /overflow-x:\s*auto;/)
 })

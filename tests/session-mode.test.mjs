@@ -198,6 +198,10 @@ test('single renderer uses session hook, sidebar cards, route header, and route-
   assert.match(styles, /\.transcript-chat/)
   assert.match(styles, /\.chat-bubble-user/)
   assert.match(styles, /\.chat-bubble-assistant/)
+  assert.match(styles, /\.single-session-route-panel\s*\{[\s\S]*grid-template-columns:[\s\S]*minmax\(165px, 1fr\)/)
+  assert.match(styles, /\.chat-bubble-user,[\s\S]*\.message-user \.message-bubble\s*\{[\s\S]*color:\s*var\(--neutral-text-primary\) !important;/)
+  assert.match(styles, /\[data-theme="dark"\] \.agent-item-active:hover\s*\{[\s\S]*background:\s*rgba\(0, 212, 170, 0\.1\) !important;/)
+  assert.match(styles, /\[data-theme="dark"\] \.single-session-sidebar-head \.icon-text\s*\{[\s\S]*background:\s*rgba\(15, 25, 45, 0\.72\) !important;[\s\S]*opacity:\s*1 !important;/)
   assert.match(styles, /\.single-session-banner-active-route/)
 })
 

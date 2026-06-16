@@ -61,43 +61,52 @@ const agents: AgentDefinition[] = devFlowStepAgents
 const templates: WorkflowTemplate[] = [
   {
     id: 'template-dev-flow',
-    name: 'Dev Flow',
-    description: '线性流程 · 可未来升级节点画布',
+    name: 'auth-refactor-pipeline',
+    description: '认证模块重构流水线',
+    steps: [
+      {
+        parallel: [
+          { agentId: 'agent-pm-analyst', role: 'Analyze' },
+          { agentId: 'agent-test-agent', role: 'Generate Tests' }
+        ],
+        join: true
+      },
+      { agentId: 'agent-developer', role: 'Refactor' },
+      { agentId: 'agent-qa-verifier', role: 'Review' }
+    ]
+  },
+  {
+    id: 'template-fix-bug-flow',
+    name: 'dependency-update',
+    description: '依赖更新与测试',
+    steps: [
+      'agent-qa-verifier',
+      'agent-senior-engineer',
+      'agent-test-agent'
+    ].map((agentId) => ({ agentId }))
+  },
+  {
+    id: 'template-feature-branch-workflow',
+    name: 'feature-branch-workflow',
+    description: '新功能分支工作流',
     steps: [
       'agent-pm-analyst',
-      'agent-ux-architect',
       'agent-ui-designer',
-      'agent-senior-engineer',
       'agent-developer',
-      'agent-qa-verifier',
-      'agent-frontend-qa',
-      'agent-test-agent',
-      'agent-developer',
-      'agent-qa-verifier',
-      'agent-release',
-      'agent-doc',
-      'agent-pm-analyst',
       'agent-qa-verifier'
     ].map((agentId) => ({ agentId }))
   },
   {
-    id: 'template-fix-bug-flow',
-    name: 'Fix Bug Flow',
-    description: '定位 -> 修复 -> 验证',
-    steps: [
-      'agent-qa-verifier',
-      'agent-senior-engineer',
-      'agent-developer',
-      'agent-test-agent',
-      'agent-frontend-qa',
-      'agent-release'
-    ].map((agentId) => ({ agentId }))
+    id: 'template-docs-sync',
+    name: 'docs-sync',
+    description: '文档同步',
+    steps: ['agent-doc', 'agent-release'].map((agentId) => ({ agentId }))
   }
 ]
 
 const topbarChips: UiReviewFixture['topbarChips'] = {
   workflow: ['3 running', '1 input', '2 waiting', 'sound per run'],
-  templates: ['3 templates', 'node canvas later', 'linear V1'],
+  templates: ['4 模板', 'node canvas', 'branch flow'],
   agents: ['9 agents', '2 CLIs', 'templates linked'],
   single: ['single run', 'follow-up', 'transcript'],
   settings: ['memory references', 'local storage']

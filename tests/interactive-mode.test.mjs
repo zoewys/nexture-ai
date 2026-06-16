@@ -110,7 +110,7 @@ test('renderer shows awaiting-input status and enables replies', () => {
   assert.match(runView, /case 'awaiting-input':\s*return 'awaiting-input'/)
   assert.match(runView, /run\.status === 'awaiting-input'/)
   assert.match(runsList, /'awaiting-input'/)
-  assert.match(runsList, /case 'awaiting-input': return 'INPUT'/)
+  assert.match(runsList, /case 'awaiting-input': return '待回复'/)
   assert.match(workspace, /selectedExecution\?\.status === 'awaiting-input'/)
   assert.match(workspace, /return '回复 Agent\.\.\.'/)
   assert.match(detail, /workflow-awaiting-input-bar/)

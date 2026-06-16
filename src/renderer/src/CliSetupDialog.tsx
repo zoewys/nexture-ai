@@ -8,7 +8,7 @@
  */
 
 import { useCallback, useEffect, useMemo, useState } from 'react'
-import { Bot, Code2, Zap } from 'lucide-react'
+import { Bot, Check, Code2, Zap } from 'lucide-react'
 
 type CliName = 'claude' | 'codex'
 
@@ -176,7 +176,7 @@ export function CliSetupDialog({ onDone }: CliSetupDialogProps): JSX.Element {
 
 function StatusBadge({ state }: { state: CliState }): JSX.Element {
   if (state.status === 'done' && state.found) {
-    return <span className="cli-status-badge cli-status-found">✓ 已就绪</span>
+    return <span className="cli-status-badge cli-status-found"><Check size={12} /> 已就绪</span>
   }
   if (state.status === 'installing') {
     return <span className="cli-status-badge cli-status-installing">安装中…</span>

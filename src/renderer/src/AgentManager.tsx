@@ -25,6 +25,7 @@ import { ModelSelect } from './ModelSelect'
 import { ReflectionSettingsPanel } from './ReflectionSettingsPanel'
 import { Select } from './Select'
 import { useProviders } from './useProviders'
+import { Plus, RotateCcw, Save, ShieldAlert, ShieldCheck, ShieldQuestion, Trash2 } from 'lucide-react'
 
 export interface AgentManagerProps {
   agents: AgentDefinition[]
@@ -37,6 +38,13 @@ export interface AgentManagerProps {
 
 function emptyDraft(): AgentDraft {
   return { name: '', role: '', vendor: 'claude' as AgentVendor, model: '', systemPrompt: '', permissionMode: 'bypassPermissions' as PermissionMode }
+}
+
+const permissionIcons: Record<PermissionMode, typeof ShieldQuestion> = {
+  default: ShieldQuestion,
+  acceptEdits: ShieldCheck,
+  bypassPermissions: ShieldAlert,
+  plan: ShieldQuestion
 }
 
 export function AgentManager({ agents, clis, modelCatalog, onSave, onDelete, onClose }: AgentManagerProps): JSX.Element {
@@ -88,9 +96,9 @@ export function AgentManager({ agents, clis, modelCatalog, onSave, onDelete, onC
     <div className="agent-manager-body">
       <aside className="agent-list">
         <div className="agent-list-header">
-          <span>Agents</span>
-          <button className="primary" onClick={startNew} type="button">
-            New
+          <span>智能体</span>
+          <button className="btn btn-primary btn-sm" onClick={startNew} type="button">
+            <Plus size={14} /> 新建
           </button>
         </div>
         {agents.length === 0 && (
@@ -103,7 +111,12 @@ export function AgentManager({ agents, clis, modelCatalog, onSave, onDelete, onC
             onClick={() => select(a)}
           type="button"
         >
-            <div className="agent-item-name">{a.name || 'Unnamed'}</div>
+            <div className="agent-item-title-row">
+              <span className="agent-item-name">{a.name || 'Unnamed'}</span>
+              <span className={a.permissionMode === 'bypassPermissions' ? 'tag-red' : 'tag-green'}>
+                {a.permissionMode === 'bypassPermissions' ? '自动' : '询问'}
+              </span>
+            </div>
             <div className="agent-item-meta">
               {a.role} · {a.vendor}
               {a.model ? ` · ${a.model}` : ''}
@@ -117,19 +130,32 @@ export function AgentManager({ agents, clis, modelCatalog, onSave, onDelete, onC
           <div className="transcript-empty">Select an agent or create one.</div>
         ) : (
           <>
-            <div className="agent-editor-actions">
-              <button className="primary" onClick={handleSave} disabled={!draft.name.trim()} type="button">
-                {isNew ? 'Create' : 'Save'}
-              </button>
-              {!isNew && (
-                <button onClick={handleDelete} type="button" className="danger">
-                  Delete
+            <div className="agent-editor-header">
+              <div className="detail-title">{isNew ? '新建智能体' : '编辑智能体'}</div>
+              <div className="agent-editor-actions detail-actions">
+                {!isNew && (
+                  <button onClick={handleDelete} type="button" className="btn btn-danger btn-sm">
+                    <Trash2 size={14} /> 删除
+                  </button>
+                )}
+                <button
+                  onClick={() => {
+                    const current = agents.find((a) => a.id === editingId)
+                    setDraft(isNew || !current ? emptyDraft() : { ...current })
+                  }}
+                  type="button"
+                  className="btn btn-secondary btn-sm"
+                >
+                  <RotateCcw size={14} /> 重置
                 </button>
-              )}
+                <button className="btn btn-primary" onClick={handleSave} disabled={!draft.name.trim()} type="button">
+                  <Save size={14} /> {isNew ? '创建' : '保存'}
+                </button>
+              </div>
             </div>
 
             <label className="field">
-              <span>Name</span>
+              <span>名称</span>
               <input
                 value={draft.name}
                 placeholder='e.g. "Senior Product Manager"'
@@ -138,7 +164,7 @@ export function AgentManager({ agents, clis, modelCatalog, onSave, onDelete, onC
             </label>
 
             <label className="field">
-              <span>Role</span>
+              <span>角色</span>
               <input
                 value={draft.role}
                 placeholder='e.g. "product", "dev", "test"'
@@ -148,7 +174,7 @@ export function AgentManager({ agents, clis, modelCatalog, onSave, onDelete, onC
 
             <div className="field-row">
               <label className="field field-grow">
-                <span>Mode</span>
+                <span>供应商</span>
                 <div className="vendor-tabs">
                   {ALL_VENDORS.map((v) => (
                     <button
@@ -166,7 +192,7 @@ export function AgentManager({ agents, clis, modelCatalog, onSave, onDelete, onC
 
               {draft.vendor !== 'api' && (
                 <label className="field field-grow">
-                  <span>Model</span>
+                  <span>模型</span>
                   <ModelSelect
                     value={draft.model ?? ''}
                     modelInfo={modelInfo}
@@ -251,17 +277,26 @@ export function AgentManager({ agents, clis, modelCatalog, onSave, onDelete, onC
               />
             )}
 
-            <label className="field">
-              <span>Permission Mode</span>
-              <Select
-                value={draft.permissionMode ?? 'bypassPermissions'}
-                onChange={(v) => setDraft((d) => ({ ...d, permissionMode: v as PermissionMode }))}
-              >
-                {PERMISSION_MODES.map((m) => (
-                  <Select.Item key={m} value={m}>{permissionModeLabel(m)}</Select.Item>
-                ))}
-              </Select>
-            </label>
+            <div className="field">
+              <span>权限模式</span>
+              <div className="permission-grid">
+                {PERMISSION_MODES.map((mode) => {
+                  const Icon = permissionIcons[mode]
+                  return (
+                    <button
+                      key={mode}
+                      type="button"
+                      className={`permission-card ${(draft.permissionMode ?? 'bypassPermissions') === mode ? 'active' : ''}`}
+                      onClick={() => setDraft((d) => ({ ...d, permissionMode: mode }))}
+                    >
+                      <Icon size={16} />
+                      <span className="permission-card-title">{permissionModeLabel(mode)}</span>
+                      <span className="permission-card-desc">{permissionModeDescription(mode)}</span>
+                    </button>
+                  )
+                })}
+              </div>
+            </div>
 
             <label className="field field-grow">
               <span>System Prompt</span>
@@ -274,6 +309,12 @@ export function AgentManager({ agents, clis, modelCatalog, onSave, onDelete, onC
 
             <ReflectionSettingsPanel modelCatalog={modelCatalog} />
 
+            <div className="agent-memory-card">
+              <div>
+                <div className="form-label">记忆与反思</div>
+                <p>查看该智能体积累的项目经验，或调整自动反思配置。</p>
+              </div>
+            </div>
             <AgentMemoryPanel agentId={editingId} />
           </>
         )}
@@ -297,5 +338,18 @@ function permissionModeLabel(mode: PermissionMode): string {
       return 'Bypass Permissions'
     case 'plan':
       return 'Plan Mode'
+  }
+}
+
+function permissionModeDescription(mode: PermissionMode): string {
+  switch (mode) {
+    case 'default':
+      return '按 CLI 默认策略请求确认'
+    case 'acceptEdits':
+      return '自动接受编辑，命令仍询问'
+    case 'bypassPermissions':
+      return '自动执行，适合受信任务'
+    case 'plan':
+      return '仅规划，不写入文件'
   }
 }

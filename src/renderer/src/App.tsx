@@ -29,6 +29,7 @@ import { prepareWorkflowNotificationSound } from './workflowNotificationSound'
 import { useAppSettings } from './useAppSettings'
 import { SettingsPanel } from './SettingsPanel'
 import { CliSetupDialog } from './CliSetupDialog'
+import { Moon, Sun } from 'lucide-react'
 
 type UiReviewWorkflowSurface = 'workflow' | 'new-run'
 
@@ -46,6 +47,7 @@ export function App(): JSX.Element {
   const [mode, setMode] = useState<WorkspaceMode>('workflow')
   const [uiReviewWorkflowSurface, setUiReviewWorkflowSurface] =
     useState<UiReviewWorkflowSurface>('workflow')
+  const appearanceTheme = appSettings.settings.appearanceTheme
 
   useEffect(() => {
     (async () => {
@@ -67,6 +69,10 @@ export function App(): JSX.Element {
     }
   }, [])
 
+  useEffect(() => {
+    document.documentElement.dataset.theme = appearanceTheme
+  }, [appearanceTheme])
+
   const isAgents = mode === 'agents'
   const isWorkflow = mode === 'workflow'
   const isTemplates = mode === 'templates'
@@ -77,30 +83,44 @@ export function App(): JSX.Element {
     : buildTopbarChips(
         mode,
         workflows.runs.filter((r) => r.status === 'running').length,
-        workflows.runs.filter((r) => r.status === 'awaiting-confirm').length,
+        workflows.runs.filter((r) => r.status === 'awaiting-confirm' || r.status === 'awaiting-input').length,
         workflows.templates.length,
-        agents.length
+        agents.length,
+        singleSessions.sessions.length,
+        !!singleSessions.selectedSession?.running,
+        appearanceTheme
       )
 
   const subtitle = (): string => {
     switch (mode) {
       case 'agents':
-        return 'Agents'
+        return '智能体管理'
       case 'templates':
-        return 'Templates'
+        return '模板编辑'
       case 'workflow':
         return uiReview.enabled && uiReviewWorkflowSurface === 'new-run'
-          ? 'Workflow · New Run Drawer'
-          : 'Workflow'
+          ? '工作流 · 新建运行'
+          : '工作流'
       case 'single':
-        return 'Single Agent'
+        return '单次对话'
       case 'settings':
-        return 'Settings'
+        return '系统设置'
     }
+  }
+
+  const toggleTheme = (): void => {
+    const nextTheme = appearanceTheme === 'dark' ? 'light' : 'dark'
+    void appSettings.save({ ...appSettings.settings, appearanceTheme: nextTheme })
   }
 
   return (
     <div className={['app', uiReview.enabled ? 'app-ui-review' : ''].filter(Boolean).join(' ')}>
+      <div className="chinese-pattern-bg" />
+      <div className="ink-wash ink-wash-1" />
+      <div className="ink-wash ink-wash-2" />
+      <div className="tech-grid-bg" />
+      <div className="tech-glow tech-glow-1" />
+      <div className="tech-glow tech-glow-2" />
       {showCliSetup && (
         <CliSetupDialog onDone={async () => {
           setShowCliSetup(false)
@@ -113,10 +133,23 @@ export function App(): JSX.Element {
           <h1>Agent Studio</h1>
           <span className="app-subtitle">{subtitle()}</span>
         </div>
-        <div className="topbar-chips" aria-label="Workspace summary">
-          {topbarChips.map((chip) => (
-            <span className="topbar-chip" key={chip}>{chip}</span>
-          ))}
+        <div className="topbar-actions">
+          <div className="topbar-chips" aria-label="Workspace summary">
+            {topbarChips.map((chip) => (
+              <span className="topbar-chip" key={chip}>{chip}</span>
+            ))}
+          </div>
+          <button
+            type="button"
+            className="theme-toggle"
+            onClick={toggleTheme}
+            disabled={appSettings.loading}
+            title={appearanceTheme === 'dark' ? '切换到亮色主题' : '切换到暗色主题'}
+            aria-label={appearanceTheme === 'dark' ? '切换到亮色主题' : '切换到暗色主题'}
+          >
+            {appearanceTheme === 'dark' ? <Sun size={15} /> : <Moon size={15} />}
+            <span>{appearanceTheme === 'dark' ? '亮' : '暗'}</span>
+          </button>
         </div>
       </header>
 
@@ -199,18 +232,21 @@ function buildTopbarChips(
   runningCount: number,
   waitingCount: number,
   templateCount: number,
-  agentCount: number
+  agentCount: number,
+  singleSessionCount: number,
+  singleRunning: boolean,
+  appearanceTheme: string
 ): string[] {
   switch (mode) {
     case 'workflow':
-      return [`${runningCount} running`, `${waitingCount} waiting`, 'sound per run']
+      return [`${runningCount} 运行中`, `${waitingCount} 待处理`, `${templateCount} 模板`, `${agentCount} 智能体`]
     case 'templates':
-      return [`${templateCount} templates`, 'node canvas later', 'linear V1']
+      return [`${templateCount} 模板`, 'DAG 画布', `${agentCount} 智能体`]
     case 'agents':
-      return [`${agentCount} agents`, '2 CLIs', 'templates linked']
+      return [`${agentCount} 智能体`, 'Claude · Codex · API', '模板可复用']
     case 'single':
-      return ['single run', 'follow-up', 'transcript']
+      return [`${singleSessionCount} 会话`, singleRunning ? '1 运行中' : '就绪', '连续对话']
     case 'settings':
-      return []
+      return [appearanceTheme === 'dark' ? '暗色主题' : '亮色主题', '本地存储']
   }
 }

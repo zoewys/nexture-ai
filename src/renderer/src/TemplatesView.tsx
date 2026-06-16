@@ -6,9 +6,9 @@
  */
 
 import { lazy, Suspense, useCallback, useEffect, useMemo, useRef, useState } from 'react'
-import type { AgentDefinition, WorkflowTemplate, WorkflowStepNode } from '@shared/types'
+import { isParallelGroup, type AgentDefinition, type WorkflowTemplate, type WorkflowStepNode } from '@shared/types'
 import type { WorkflowDraft } from './useWorkflows'
-import { ChevronsLeft, ChevronsRight, Download, Copy, Trash2 } from 'lucide-react'
+import { ChevronsLeft, ChevronsRight, Download, Copy, Plus, Save, Trash2 } from 'lucide-react'
 
 const WorkflowCanvas = lazy(() => import('./canvas/WorkflowCanvas'))
 
@@ -17,6 +17,15 @@ interface TemplatesViewProps {
   templates: WorkflowTemplate[]
   onSave: (draft: WorkflowDraft) => Promise<WorkflowTemplate>
   onDelete: (id: string) => Promise<void>
+}
+
+function getTemplateVisualStepCount(template: WorkflowTemplate): number {
+  const flattenedCount = template.steps.reduce((count, step) => {
+    if (isParallelGroup(step)) return count + step.parallel.length
+    return count + 1
+  }, 0)
+  const hasBranch = template.steps.some((step) => isParallelGroup(step))
+  return flattenedCount + (hasBranch ? 1 : 0)
 }
 
 export function TemplatesView({
@@ -129,10 +138,18 @@ export function TemplatesView({
     void handleCanvasSave(pendingStepsRef.current ?? selectedTemplate.steps)
   }, [handleCanvasSave, selectedTemplate])
 
+  const handleExportSelected = useCallback(() => {
+    if (!selectedTemplate) return
+    void window.api.exportTemplate(selectedTemplate.id)
+  }, [selectedTemplate])
+
   return (
     <section className="templates-view">
       {/* Sidebar */}
-      <aside className="templates-sidebar" style={sidebarCollapsed ? { width: 40, minWidth: 40, padding: 0 } : undefined}>
+      <aside
+        className={`templates-sidebar${sidebarCollapsed ? ' templates-sidebar-collapsed' : ''}`}
+        style={sidebarCollapsed ? { width: 40, minWidth: 40, padding: 0 } : undefined}
+      >
         {sidebarCollapsed ? (
           <div style={{ display: 'flex', justifyContent: 'center', paddingTop: 10 }}>
             <button
@@ -147,7 +164,7 @@ export function TemplatesView({
         ) : (
           <>
             <div className="templates-sidebar-head">
-              <h2>Templates</h2>
+              <h2>模板</h2>
               <div style={{ display: 'flex', gap: 4, alignItems: 'center' }}>
                 <button
                   type="button"
@@ -155,7 +172,7 @@ export function TemplatesView({
                   style={{ padding: '5px 10px', fontSize: 11 }}
                   onClick={() => void handleNew()}
                 >
-                  + New
+                  <Plus size={14} /> 新建
                 </button>
                 <button
                   type="button"
@@ -170,7 +187,7 @@ export function TemplatesView({
 
             <div className="templates-sidebar-list">
               {sortedTemplates.map((template) => {
-                const stepCount = template.steps.length
+                const stepCount = getTemplateVisualStepCount(template)
                 return (
                   <button
                     key={template.id}
@@ -219,43 +236,56 @@ export function TemplatesView({
           <>
             {/* Editor header */}
             <div className="templates-editor-head">
-              <span className={`dirty-dot ${isDirty ? 'visible' : ''}`} title={isDirty ? 'Unsaved changes' : ''} />
-              <input
-                className="templates-name-input"
-                value={editName}
-                placeholder="Template Name"
-                onChange={(e) => {
-                  setEditName(e.target.value)
-                  markDirty()
-                }}
-              />
-              <button
-                type="button"
-                className="btn btn-primary"
-                disabled={!isDirty || saving}
-                onClick={handleCanvasSaveFromButton}
-              >
-                {saving ? 'Saving…' : 'Save'}
-              </button>
-              <button
-                type="button"
-                className="btn"
-                onClick={() => void handleDuplicate()}
-                disabled={saving}
-              >
-                Duplicate
-              </button>
-              <button
-                type="button"
-                className="btn btn-danger"
-                onClick={() => void handleDelete()}
-              >
-                Delete
-              </button>
+              <div className="templates-editor-title-row">
+                <span className={`dirty-dot ${isDirty ? 'visible' : ''}`} title={isDirty ? 'Unsaved changes' : ''} />
+                <input
+                  className="templates-name-input"
+                  value={editName}
+                  placeholder="Template Name"
+                  onChange={(e) => {
+                    setEditName(e.target.value)
+                    markDirty()
+                  }}
+                />
+                <span className="tag-green templates-step-count">{getTemplateVisualStepCount(selectedTemplate)} steps</span>
+              </div>
+              <div className="templates-editor-actions">
+                <button
+                  type="button"
+                  className="btn"
+                  onClick={() => void handleDuplicate()}
+                  disabled={saving}
+                >
+                  <Copy size={14} /> 复制
+                </button>
+                <button
+                  type="button"
+                  className="btn"
+                  onClick={handleExportSelected}
+                  disabled={saving}
+                >
+                  <Download size={14} /> 导出
+                </button>
+                <button
+                  type="button"
+                  className="btn btn-danger"
+                  onClick={() => void handleDelete()}
+                >
+                  <Trash2 size={14} /> 删除
+                </button>
+                <button
+                  type="button"
+                  className="btn btn-primary"
+                  disabled={!isDirty || saving}
+                  onClick={handleCanvasSaveFromButton}
+                >
+                  <Save size={14} /> {saving ? '保存中…' : '保存'}
+                </button>
+              </div>
             </div>
 
             {/* Canvas */}
-            <div style={{ flex: 1, minHeight: 0 }}>
+            <div className="workflow-canvas" style={{ flex: 1, minHeight: 0 }}>
               <Suspense fallback={<div style={{ padding: 20, color: '#9aa3b5' }}>Loading canvas…</div>}>
                 <WorkflowCanvas
                   agents={agents}

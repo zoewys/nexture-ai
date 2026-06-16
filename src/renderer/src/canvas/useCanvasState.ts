@@ -175,7 +175,11 @@ export function useCanvasState({
   const onConnect: OnConnect = useCallback(
     (connection) => {
       pushHistory()
-      setEdges((eds) => addEdge(connection, eds))
+      setEdges((eds) => addEdge({
+        ...connection,
+        type: 'conditional',
+        className: 'workflow-canvas-edge'
+      }, eds))
     },
     [setEdges, pushHistory]
   )

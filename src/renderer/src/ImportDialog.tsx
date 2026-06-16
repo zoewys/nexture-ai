@@ -1,4 +1,5 @@
 import { useState, useCallback, useEffect } from 'react'
+import { Check, RotateCcw } from 'lucide-react'
 
 interface ImportPreviewItem {
   total: number
@@ -84,7 +85,9 @@ export function ImportDialog({ filePath, preview, onImport, onClose }: ImportDia
                 className={`data-item${item.required ? ' required' : ''}`}
                 onClick={() => toggle(item.key)}
               >
-                <div className={`cb${selected.has(item.key) ? ' checked' : ''}${item.required ? ' disabled' : ''}`} />
+                <div className={`cb${selected.has(item.key) ? ' checked' : ''}${item.required ? ' disabled' : ''}`}>
+                  {selected.has(item.key) && <Check size={11} />}
+                </div>
                 <div className="data-item-info">
                   <div className="data-item-label">{item.label}</div>
                   <div className="data-item-meta">
@@ -100,7 +103,7 @@ export function ImportDialog({ filePath, preview, onImport, onClose }: ImportDia
           })}
 
           <div className="restart-notice">
-            <div className="icon">⟳</div>
+            <div className="icon"><RotateCcw size={16} /></div>
             <div className="text"><strong>导入后需要重启应用</strong><br/>完成导入后将自动加载新数据。</div>
           </div>
         </div>
