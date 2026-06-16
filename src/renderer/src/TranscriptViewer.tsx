@@ -14,6 +14,8 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react'
 import {
   BookOpen,
+  ChevronDown,
+  ChevronUp,
   Check,
   CheckCheck,
   Circle,
@@ -250,6 +252,7 @@ type ChatBlock =
   | { kind: 'system'; text: string }
   | { kind: 'thinking'; text: string }
   | { kind: 'tool'; text: string }
+  | { kind: 'todo'; output: unknown; ok: boolean }
   | { kind: 'error'; message: string }
   | { kind: 'permission'; request: PermissionRequestPayload }
 
@@ -323,6 +326,7 @@ function groupEvents(events: AgentEvent[]): Block[] {
 function groupChatEvents(events: AgentEvent[]): ChatBlock[] {
   const blocks: ChatBlock[] = []
   let pendingAssistant = ''
+  const toolNames = new Map<string, string>()
 
   const flushAssistant = () => {
     if (!pendingAssistant) return
@@ -365,12 +369,17 @@ function groupChatEvents(events: AgentEvent[]): ChatBlock[] {
         break
       case 'tool-call': {
         flushAssistant()
+        toolNames.set(ev.id, ev.name)
         const target = toolTarget(ev.input)
         blocks.push({ kind: 'tool', text: target ? `${ev.name} · ${target}` : ev.name })
         break
       }
       case 'tool-result': {
         flushAssistant()
+        if (toolNames.get(ev.id) === 'todo_write') {
+          blocks.push({ kind: 'todo', output: ev.output, ok: ev.ok })
+          break
+        }
         const summary = resultSummary(ev.output)
         blocks.push({ kind: 'tool', text: ev.ok ? `Done${summary ? ` · ${summary}` : ''}` : `Failed${summary ? ` · ${summary}` : ''}` })
         break
@@ -505,7 +514,7 @@ function BlockView({
             <span className="cli-think-dot" />
             Thinking
             <span className="cli-think-toggle">
-              {thinkExp ? '▲ Collapse' : needsTruncation ? '▼ Expand' : '▼ Show'}
+              {thinkExp ? <><ChevronUp size={13} /> Collapse</> : <><ChevronDown size={13} /> {needsTruncation ? 'Expand' : 'Show'}</>}
             </span>
           </div>
           <pre className="cli-think-body">{displayText}</pre>
@@ -771,6 +780,12 @@ function ChatTranscript({ events }: { events: AgentEvent[] }): JSX.Element {
             )
           case 'tool':
             return <div key={index} className="chat-system chat-tool">{block.text}</div>
+          case 'todo':
+            return (
+              <div key={index} className="chat-row chat-row-assistant">
+                <div className="chat-todo">{renderTodoResult(block.output, block.ok)}</div>
+              </div>
+            )
           case 'error':
             return (
               <div key={index} className="chat-row chat-row-assistant">
@@ -786,6 +801,51 @@ function ChatTranscript({ events }: { events: AgentEvent[] }): JSX.Element {
       <div ref={endRef} />
     </div>
   )
+}
+
+function renderTodoResult(output: unknown, ok: boolean): JSX.Element {
+  const todos = parseTodoItems(output)
+  return (
+    <>
+      <div className="chat-todo-head">
+        <ListTodo size={14} />
+        <span>todo_write</span>
+        {!ok ? <span className="chat-todo-error">failed</span> : null}
+      </div>
+      {todos.length === 0 ? (
+        <pre className="chat-todo-raw">{brief(output) ?? ''}</pre>
+      ) : (
+        <div className="chat-todo-list">
+          {todos.map((todo, index) => (
+            <div key={`${todo.status}-${index}`} className={`chat-todo-item chat-todo-${todo.status}`}>
+              {todo.status === 'completed'
+                ? <CircleCheck size={13} />
+                : <Circle size={13} />}
+              <span>{todo.content}</span>
+            </div>
+          ))}
+        </div>
+      )}
+    </>
+  )
+}
+
+function parseTodoItems(output: unknown): Array<{ status: string; content: string }> {
+  if (typeof output === 'string') {
+    return output.split('\n').flatMap((line) => {
+      const match = line.match(/^\s*\d+\.\s+\[(pending|in_progress|completed)\]\s+(.+)\s*$/)
+      return match ? [{ status: match[1], content: match[2] }] : []
+    })
+  }
+  const value = output && typeof output === 'object' ? output as Record<string, unknown> : null
+  const todos = Array.isArray(value?.todos) ? value.todos : Array.isArray(output) ? output : []
+  return todos.flatMap((item) => {
+    if (!item || typeof item !== 'object') return []
+    const todo = item as Record<string, unknown>
+    return typeof todo.content === 'string' && typeof todo.status === 'string'
+      ? [{ status: todo.status, content: todo.content }]
+      : []
+  })
 }
 
 function ProcessTranscript({ events }: { events: AgentEvent[] }): JSX.Element {

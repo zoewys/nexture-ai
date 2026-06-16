@@ -4,15 +4,15 @@ import { tool } from 'ai'
 import { z } from 'zod'
 import type { PermissionGuard } from './PermissionGuard'
 
-export type FileChangedCallback = (filePath: string, op: 'create' | 'modify') => void
+export type FileChangedCallback = (filePath: string, op: 'create' | 'modify' | 'delete') => void
 
-const FILE_PATH_DESCRIPTION = '文件路径。相对路径会按当前项目目录解析；也可以传绝对路径'
+const FILE_PATH_DESCRIPTION = 'File path. Relative paths are resolved from the current project directory; absolute paths are accepted.'
 
 export function createFileWriteTool(cwd: string, guard: PermissionGuard, onFileChanged?: FileChangedCallback) {
   return tool({
     inputSchema: z.object({
       file_path: z.string().describe(FILE_PATH_DESCRIPTION),
-      content: z.string().describe('要写入的内容')
+      content: z.string().describe('Content to write. Use file_read first when overwriting a file you did not just create.')
     }),
     execute: async (input: { file_path: string; content: string }) => {
       const filePath = resolveToolPath(cwd, input.file_path)

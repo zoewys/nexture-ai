@@ -86,6 +86,21 @@ test('permission requests time out as denied', async () => {
   assert.equal(await guard.request('bash', 'sleep'), false)
 })
 
+test('headless default mode denies immediately with a clear system event instead of waiting for UI approval', async () => {
+  const { PermissionGuard } = await importPermissionGuard()
+  const events = []
+  const guard = new PermissionGuard('default', (event) => events.push(event), { headless: true })
+
+  const result = await Promise.race([
+    guard.request('bash', 'pnpm test'),
+    delay(20).then(() => 'pending')
+  ])
+
+  assert.equal(result, false)
+  assert.equal(events[0].kind, 'error')
+  assert.match(events[0].message, /headless|unattended|无人值守/i)
+})
+
 test('global permission responder routes approvals to the matching guard', async () => {
   const { PermissionGuard, respondToPermissionRequest } = await importPermissionGuard()
   const events = []

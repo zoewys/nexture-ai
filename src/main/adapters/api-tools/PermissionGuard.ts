@@ -15,13 +15,24 @@ export class PermissionGuard {
 
   constructor(
     private readonly mode: PermissionMode,
-    private readonly emitEvent: (event: AgentEvent) => void
+    private readonly emitEvent: (event: AgentEvent) => void,
+    private readonly options: { headless?: boolean } = {}
   ) {}
 
   async request(toolName: string, description: string): Promise<boolean> {
     if (this.mode === 'bypassPermissions') return true
     if (this.mode === 'plan') return false
     if (this.mode === 'acceptEdits' && isEditTool(toolName)) return true
+
+    if (this.options.headless) {
+      this.emitEvent({
+        kind: 'error',
+        recoverable: false,
+        message: `Headless API run cannot wait for UI permission approval. Tool "${toolName}" was denied; use bypassPermissions or pre-authorize this run.`,
+        raw: { toolName, description }
+      })
+      return false
+    }
 
     const requestId = randomUUID()
     this.emitEvent({

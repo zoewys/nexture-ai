@@ -26,6 +26,7 @@ import {
   type ReflectionEngineConfig,
   type AppSettings,
   type ApiProviderConfig,
+  type ApiCallLogEntry,
   type FeishuConnectionStatus,
   type ExportOptions,
   type ImportPreview,
@@ -97,6 +98,18 @@ const api = {
 
   respondPermission: (requestId: string, allowed: boolean): Promise<void> =>
     ipcRenderer.invoke(IPC.permissionRespond, requestId, allowed),
+
+  listApiLogs: (limit?: number): Promise<ApiCallLogEntry[]> =>
+    ipcRenderer.invoke(IPC.apiLogsList, limit),
+
+  getApiLog: (id: string): Promise<ApiCallLogEntry | null> =>
+    ipcRenderer.invoke(IPC.apiLogsGet, id),
+
+  clearApiLogs: (): Promise<void> =>
+    ipcRenderer.invoke(IPC.apiLogsClear),
+
+  openApiLogDir: (): Promise<string> =>
+    ipcRenderer.invoke(IPC.apiLogsOpenDir),
 
   listAgents: (): Promise<AgentDefinition[]> => ipcRenderer.invoke(IPC.agentsList),
 

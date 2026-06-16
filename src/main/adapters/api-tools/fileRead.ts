@@ -3,14 +3,14 @@ import { isAbsolute, resolve } from 'node:path'
 import { tool } from 'ai'
 import { z } from 'zod'
 
-const FILE_PATH_DESCRIPTION = '文件路径。相对路径会按当前项目目录解析；也可以传绝对路径'
+const FILE_PATH_DESCRIPTION = 'File path to read. Relative paths are resolved from the current project directory; absolute paths are accepted.'
 
 export function createFileReadTool(cwd: string) {
   return tool({
     inputSchema: z.object({
       file_path: z.string().describe(FILE_PATH_DESCRIPTION),
-      offset: z.number().optional().describe('起始行号（从 0 开始）'),
-      limit: z.number().optional().describe('最大读取行数，默认 2000')
+      offset: z.number().optional().describe('Zero-based starting line. Use this with limit for large files.'),
+      limit: z.number().optional().describe('Maximum number of lines to return. Defaults to 2000.')
     }),
     execute: async (input: { file_path: string; offset?: number; limit?: number }) => {
       const filePath = resolveToolPath(cwd, input.file_path)

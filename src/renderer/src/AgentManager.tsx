@@ -177,35 +177,63 @@ export function AgentManager({ agents, clis, modelCatalog, onSave, onDelete, onC
             </div>
 
             {draft.vendor === 'api' && (
-              <div className="field-row">
-                <label className="field field-grow">
-                  <span>API 供应商</span>
-                  <Select
-                    value={selectedProvider?.id ?? ''}
-                    onChange={(apiProviderId) => {
-                      const provider = providerState.providers.find((item) => item.id === apiProviderId)
-                      setDraft((d) => ({ ...d, apiProviderId, model: provider?.defaultModel ?? provider?.models[0] ?? '' }))
-                    }}
-                    disabled={providerState.loading || providerState.providers.length === 0}
-                  >
-                    {providerState.providers.map((provider) => (
-                      <Select.Item key={provider.id} value={provider.id}>{provider.name}</Select.Item>
-                    ))}
-                  </Select>
-                </label>
-                <label className="field field-grow">
-                  <span>Model</span>
-                  <Select
-                    value={draft.model || selectedProvider?.defaultModel || apiModels[0] || ''}
-                    onChange={(model) => setDraft((d) => ({ ...d, model }))}
-                    disabled={apiModels.length === 0}
-                  >
-                    {apiModels.map((apiModel) => (
-                      <Select.Item key={apiModel} value={apiModel}>{apiModel}</Select.Item>
-                    ))}
-                  </Select>
-                </label>
-              </div>
+              <>
+                <div className="field-row">
+                  <label className="field field-grow">
+                    <span>API 供应商</span>
+                    <Select
+                      value={selectedProvider?.id ?? ''}
+                      onChange={(apiProviderId) => {
+                        const provider = providerState.providers.find((item) => item.id === apiProviderId)
+                        setDraft((d) => ({ ...d, apiProviderId, model: provider?.defaultModel ?? provider?.models[0] ?? '' }))
+                      }}
+                      disabled={providerState.loading || providerState.providers.length === 0}
+                    >
+                      {providerState.providers.map((provider) => (
+                        <Select.Item key={provider.id} value={provider.id}>{provider.name}</Select.Item>
+                      ))}
+                    </Select>
+                  </label>
+                  <label className="field field-grow">
+                    <span>Model</span>
+                    <Select
+                      value={draft.model || selectedProvider?.defaultModel || apiModels[0] || ''}
+                      onChange={(model) => setDraft((d) => ({ ...d, model }))}
+                      disabled={apiModels.length === 0}
+                    >
+                      {apiModels.map((apiModel) => (
+                        <Select.Item key={apiModel} value={apiModel}>{apiModel}</Select.Item>
+                      ))}
+                    </Select>
+                  </label>
+                </div>
+                <div className="field-row">
+                  <label className="field field-grow">
+                    <span>Temperature</span>
+                    <input
+                      type="number"
+                      min="0"
+                      max="2"
+                      step="0.1"
+                      value={draft.apiTemperature ?? ''}
+                      placeholder="0.2"
+                      onChange={(e) => setDraft((d) => ({ ...d, apiTemperature: parseOptionalFloat(e.target.value) }))}
+                    />
+                  </label>
+                  <label className="field field-grow">
+                    <span>Top P</span>
+                    <input
+                      type="number"
+                      min="0"
+                      max="1"
+                      step="0.05"
+                      value={draft.apiTopP ?? ''}
+                      placeholder="1"
+                      onChange={(e) => setDraft((d) => ({ ...d, apiTopP: parseOptionalFloat(e.target.value) }))}
+                    />
+                  </label>
+                </div>
+              </>
             )}
 
             {draft.vendor === 'codex' && (
@@ -252,6 +280,11 @@ export function AgentManager({ agents, clis, modelCatalog, onSave, onDelete, onC
       </div>
     </div>
   )
+}
+
+function parseOptionalFloat(value: string): number | undefined {
+  const parsed = Number.parseFloat(value.trim())
+  return Number.isFinite(parsed) ? parsed : undefined
 }
 
 function permissionModeLabel(mode: PermissionMode): string {

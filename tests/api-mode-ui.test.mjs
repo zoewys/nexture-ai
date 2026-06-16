@@ -27,6 +27,10 @@ test('settings panel embeds ProviderSettings between CLI and data management sec
   assert.match(settings, /const providerState = useProviders\(\)/)
   assert.match(settings, /API 供应商/)
   assert.match(settings, /<ProviderSettings \{\.\.\.providerState\} \/>/)
+  assert.match(settings, /API 调用日志/)
+  assert.match(settings, /listApiLogs\(\)/)
+  assert.match(settings, /clearApiLogs\(\)/)
+  assert.match(settings, /openApiLogDir\(\)/)
 })
 
 test('ProviderSettings implements compact provider list and inline form with lucide actions', () => {
@@ -42,6 +46,8 @@ test('ProviderSettings implements compact provider list and inline form with luc
   assert.match(component, /Pencil/)
   assert.match(component, /Trash2/)
   assert.match(component, /Plus/)
+  assert.match(component, /maxOutputTokens/)
+  assert.match(component, /最大输出 Tokens/)
 })
 
 test('single run panel supports API vendor tabs, provider selection, and API run config', () => {
@@ -55,6 +61,13 @@ test('single run panel supports API vendor tabs, provider selection, and API run
   assert.match(panel, /apiProviderId: vendor === 'api' \? selectedProviderId/)
   assert.match(panel, /vendor === 'codex' &&/)
   assert.match(panel, /vendor === 'api'/)
+  assert.match(panel, /apiMaxSteps/)
+  assert.match(panel, /apiTemperature/)
+  assert.match(panel, /apiTopP/)
+  assert.match(panel, /attachments: attachedFiles\.map/)
+  assert.match(panel, /Max steps/)
+  assert.match(panel, /Temperature/)
+  assert.match(panel, /Top P/)
 })
 
 test('agent manager supports API vendor tabs and persists apiProviderId', () => {
@@ -66,6 +79,10 @@ test('agent manager supports API vendor tabs and persists apiProviderId', () => 
   assert.match(manager, /draft\.vendor === 'api'/)
   assert.match(manager, /providerState\.providers/)
   assert.match(manager, /setDraft\(\(d\) => \(\{[\s\S]*apiProviderId/)
+  assert.match(manager, /apiTemperature/)
+  assert.match(manager, /apiTopP/)
+  assert.match(manager, /Temperature/)
+  assert.match(manager, /Top P/)
 })
 
 test('transcript viewer renders permission request cards and responds through preload', () => {
@@ -78,6 +95,10 @@ test('transcript viewer renders permission request cards and responds through pr
   assert.match(transcript, /LockKeyhole/)
   assert.match(transcript, /Check/)
   assert.match(transcript, /X/)
+  assert.match(transcript, /renderTodoResult/)
+  assert.match(transcript, /chat-todo/)
+  assert.match(transcript, /todo_write/)
+  assert.match(transcript, /ListTodo/)
 })
 
 test('styles define provider, vendor tab, and permission request classes', () => {

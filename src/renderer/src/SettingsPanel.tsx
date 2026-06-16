@@ -1,6 +1,6 @@
 import { useCallback, useEffect, useState } from 'react'
-import { Bot, Code2, Download, MessageSquare, RefreshCw, Upload } from 'lucide-react'
-import type { AppSettings, FeishuConnectionStatus, FeishuConfig } from '@shared/types'
+import { Bot, Code2, Download, FolderOpen, MessageSquare, RefreshCw, Trash2, Upload } from 'lucide-react'
+import type { ApiCallLogEntry, AppSettings, FeishuConnectionStatus, FeishuConfig } from '@shared/types'
 import { DEFAULT_FEISHU_CONFIG } from '@shared/types'
 import { ExportDialog } from './ExportDialog'
 import { ImportDialog } from './ImportDialog'
@@ -32,6 +32,8 @@ export function SettingsPanel({ settings, loading, onSave }: SettingsPanelProps)
   const [showImport, setShowImport] = useState(false)
   const [importPreview, setImportPreview] = useState<any>(null)
   const [importFilePath, setImportFilePath] = useState('')
+  const [apiLogs, setApiLogs] = useState<ApiCallLogEntry[]>([])
+  const [apiLogsLoading, setApiLogsLoading] = useState(false)
   const providerState = useProviders()
   const [feishuDraft, setFeishuDraft] = useState<FeishuConfig>({
     ...DEFAULT_FEISHU_CONFIG,
@@ -56,6 +58,17 @@ export function SettingsPanel({ settings, loading, onSave }: SettingsPanelProps)
   }, [])
 
   useEffect(() => { void refresh() }, [refresh])
+
+  const refreshApiLogs = useCallback(async () => {
+    setApiLogsLoading(true)
+    try {
+      setApiLogs((await window.api.listApiLogs()).slice(0, 20))
+    } finally {
+      setApiLogsLoading(false)
+    }
+  }, [])
+
+  useEffect(() => { void refreshApiLogs() }, [refreshApiLogs])
 
   useEffect(() => {
     return window.api.onCliInstallProgress((cli, message) => {
@@ -122,6 +135,11 @@ export function SettingsPanel({ settings, loading, onSave }: SettingsPanelProps)
       setFeishuTesting(false)
     }
   }, [])
+
+  const handleClearApiLogs = useCallback(async () => {
+    await window.api.clearApiLogs()
+    await refreshApiLogs()
+  }, [refreshApiLogs])
 
   return (
     <div className="settings-panel">
@@ -210,6 +228,47 @@ export function SettingsPanel({ settings, loading, onSave }: SettingsPanelProps)
           </div>
         </div>
         <ProviderSettings {...providerState} />
+      </section>
+
+      <hr className="settings-divider" />
+
+      <section className="settings-section">
+        <div className="settings-section-head">
+          <div>
+            <h3 className="settings-section-title">API 调用日志</h3>
+            <p className="settings-section-desc">查看最近的 API 调用结果、模型、耗时和 token 用量。</p>
+          </div>
+          <div className="api-log-actions">
+            <button type="button" className="settings-refresh-btn" onClick={() => void refreshApiLogs()} disabled={apiLogsLoading} title="刷新 API 调用日志">
+              <RefreshCw size={18} />
+            </button>
+            <button type="button" className="settings-refresh-btn" onClick={() => void window.api.openApiLogDir()} title="打开 API 日志目录">
+              <FolderOpen size={18} />
+            </button>
+            <button type="button" className="settings-refresh-btn danger" onClick={() => void handleClearApiLogs()} title="清空 API 调用日志">
+              <Trash2 size={18} />
+            </button>
+          </div>
+        </div>
+        <div className="api-log-list">
+          {apiLogs.length === 0 ? (
+            <div className="api-log-empty">{apiLogsLoading ? '加载中...' : '暂无 API 调用日志'}</div>
+          ) : (
+            apiLogs.map((log) => (
+              <div key={log.id} className={`api-log-row api-log-${log.status}`}>
+                <div className="api-log-main">
+                  <strong>{log.providerName ?? 'API'}{log.model ? ` / ${log.model}` : ''}</strong>
+                  <span>{log.source} · {new Date(log.timestamp).toLocaleString()}</span>
+                </div>
+                <div className="api-log-meta">
+                  <span>{log.status}</span>
+                  {log.durationMs !== undefined ? <span>{log.durationMs}ms</span> : null}
+                  {log.usage ? <span>{log.usage.inputTokens + log.usage.outputTokens} tokens</span> : null}
+                </div>
+              </div>
+            ))
+          )}
+        </div>
       </section>
 
       <hr className="settings-divider" />

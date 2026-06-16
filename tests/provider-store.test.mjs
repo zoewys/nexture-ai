@@ -111,6 +111,25 @@ test('save updates an existing provider instead of duplicating it', () =>
     assert.equal(store.getDecrypted(saved.id).apiKey, 'sk-updated')
   }))
 
+test('save persists API generation limits such as maxOutputTokens', () =>
+  withTempDir(async (dir) => {
+    const { ProviderStore } = await importProviderStore(dir)
+    const store = new ProviderStore()
+
+    const saved = store.save({
+      name: 'Long Output Provider',
+      format: 'openai-compatible',
+      apiKey: 'sk-limit',
+      baseUrl: 'https://example.com/v1',
+      models: ['long-model'],
+      defaultModel: 'long-model',
+      maxOutputTokens: 16384
+    })
+
+    assert.equal(store.list()[0].maxOutputTokens, 16384)
+    assert.equal(store.getDecrypted(saved.id).maxOutputTokens, 16384)
+  }))
+
 test('remove deletes a provider by id', () =>
   withTempDir(async (dir) => {
     const { ProviderStore } = await importProviderStore(dir)

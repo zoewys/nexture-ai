@@ -9,10 +9,11 @@ const MAX_RESULTS = 500
 
 export function createGrepTool(cwd: string) {
   return tool({
+    description: 'Search file contents with a regular expression. Use this for text search; use glob for file names and ls for one directory level.',
     inputSchema: z.object({
-      pattern: z.string().describe('搜索的正则表达式'),
-      path: z.string().optional().describe('搜索的文件或目录，默认为项目根目录'),
-      include: z.string().optional().describe('文件过滤模式，如 "*.ts"')
+      pattern: z.string().describe('JavaScript-compatible regular expression to search for. ripgrep is used when available.'),
+      path: z.string().optional().describe('File or directory to search. Relative paths are resolved from the current project directory. Defaults to the project directory.'),
+      include: z.string().optional().describe('Optional glob filter for files to include, such as "*.ts".')
     }),
     execute: async (input: { pattern: string; path?: string; include?: string }) => {
       let regex: RegExp
@@ -25,7 +26,7 @@ export function createGrepTool(cwd: string) {
       const searchPath = input.path ? (isAbsolute(input.path) ? input.path : resolve(cwd, input.path)) : cwd
       if (!existsSync(searchPath)) return `错误: 路径不存在: ${searchPath}`
 
-      const rg = await runRipgrep(input.pattern, searchPath, input.include)
+      const rg = await runRipgrep(input.pattern, searchPath, cwd, input.include)
       if (rg.available) return rg.output
 
       return runNodeGrep(searchPath, regex, input.include, cwd)
@@ -33,7 +34,7 @@ export function createGrepTool(cwd: string) {
   })
 }
 
-function runRipgrep(pattern: string, searchPath: string, include?: string): Promise<{ available: boolean; output: string }> {
+function runRipgrep(pattern: string, searchPath: string, cwd: string, include?: string): Promise<{ available: boolean; output: string }> {
   return new Promise((resolveResult) => {
     const args = ['--line-number', '--no-heading', '--color', 'never', pattern, searchPath, '-g', '!node_modules', '-g', '!.git']
     if (include) args.push('-g', include)
@@ -53,12 +54,23 @@ function runRipgrep(pattern: string, searchPath: string, include?: string): Prom
     })
     child.on('close', (code) => {
       if (code === 0 || code === 1) {
-        resolveResult({ available: true, output: limitLines(output.trimEnd(), MAX_RESULTS) })
+        resolveResult({ available: true, output: limitLines(normalizeRgOutput(output.trimEnd(), cwd), MAX_RESULTS) })
       } else {
         resolveResult({ available: true, output: `错误: ${stderr.trim() || `rg exited with ${code}`}` })
       }
     })
   })
+}
+
+function normalizeRgOutput(output: string, cwd: string): string {
+  if (!output) return ''
+  return output.split('\n').map((line) => {
+    const match = line.match(/^(.+?):(\d+):(.*)$/)
+    if (!match) return line
+    const rawPath = match[1]
+    const rel = isAbsolute(rawPath) ? normalizePath(relative(cwd, rawPath)) : normalizePath(rawPath)
+    return `${rel}:${match[2]}:${match[3]}`
+  }).join('\n')
 }
 
 function runNodeGrep(searchPath: string, regex: RegExp, include: string | undefined, cwd: string): string {

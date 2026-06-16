@@ -143,6 +143,51 @@ test('file_edit replaces exact text and handles mismatch cases', async () => {
   }
 })
 
+test('file_edit applies multiple edits in order with per-edit replace_all support', async () => {
+  const { dir, cleanup } = tempProject()
+  try {
+    const { createFileEditTool } = await importTs('src/main/adapters/api-tools/fileEdit.ts')
+    const file = join(dir, 'multi.txt')
+    writeFileSync(file, 'alpha beta beta gamma', 'utf8')
+    const changes = []
+    const tool = createFileEditTool(dir, allowGuard(), (filePath, op) => changes.push([filePath, op]))
+
+    const output = await tool.execute({
+      file_path: 'multi.txt',
+      edits: [
+        { old_string: 'alpha', new_string: 'ALPHA' },
+        { old_string: 'beta', new_string: 'BETA', replace_all: true },
+        { old_string: 'gamma', new_string: 'GAMMA' }
+      ]
+    })
+
+    assert.match(output, /3 edits|3 个编辑|success/i)
+    assert.equal(readFileSync(file, 'utf8'), 'ALPHA BETA BETA GAMMA')
+    assert.deepEqual(changes, [[file, 'modify']])
+  } finally {
+    cleanup()
+  }
+})
+
+test('ls lists one directory level with relative paths and file types', async () => {
+  const { dir, cleanup } = tempProject()
+  try {
+    await mkdir(join(dir, 'src'), { recursive: true })
+    await writeFile(join(dir, 'README.md'), 'hello')
+    await writeFile(join(dir, 'src', 'nested.ts'), 'export {}')
+    const { createLsTool } = await importTs('src/main/adapters/api-tools/ls.ts')
+    const tool = createLsTool(dir)
+
+    const output = await tool.execute({ path: '.' })
+    assert.match(output, /README\.md\s+file/)
+    assert.match(output, /src\/\s+dir/)
+    assert.doesNotMatch(output, /nested\.ts/)
+    assert.match(await tool.execute({ path: 'missing' }), /not found|不存在/i)
+  } finally {
+    cleanup()
+  }
+})
+
 test('glob matches files, excludes node_modules, and returns empty output for no matches', async () => {
   const { dir, cleanup } = tempProject()
   try {
@@ -182,21 +227,26 @@ test('grep searches content, supports include filters, handles empty matches and
   }
 })
 
-test('bash executes commands, reports exit codes, times out, and truncates output', async () => {
+test('bash executes commands, returns formatted strings, keeps cwd across calls, reports file changes, times out, and truncates output', async () => {
   const { dir, cleanup } = tempProject()
   try {
     const calls = []
+    const changes = []
+    await mkdir(join(dir, 'sub'), { recursive: true })
     const { createBashTool } = await importTs('src/main/adapters/api-tools/bash.ts')
-    const tool = createBashTool(dir, new AbortController().signal, allowGuard(calls))
+    const tool = createBashTool(dir, new AbortController().signal, allowGuard(calls), (filePath, op) => changes.push([filePath, op]))
 
-    assert.deepEqual(await tool.execute({ command: 'echo hello' }), { exitCode: 0, output: 'hello\n' })
-    assert.equal((await tool.execute({ command: 'exit 7' })).exitCode, 7)
+    assert.match(await tool.execute({ command: 'echo hello' }), /exit code: 0\nhello/)
+    assert.match(await tool.execute({ command: 'cd sub' }), /exit code: 0/)
+    assert.match(await tool.execute({ command: 'pwd' }), new RegExp(join(dir, 'sub').replace(/[.*+?^${}()|[\]\\]/g, '\\$&')))
+    assert.match(await tool.execute({ command: 'exit 7' }), /exit code: 7/)
+    assert.match(await tool.execute({ command: 'printf created > created.txt' }), /exit code: 0/)
+    assert.deepEqual(changes, [[join(dir, 'sub', 'created.txt'), 'create']])
     const timedOut = await tool.execute({ command: 'sleep 999', timeout: 100 })
-    assert.notEqual(timedOut.exitCode, 0)
-    assert.match(timedOut.output, /超时|timed out/i)
+    assert.match(timedOut, /timed out/i)
     const truncated = await tool.execute({ command: "node -e \"process.stdout.write('x'.repeat(120000))\"" })
-    assert.match(truncated.output, /输出已截断/)
-    assert.deepEqual(calls.map((entry) => entry[0]), ['bash', 'bash', 'bash', 'bash'])
+    assert.match(truncated, /output truncated|输出已截断/i)
+    assert.deepEqual(calls.map((entry) => entry[0]), ['bash', 'bash', 'bash', 'bash', 'bash', 'bash', 'bash'])
   } finally {
     cleanup()
   }
@@ -282,7 +332,33 @@ test('todo_write stores and replaces the full todo list', async () => {
 test('tool registry exports all API tools', () => {
   const source = readFileSync(join(root, 'src/main/adapters/api-tools/index.ts'), 'utf8')
 
-  for (const name of ['bash', 'file_read', 'file_edit', 'file_write', 'glob', 'grep', 'fetch', 'sourcegraph', 'todo_write']) {
+  for (const name of ['bash', 'ls', 'file_read', 'file_edit', 'file_write', 'glob', 'grep', 'fetch', 'sourcegraph', 'todo_write']) {
     assert.match(source, new RegExp(`${name}:`))
+  }
+})
+
+test('API tool descriptions are English model-facing instructions', () => {
+  const files = [
+    'bash.ts',
+    'fetch.ts',
+    'fileEdit.ts',
+    'fileRead.ts',
+    'fileWrite.ts',
+    'glob.ts',
+    'grep.ts',
+    'ls.ts',
+    'sourcegraph.ts',
+    'todoWrite.ts'
+  ]
+
+  for (const file of files) {
+    const absPath = join(root, 'src/main/adapters/api-tools', file)
+    const source = readFileSync(absPath, 'utf8')
+    const descriptions = [...source.matchAll(/describe\((['"`])([\s\S]*?)\1\)/g)].map((match) => match[2])
+    assert.ok(descriptions.length > 0, `${file} should describe its tool inputs`)
+    for (const description of descriptions) {
+      assert.doesNotMatch(description, /[\u4e00-\u9fff]/, `${file} has a non-English tool description: ${description}`)
+    }
+    assert.match(source, /Use|Read|Write|Search|Run|Fetch|List|Track/, `${file} should include actionable English tool guidance`)
   }
 })

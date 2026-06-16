@@ -3,9 +3,10 @@ import { z } from 'zod'
 
 export function createSourcegraphTool() {
   return tool({
+    description: 'Search public code on Sourcegraph. Use this only when local repository search is insufficient or the user asks for external code examples.',
     inputSchema: z.object({
-      query: z.string(),
-      count: z.number().optional()
+      query: z.string().describe('Sourcegraph search query. Keep it specific.'),
+      count: z.number().optional().describe('Maximum number of results to return. Defaults to 10.')
     }),
     execute: async (input: { query: string; count?: number }) => {
       const count = input.count ?? 10

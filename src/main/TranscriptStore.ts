@@ -1,7 +1,7 @@
 import { app } from 'electron'
 import { promises as fsp, existsSync, mkdirSync, readFileSync } from 'node:fs'
 import { join } from 'node:path'
-import type { AgentEvent } from '@shared/types'
+import type { AgentEvent, ApiConversationMessage } from '@shared/types'
 
 /** One line in a transcript .jsonl file. */
 export type TranscriptRecord =
@@ -78,6 +78,16 @@ export class TranscriptStore {
 
   readSessionTimeline(sessionIds: string[]): TranscriptRecord[] {
     const records: TranscriptRecord[] = []
+    let pendingDelta = ''
+    const flushDeltaMessage = (): void => {
+      if (!pendingDelta) return
+      records.push({
+        kind: 'event',
+        event: { kind: 'message', role: 'assistant', text: pendingDelta }
+      })
+      pendingDelta = ''
+    }
+
     for (const sessionId of sessionIds) {
       const path = this.getTranscriptPath(sessionId)
       if (!existsSync(path)) continue
@@ -86,15 +96,29 @@ export class TranscriptStore {
         try {
           const rec = JSON.parse(raw) as TranscriptRecord
           if (rec.kind === 'user') {
+            flushDeltaMessage()
             records.push(rec)
-          } else if (rec.kind === 'event' && rec.event.kind === 'message') {
-            records.push(rec)
+          } else if (rec.kind === 'event') {
+            if (rec.event.kind === 'message-delta') {
+              pendingDelta += rec.event.text
+            } else if (rec.event.kind === 'message') {
+              if (pendingDelta && rec.event.text.startsWith(pendingDelta)) {
+                pendingDelta = ''
+              } else {
+                flushDeltaMessage()
+              }
+              records.push(rec)
+            } else if (rec.event.kind === 'tool-call' || rec.event.kind === 'tool-result') {
+              flushDeltaMessage()
+              records.push(rec)
+            }
           }
         } catch {
           continue
         }
       }
     }
+    flushDeltaMessage()
     return records
   }
 
@@ -104,6 +128,66 @@ export class TranscriptStore {
       newText,
       '这是继续之前的逻辑会话。Use the transcript below as the prior context across earlier session segments:'
     )
+  }
+
+  buildReplayMessagesFromTimeline(sessionIds: string[], newText: string): ApiConversationMessage[] {
+    const records = this.readSessionTimeline(sessionIds)
+    const messages: ApiConversationMessage[] = []
+    const resultIds = new Set<string>()
+    const calls = new Map<string, { toolName: string; input: unknown }>()
+    for (const rec of records) {
+      if (rec.kind !== 'event') continue
+      if (rec.event.kind === 'tool-result') resultIds.add(rec.event.id)
+      if (rec.event.kind === 'tool-call') {
+        calls.set(rec.event.id, { toolName: rec.event.name, input: rec.event.input })
+      }
+    }
+
+    let pendingToolCallParts: Array<Record<string, unknown>> = []
+    const flushToolCalls = (): void => {
+      if (pendingToolCallParts.length === 0) return
+      messages.push({ role: 'assistant', content: pendingToolCallParts })
+      pendingToolCallParts = []
+    }
+
+    for (const rec of records) {
+      if (rec.kind === 'user') {
+        flushToolCalls()
+        messages.push({ role: 'user', content: rec.text })
+        continue
+      }
+
+      const event = rec.event
+      if (event.kind === 'message') {
+        flushToolCalls()
+        messages.push({ role: 'assistant', content: event.text })
+      } else if (event.kind === 'tool-call') {
+        if (!resultIds.has(event.id)) continue
+        pendingToolCallParts.push({
+          type: 'tool-call',
+          toolCallId: event.id,
+          toolName: event.name,
+          input: event.input
+        })
+      } else if (event.kind === 'tool-result') {
+        const call = calls.get(event.id)
+        if (!call) continue
+        flushToolCalls()
+        messages.push({
+          role: 'tool',
+          content: [{
+            type: 'tool-result',
+            toolCallId: event.id,
+            toolName: call.toolName,
+            input: call.input,
+            output: event.output
+          }]
+        })
+      }
+    }
+    flushToolCalls()
+    messages.push({ role: 'user', content: newText })
+    return messages
   }
 
   private buildTimelinePrompt(

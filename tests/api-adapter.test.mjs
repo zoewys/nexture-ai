@@ -1,6 +1,7 @@
 import assert from 'node:assert/strict'
-import { mkdirSync, mkdtempSync, readFileSync, writeFileSync } from 'node:fs'
+import { mkdirSync, mkdtempSync, readFileSync, rmSync, writeFileSync } from 'node:fs'
 import { dirname, join } from 'node:path'
+import { tmpdir } from 'node:os'
 import { test } from 'node:test'
 import { pathToFileURL, fileURLToPath } from 'node:url'
 import ts from 'typescript'
@@ -24,8 +25,8 @@ async function importApiAdapter(mocks) {
   })
   const output = transpiled.outputText
     .replace(
-      /import\s+\{\s*generateText,\s*streamText,\s*stepCountIs\s*\}\s+from\s+['"]ai['"];?/,
-      'const { generateText, streamText, stepCountIs } = globalThis.__apiAdapterMocks;'
+      /import\s+\{[^}]*\}\s+from\s+['"]ai['"];?/,
+      'const { generateText, streamText, stepCountIs, output, jsonSchema } = globalThis.__apiAdapterMocks;'
     )
     .replace(
       /import\s+\{\s*createAnthropic\s*\}\s+from\s+['"]@ai-sdk\/anthropic['"];?/,
@@ -100,6 +101,10 @@ function mocksFor(parts, calls = []) {
       }
     },
     stepCountIs: (count) => ({ stepCount: count }),
+    output: {
+      object: (input) => ({ mode: 'object', ...input })
+    },
+    jsonSchema: (schema) => ({ kind: 'json-schema', schema }),
     createAnthropic: (options) => (modelId) => ({ provider: 'anthropic', options, modelId }),
     createOpenAI: (options) => ({ chat: (modelId) => ({ provider: 'openai', options, modelId }) }),
     buildToolSet: () => ({ bash: { execute: async () => ({ exitCode: 0, output: '' }) } })
@@ -111,7 +116,26 @@ const guard = {
   respond: () => {}
 }
 
-test('ApiAdapter emits session-started first, maps text deltas, and emits turn-done on finish', async () => {
+function systemText(system) {
+  if (typeof system === 'string') return system
+  if (Array.isArray(system)) return system.map((part) => part.content).join('\n')
+  return system?.content ?? ''
+}
+
+function userText(message) {
+  if (typeof message.content === 'string') return message.content
+  return message.content.filter((part) => part.type === 'text').map((part) => part.text).join('\n')
+}
+
+function tempProject() {
+  const dir = mkdtempSync(join(tmpdir(), 'agent-studio-api-adapter-'))
+  return {
+    dir,
+    cleanup: () => rmSync(dir, { recursive: true, force: true })
+  }
+}
+
+test('ApiAdapter emits session-started first, maps text deltas, emits a full assistant message, and uses messages', async () => {
   const calls = []
   const { ApiAdapter } = await importApiAdapter(mocksFor([
     { type: 'text-delta', textDelta: 'hello' },
@@ -137,18 +161,25 @@ test('ApiAdapter emits session-started first, maps text deltas, and emits turn-d
   assert.equal(events[0].kind, 'session-started')
   assert.equal(events[0].vendor, 'api')
   assert.deepEqual(events[1], { kind: 'message-delta', text: 'hello' })
-  assert.equal(events[2].kind, 'turn-done')
-  assert.equal(events[2].sessionId, events[0].sessionId)
-  assert.equal(calls[0].prompt, 'Say hi')
-  assert.equal(calls[0].system, 'system text')
+  assert.deepEqual(events[2], { kind: 'message', role: 'assistant', text: 'hello' })
+  assert.equal(events[3].kind, 'turn-done')
+  assert.equal(events[3].sessionId, events[0].sessionId)
+  assert.equal('prompt' in calls[0], false)
+  assert.equal(calls[0].messages[0].role, 'user')
+  assert.equal(userText(calls[0].messages[0]), 'Say hi')
+  assert.match(systemText(calls[0].system), /You are an autonomous agent/i)
+  assert.match(systemText(calls[0].system), /system text/)
   assert.deepEqual(calls[0].stopWhen, { stepCount: 10 })
 })
 
-test('ApiAdapter maps tool call, tool result, usage, and finish events', async () => {
+test('ApiAdapter maps v6 tool call, tool result, usage, reasoning, denied output, and finish events', async () => {
   const { ApiAdapter } = await importApiAdapter(mocksFor([
     { type: 'tool-call', toolCallId: 'tool-1', toolName: 'bash', args: { command: 'echo hi' } },
     { type: 'tool-result', toolCallId: 'tool-1', result: { exitCode: 0, output: 'hi\n' } },
-    { type: 'step-finish', usage: { inputTokens: 3, outputTokens: 4 } },
+    { type: 'reasoning-delta', text: 'checking tools' },
+    { type: 'finish-step', usage: { inputTokens: 3, outputTokens: 4 } },
+    { type: 'tool-error', toolCallId: 'tool-2', toolName: 'grep', error: new Error('grep failed') },
+    { type: 'tool-output-denied', toolCallId: 'tool-3', toolName: 'file_write' },
     { type: 'finish' }
   ]))
   const adapter = new ApiAdapter({
@@ -170,8 +201,14 @@ test('ApiAdapter maps tool call, tool result, usage, and finish events', async (
 
   assert.deepEqual(events[1], { kind: 'tool-call', id: 'tool-1', name: 'bash', input: { command: 'echo hi' } })
   assert.deepEqual(events[2], { kind: 'tool-result', id: 'tool-1', ok: true, output: { exitCode: 0, output: 'hi\n' } })
-  assert.deepEqual(events[3], { kind: 'usage', inputTokens: 3, outputTokens: 4 })
-  assert.equal(events[4].kind, 'turn-done')
+  assert.deepEqual(events[3], { kind: 'thinking', text: 'checking tools' })
+  assert.deepEqual(events[4], { kind: 'usage', inputTokens: 3, outputTokens: 4 })
+  assert.equal(events[5].kind, 'tool-result')
+  assert.equal(events[5].id, 'tool-2')
+  assert.equal(events[5].ok, false)
+  assert.match(String(events[5].output), /grep failed/)
+  assert.deepEqual(events[6], { kind: 'tool-result', id: 'tool-3', ok: false, output: 'Tool output was denied.' })
+  assert.equal(events[7].kind, 'turn-done')
 })
 
 test('ApiAdapter emits error events for stream error parts and thrown stream errors', async () => {
@@ -284,8 +321,203 @@ test('ApiAdapter completes the turn when stream produced text but missed finish 
   }))
 
   assert.deepEqual(events[1], { kind: 'message-delta', text: 'partial' })
-  assert.equal(events[2].kind, 'turn-done')
+  assert.deepEqual(events[2], { kind: 'message', role: 'assistant', text: 'partial' })
+  assert.equal(events[3].kind, 'turn-done')
   assert.equal(calls.length, 1)
+})
+
+test('ApiAdapter builds layered system context from base prompt, environment, project rules, addDirs, and agent prompt', async () => {
+  const { dir, cleanup } = tempProject()
+  try {
+    mkdirSync(join(dir, 'src'), { recursive: true })
+    writeFileSync(join(dir, 'AGENTS.md'), '# AGENTS.md\n\nUse lucide-react icons only.', 'utf8')
+    writeFileSync(join(dir, 'package.json'), '{"name":"fixture"}', 'utf8')
+    const calls = []
+    const { ApiAdapter } = await importApiAdapter(mocksFor([{ type: 'finish' }], calls))
+    const adapter = new ApiAdapter({
+      id: 'p1',
+      name: 'OpenAI',
+      format: 'openai-compatible',
+      apiKey: 'sk-test',
+      baseUrl: 'https://openai.example/v1',
+      models: ['gpt-4o']
+    }, guard)
+
+    await collect(adapter.runTurn({
+      prompt: 'Inspect project',
+      cwd: dir,
+      addDirs: ['/tmp/shared-context'],
+      appendSystemPrompt: 'Agent-specific instruction.',
+      abortSignal: new AbortController().signal
+    }))
+
+    const text = systemText(calls[0].system)
+    assert.match(text, /You are an autonomous agent/i)
+    assert.match(text, new RegExp(dir.replace(/[.*+?^${}()|[\]\\]/g, '\\$&')))
+    assert.match(text, /Operating system:/)
+    assert.match(text, /Current date:/)
+    assert.match(text, /package\.json/)
+    assert.match(text, /src\//)
+    assert.match(text, /AGENTS\.md/)
+    assert.match(text, /Use lucide-react icons only/)
+    assert.match(text, /\/tmp\/shared-context/)
+    assert.match(text, /Agent-specific instruction\./)
+  } finally {
+    cleanup()
+  }
+})
+
+test('ApiAdapter uses tunable generation settings, max output tokens, prompt caching, and structured output', async () => {
+  const calls = []
+  const { ApiAdapter } = await importApiAdapter(mocksFor([{ type: 'finish' }], calls))
+  const adapter = new ApiAdapter({
+    id: 'p1',
+    name: 'Anthropic',
+    format: 'anthropic',
+    apiKey: 'sk-test',
+    baseUrl: 'https://anthropic.example',
+    models: ['claude-3-5'],
+    maxOutputTokens: 12000
+  }, guard)
+
+  await collect(adapter.runTurn({
+    prompt: 'Return handoff',
+    cwd: root,
+    apiTemperature: 0.15,
+    apiTopP: 0.8,
+    outputSchema: { type: 'object', required: ['summary'], properties: { summary: { type: 'string' } } },
+    abortSignal: new AbortController().signal
+  }))
+
+  assert.equal(calls[0].temperature, 0.15)
+  assert.equal(calls[0].topP, 0.8)
+  assert.equal(calls[0].maxOutputTokens, 12000)
+  assert.equal(calls[0].output.mode, 'object')
+  assert.equal(calls[0].output.name, 'workflow_handoff')
+  assert.deepEqual(calls[0].output.schema.kind, 'json-schema')
+  assert.equal(Array.isArray(calls[0].system), true)
+  assert.deepEqual(calls[0].system[0].providerOptions, {
+    anthropic: { cacheControl: { type: 'ephemeral' } }
+  })
+})
+
+test('ApiAdapter retries with schema prompt fallback when native structured output is unsupported', async () => {
+  const calls = []
+  const logs = []
+  const mocks = mocksFor([])
+  mocks.streamText = async (args) => {
+    calls.push(args)
+    if (args.output) throw new Error('response_format json_schema is not supported')
+    return {
+      fullStream: (async function* () {
+        yield { type: 'text-delta', textDelta: '{"summary":"ok","artifacts":[]}' }
+        yield { type: 'finish' }
+      })()
+    }
+  }
+  const { ApiAdapter } = await importApiAdapter(mocks)
+  const adapter = new ApiAdapter({
+    id: 'p1',
+    name: 'DeepSeek',
+    format: 'openai-compatible',
+    apiKey: 'sk-test',
+    baseUrl: 'https://deepseek.example/v1',
+    models: ['deepseek-chat']
+  }, guard, {
+    record: (entry) => {
+      logs.push(entry)
+      return { ...entry, id: 'log-1', timestamp: '2026-06-15T00:00:00.000Z' }
+    }
+  })
+
+  const events = await collect(adapter.runTurn({
+    prompt: 'Return handoff',
+    cwd: root,
+    outputSchema: { type: 'object', required: ['summary'], properties: { summary: { type: 'string' } } },
+    abortSignal: new AbortController().signal
+  }))
+
+  assert.equal(calls.length, 2)
+  assert.equal(calls[0].output.mode, 'object')
+  assert.equal(calls[1].output, undefined)
+  assert.match(systemText(calls[1].system), /Structured Output Fallback/)
+  assert.match(systemText(calls[1].system), /"required": \[\s*"summary"\s*\]/)
+  assert.deepEqual(events[1], { kind: 'message-delta', text: '{"summary":"ok","artifacts":[]}' })
+  assert.equal(logs[0].structuredOutput, 'fallback')
+})
+
+test('ApiAdapter sends image attachments as multimodal parts for likely vision API models', async () => {
+  const { dir, cleanup } = tempProject()
+  try {
+    const imagePath = join(dir, 'shot.png')
+    writeFileSync(imagePath, Buffer.from('89504e470d0a1a0a', 'hex'))
+    const calls = []
+    const { ApiAdapter } = await importApiAdapter(mocksFor([{ type: 'finish' }], calls))
+    const adapter = new ApiAdapter({
+      id: 'p1',
+      name: 'OpenAI',
+      format: 'openai-compatible',
+      apiKey: 'sk-test',
+      baseUrl: 'https://openai.example/v1',
+      models: ['gpt-4o'],
+      defaultModel: 'gpt-4o'
+    }, guard)
+
+    await collect(adapter.runTurn({
+      prompt: 'Describe the image',
+      cwd: dir,
+      attachments: [{ path: imagePath, kind: 'image', mediaType: 'image/png' }],
+      abortSignal: new AbortController().signal
+    }))
+
+    const content = calls[0].messages[0].content
+    assert.equal(Array.isArray(content), true)
+    assert.deepEqual(content[0], { type: 'text', text: 'Describe the image' })
+    assert.equal(content[1].type, 'image')
+    assert.equal(content[1].mediaType, 'image/png')
+    assert.equal(Buffer.isBuffer(content[1].image), true)
+  } finally {
+    cleanup()
+  }
+})
+
+test('ApiAdapter records API call logs and emits a compact transcript event', async () => {
+  const calls = []
+  const logs = []
+  const logStore = {
+    record: (entry) => {
+      logs.push(entry)
+      return { ...entry, id: 'log-1', timestamp: '2026-06-15T00:00:00.000Z' }
+    }
+  }
+  const { ApiAdapter } = await importApiAdapter(mocksFor([
+    { type: 'text-delta', textDelta: 'logged response' },
+    { type: 'finish-step', usage: { inputTokens: 11, outputTokens: 22 } },
+    { type: 'finish' }
+  ], calls))
+  const adapter = new ApiAdapter({
+    id: 'p1',
+    name: 'DeepSeek',
+    format: 'openai-compatible',
+    apiKey: 'sk-secret',
+    baseUrl: 'https://deepseek.example/v1',
+    models: ['deepseek-chat']
+  }, guard, logStore)
+
+  const events = await collect(adapter.runTurn({
+    prompt: 'Log this',
+    cwd: root,
+    apiLogSource: 'workflow',
+    abortSignal: new AbortController().signal
+  }))
+
+  assert.equal(logs.length, 1)
+  assert.equal(logs[0].source, 'workflow')
+  assert.equal(logs[0].status, 'success')
+  assert.equal(logs[0].providerName, 'DeepSeek')
+  assert.deepEqual(logs[0].usage, { inputTokens: 11, outputTokens: 22 })
+  assert.equal(JSON.stringify(logs).includes('sk-secret'), false)
+  assert.equal(events.some((event) => event.kind === 'system' && /API call: DeepSeek\/deepseek-chat/.test(event.text)), true)
 })
 
 test('ApiAdapter resolves Anthropic and OpenAI-compatible models with provider options', async () => {

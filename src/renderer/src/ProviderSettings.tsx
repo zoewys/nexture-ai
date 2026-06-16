@@ -21,6 +21,7 @@ interface ProviderDraft {
   baseUrl: string
   models: string[]
   defaultModel: string
+  maxOutputTokens: string
 }
 
 const EMPTY_DRAFT: ProviderDraft = {
@@ -29,7 +30,8 @@ const EMPTY_DRAFT: ProviderDraft = {
   apiKey: '',
   baseUrl: '',
   models: [],
-  defaultModel: ''
+  defaultModel: '',
+  maxOutputTokens: ''
 }
 
 const PRESETS = [
@@ -78,7 +80,8 @@ export function ProviderSettings({ providers, loading, save, remove, testConnect
       apiKey: decryptedKey,
       baseUrl: provider.baseUrl ?? '',
       models: [...provider.models],
-      defaultModel: provider.defaultModel ?? provider.models[0] ?? ''
+      defaultModel: provider.defaultModel ?? provider.models[0] ?? '',
+      maxOutputTokens: provider.maxOutputTokens ? String(provider.maxOutputTokens) : ''
     })
     setTestMessage('')
     setShowKey(false)
@@ -105,7 +108,8 @@ export function ProviderSettings({ providers, loading, save, remove, testConnect
       apiKey: draft.apiKey,
       baseUrl: draft.baseUrl.trim() || undefined,
       models,
-      defaultModel: draft.defaultModel.trim() || models[0]
+      defaultModel: draft.defaultModel.trim() || models[0],
+      maxOutputTokens: parseOptionalPositiveInt(draft.maxOutputTokens)
     })
     closeForm()
   }
@@ -129,7 +133,8 @@ export function ProviderSettings({ providers, loading, save, remove, testConnect
         apiKey: draft.apiKey,
         baseUrl: draft.baseUrl.trim() || undefined,
         models: [],
-        defaultModel: ''
+        defaultModel: '',
+        maxOutputTokens: parseOptionalPositiveInt(draft.maxOutputTokens)
       }, editingId ?? undefined)
       if (result.models.length > 0) {
         setFetchedModels(result.models)
@@ -365,6 +370,18 @@ export function ProviderSettings({ providers, loading, save, remove, testConnect
             </Select>
           </label>
 
+          <label className="pf-field">
+            <span className="pf-label">最大输出 Tokens</span>
+            <input
+              className="pf-input"
+              type="number"
+              min="1"
+              value={draft.maxOutputTokens}
+              placeholder="8192"
+              onChange={(e) => setDraft((d) => ({ ...d, maxOutputTokens: e.target.value }))}
+            />
+          </label>
+
           {testMessage ? <div className="pf-hint">{testMessage}</div> : null}
 
           <div className="pf-actions">
@@ -397,4 +414,9 @@ function providerIconClass(provider: ApiProviderConfig): string {
   if (provider.format === 'anthropic') return 'icon-anthropic'
   if (provider.format === 'openai-compatible') return 'icon-openai'
   return 'icon-custom'
+}
+
+function parseOptionalPositiveInt(value: string): number | undefined {
+  const parsed = Number.parseInt(value.trim(), 10)
+  return Number.isFinite(parsed) && parsed > 0 ? parsed : undefined
 }

@@ -8,9 +8,10 @@ const MAX_RESULTS = 1000
 
 export function createGlobTool(cwd: string) {
   return tool({
+    description: 'Find files by glob pattern. Use this for file names and paths; use grep to search file contents.',
     inputSchema: z.object({
-      pattern: z.string().describe('Glob 模式，如 "src/**/*.ts"'),
-      path: z.string().optional().describe('基础目录，默认为项目根目录')
+      pattern: z.string().describe('Glob pattern such as "src/**/*.ts". Results are relative to the search base.'),
+      path: z.string().optional().describe('Base directory to search. Relative paths are resolved from the current project directory. Defaults to the project directory.')
     }),
     execute: async (input: { pattern: string; path?: string }) => {
       const baseDir = input.path ? (isAbsolute(input.path) ? input.path : resolve(cwd, input.path)) : cwd

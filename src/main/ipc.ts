@@ -30,6 +30,8 @@ import {
   type ReflectionEngineConfig,
   type AppSettings,
   type ApiProviderConfig,
+  type ApiCallLogEntry,
+  type ApiCallLogStatus,
   type ExportOptions,
   type ImportOptions
 } from '@shared/types'
@@ -54,6 +56,7 @@ import { SignalCollector } from './memory/SignalCollector'
 import { AppSettingsStore } from './AppSettingsStore'
 import { getRecommendation } from './routeRecommendation'
 import { ProviderStore } from './ProviderStore'
+import { ApiCallLogStore } from './ApiCallLogStore'
 import { respondToPermissionRequest } from './adapters/api-tools/PermissionGuard'
 import { normalizeProviderBaseUrl, resolveModel, shouldUseAnthropicBearerAuth } from './adapters/apiAdapter'
 import { FeishuNotifier } from './FeishuNotifier'
@@ -104,6 +107,10 @@ function fetchJson(url: string, headers: Record<string, string>): Promise<string
   })
 }
 
+function toErrorMessage(err: unknown): string {
+  return err instanceof Error ? err.message : String(err)
+}
+
 export interface AppManagers {
   abortAll(): void
 }
@@ -128,7 +135,37 @@ export function registerIpc(
   const scheduleStore = new ScheduleStore()
   const appSettingsStore = new AppSettingsStore()
   const providerStore = new ProviderStore()
-  const runManager = new RunManager(transcriptStore, providerStore)
+  const apiCallLogStore = new ApiCallLogStore()
+  const recordProviderApiLog = (input: {
+    source: 'provider-test' | 'model-fetch'
+    provider?: Partial<ApiProviderConfig>
+    providerId?: string
+    model?: string
+    startedAt: number
+    status: ApiCallLogStatus
+    error?: unknown
+    messagesSummary?: string
+  }): void => {
+    try {
+      apiCallLogStore.record({
+        source: input.source,
+        providerId: input.providerId ?? input.provider?.id,
+        providerName: input.provider?.name,
+        format: input.provider?.format,
+        baseUrl: input.provider?.baseUrl,
+        model: input.model,
+        messagesSummary: input.messagesSummary,
+        durationMs: Date.now() - input.startedAt,
+        status: input.status,
+        usage: { inputTokens: 0, outputTokens: 0 },
+        error: input.error === undefined ? undefined : toErrorMessage(input.error),
+        structuredOutput: 'none'
+      })
+    } catch {
+      /* logging must not break provider setup actions */
+    }
+  }
+  const runManager = new RunManager(transcriptStore, providerStore, apiCallLogStore)
   const memoryStore = new MemoryStore()
   const reflectionAgent = new ReflectionAgent(runManager, memoryStore)
   const signalCollector = new SignalCollector(reflectionAgent, memoryStore, agentStore)
@@ -336,13 +373,25 @@ export function registerIpc(
   ipcMain.handle(IPC.providersDelete, (_e, id: string): void => providerStore.remove(id))
 
   ipcMain.handle(IPC.providersTest, async (_e, id: string): Promise<{ ok: boolean; message: string }> => {
+    const startedAt = Date.now()
+    let providerForLog: Partial<ApiProviderConfig> | undefined
+    let modelId: string | undefined
     try {
       const provider = providerStore.getDecrypted(id)
+      providerForLog = provider
       const rawBase = (provider.baseUrl ?? '').replace(/\/+$/, '')
-      if (!rawBase) return { ok: false, message: '未配置 Base URL，请先在编辑表单中填写' }
+      modelId = provider.defaultModel ?? provider.models[0]
+      if (!rawBase) {
+        const message = '未配置 Base URL，请先在编辑表单中填写'
+        recordProviderApiLog({ source: 'provider-test', provider, providerId: id, model: modelId, startedAt, status: 'error', error: message, messagesSummary: 'Provider connection test' })
+        return { ok: false, message }
+      }
+      if (!modelId) {
+        const message = '未配置模型，请先添加模型或使用「自动获取」'
+        recordProviderApiLog({ source: 'provider-test', provider, providerId: id, startedAt, status: 'error', error: message, messagesSummary: 'Provider connection test' })
+        return { ok: false, message }
+      }
       const base = normalizeProviderBaseUrl(provider)
-      const modelId = provider.defaultModel ?? provider.models[0]
-      if (!modelId) return { ok: false, message: '未配置模型，请先添加模型或使用「自动获取」' }
 
       // Step 1 — verify API reachability via the models endpoint.
       const headers: Record<string, string> = { 'Accept': 'application/json' }
@@ -360,10 +409,12 @@ export function registerIpc(
       let modelFetchError = ''
       for (const url of [...new Set(modelCandidates)]) {
         try { await fetchJson(url, headers); modelsReachable = true; break }
-        catch (err) { modelFetchError = err instanceof Error ? err.message : String(err) }
+        catch (err) { modelFetchError = toErrorMessage(err) }
       }
       if (!modelsReachable) {
-        return { ok: false, message: `无法连接 API (${modelFetchError})。请检查 Base URL 和 API Key 是否正确` }
+        const message = `无法连接 API (${modelFetchError})。请检查 Base URL 和 API Key 是否正确`
+        recordProviderApiLog({ source: 'provider-test', provider, providerId: id, model: modelId, startedAt, status: 'error', error: message, messagesSummary: 'Provider connection test' })
+        return { ok: false, message }
       }
 
       // Step 2 — test chat completion with the configured model.
@@ -374,9 +425,11 @@ export function registerIpc(
         temperature: 1,
         topP: 0.95
       })
+      recordProviderApiLog({ source: 'provider-test', provider, providerId: id, model: modelId, startedAt, status: 'success', messagesSummary: 'Provider connection test' })
       return { ok: true, message: `连接成功 (模型: ${modelId})` }
     } catch (err) {
-      const msg = err instanceof Error ? err.message : String(err)
+      const msg = toErrorMessage(err)
+      recordProviderApiLog({ source: 'provider-test', provider: providerForLog, providerId: id, model: modelId, startedAt, status: 'error', error: msg, messagesSummary: 'Provider connection test' })
       // Translate common AI SDK errors into actionable Chinese hints.
       if (msg.includes('Not Found') || msg.includes('404')) {
         return { ok: false, message: `模型不存在 (${msg})。请在模型列表中确认「默认模型」名称正确，或使用「自动获取」更新模型列表` }
@@ -392,6 +445,7 @@ export function registerIpc(
   })
 
   ipcMain.handle(IPC.providersFetchModels, async (_e, provider: ApiProviderConfig, providerId?: string): Promise<{ models: string[]; error?: string }> => {
+    const startedAt = Date.now()
     try {
       // If no key was provided but we have a stored provider, use its key.
       let apiKey = provider.apiKey
@@ -399,8 +453,16 @@ export function registerIpc(
         try { apiKey = providerStore.getDecrypted(providerId).apiKey } catch { /* not found */ }
       }
       const rawBase = (provider.baseUrl ?? '').replace(/\/+$/, '')
-      if (!apiKey) return { models: [], error: '请先填写 API Key' }
-      if (!rawBase) return { models: [], error: '请先填写 Base URL' }
+      if (!apiKey) {
+        const error = '请先填写 API Key'
+        recordProviderApiLog({ source: 'model-fetch', provider, providerId, startedAt, status: 'error', error, messagesSummary: 'Fetch provider model list' })
+        return { models: [], error }
+      }
+      if (!rawBase) {
+        const error = '请先填写 Base URL'
+        recordProviderApiLog({ source: 'model-fetch', provider, providerId, startedAt, status: 'error', error, messagesSummary: 'Fetch provider model list' })
+        return { models: [], error }
+      }
       const base = normalizeProviderBaseUrl(provider)
 
       const headers: Record<string, string> = { 'Accept': 'application/json' }
@@ -419,20 +481,43 @@ export function registerIpc(
       for (const url of [...new Set(candidates)]) {
         try {
           const models = await fetchJson(url, headers)
-          if (models.length > 0) return { models }
+          if (models.length > 0) {
+            recordProviderApiLog({ source: 'model-fetch', provider, providerId, startedAt, status: 'success', messagesSummary: `Fetched ${models.length} provider models` })
+            return { models }
+          }
         } catch (err) {
           // try next candidate
         }
       }
-      return { models: [], error: `无法从 ${candidates[0]} 获取模型列表，请检查 API Key 和 Base URL` }
+      const error = `无法从 ${candidates[0]} 获取模型列表，请检查 API Key 和 Base URL`
+      recordProviderApiLog({ source: 'model-fetch', provider, providerId, startedAt, status: 'error', error, messagesSummary: 'Fetch provider model list' })
+      return { models: [], error }
     } catch (err) {
-      return { models: [], error: err instanceof Error ? err.message : String(err) }
+      const error = toErrorMessage(err)
+      recordProviderApiLog({ source: 'model-fetch', provider, providerId, startedAt, status: 'error', error, messagesSummary: 'Fetch provider model list' })
+      return { models: [], error }
     }
   })
 
   ipcMain.handle(IPC.permissionRespond, (_e, requestId: string, allowed: boolean): void => {
     respondToPermissionRequest(requestId, allowed)
   })
+
+  ipcMain.handle(IPC.apiLogsList, (_e, limit?: number): ApiCallLogEntry[] =>
+    apiCallLogStore.list({ limit })
+  )
+
+  ipcMain.handle(IPC.apiLogsGet, (_e, id: string): ApiCallLogEntry | null =>
+    apiCallLogStore.get(id)
+  )
+
+  ipcMain.handle(IPC.apiLogsClear, (): void => {
+    apiCallLogStore.clear()
+  })
+
+  ipcMain.handle(IPC.apiLogsOpenDir, (): Promise<string> =>
+    apiCallLogStore.openDir()
+  )
 
   ipcMain.handle(IPC.pickDir, async (): Promise<string | null> => {
     const win = getWindow()

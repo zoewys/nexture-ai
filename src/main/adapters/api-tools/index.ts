@@ -7,6 +7,7 @@ import { createFileReadTool } from './fileRead'
 import { createFileWriteTool, type FileChangedCallback } from './fileWrite'
 import { createGlobTool } from './glob'
 import { createGrepTool } from './grep'
+import { createLsTool } from './ls'
 import { PermissionGuard } from './PermissionGuard'
 import { createSourcegraphTool } from './sourcegraph'
 import { createTodoWriteTool } from './todoWrite'
@@ -21,7 +22,8 @@ export function buildToolSet(
   onFileChanged?: FileChangedCallback
 ) {
   return {
-    bash: createBashTool(cwd, signal, guard),
+    bash: createBashTool(cwd, signal, guard, onFileChanged),
+    ls: createLsTool(cwd),
     file_read: createFileReadTool(cwd),
     file_edit: createFileEditTool(cwd, guard, onFileChanged),
     file_write: createFileWriteTool(cwd, guard, onFileChanged),

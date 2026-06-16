@@ -452,6 +452,14 @@ body {
   grid-column: 1 / -1;
 }
 
+.single-session-route-panel .api-advanced-controls {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(min(120px, 100%), 1fr));
+  grid-column: 1 / -1;
+  gap: 10px;
+  min-width: 0;
+}
+
 .single-session-route-panel .field-hint {
   overflow: hidden;
   white-space: nowrap;
@@ -569,6 +577,60 @@ body {
 
 .chat-tool {
   color: var(--text-soft);
+}
+
+.chat-todo {
+  max-width: min(76%, 720px);
+  border: 1px solid var(--border-soft);
+  border-radius: 8px;
+  background: #202631;
+  padding: 9px 10px;
+  color: var(--text-strong);
+}
+
+.chat-todo-head,
+.chat-todo-item {
+  display: flex;
+  align-items: center;
+  gap: 7px;
+}
+
+.chat-todo-head {
+  font-weight: 750;
+  margin-bottom: 8px;
+}
+
+.chat-todo-list {
+  display: grid;
+  gap: 5px;
+}
+
+.chat-todo-item {
+  color: var(--text-soft);
+  line-height: 1.35;
+}
+
+.chat-todo-completed {
+  color: var(--text-dim);
+  text-decoration: line-through;
+}
+
+.chat-todo-in_progress {
+  color: var(--text-strong);
+  font-weight: 650;
+}
+
+.chat-todo-error {
+  margin-left: auto;
+  color: var(--red);
+  font-size: 11px;
+}
+
+.chat-todo-raw {
+  margin: 0;
+  white-space: pre-wrap;
+  color: var(--text-soft);
+  font-size: 11px;
 }
 
 .chat-thinking {
@@ -5753,6 +5815,68 @@ button.icon-only {
 .provider-card-actions button:hover {
   color: var(--accent);
   background: rgba(108, 140, 255, 0.08);
+}
+
+.api-log-actions {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+}
+
+.settings-refresh-btn.danger:hover:not(:disabled) {
+  border-color: var(--red);
+  color: var(--red);
+}
+
+.api-log-list {
+  display: grid;
+  gap: 6px;
+}
+
+.api-log-row {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) auto;
+  gap: 10px;
+  align-items: center;
+  padding: 8px 10px;
+  border-radius: 7px;
+  border: 1px solid var(--border-soft);
+  background: rgba(36, 40, 51, 0.55);
+}
+
+.api-log-main {
+  min-width: 0;
+  display: grid;
+  gap: 2px;
+}
+
+.api-log-main strong {
+  overflow: hidden;
+  white-space: nowrap;
+  text-overflow: ellipsis;
+}
+
+.api-log-main span,
+.api-log-meta {
+  color: var(--text-dim);
+  font-size: 11px;
+}
+
+.api-log-meta {
+  display: flex;
+  align-items: center;
+  gap: 7px;
+  white-space: nowrap;
+}
+
+.api-log-error {
+  border-color: rgba(219, 107, 107, 0.35);
+}
+
+.api-log-empty {
+  color: var(--text-dim);
+  font-size: 12px;
+  padding: 8px 0;
 }
 
 .add-provider-btn {

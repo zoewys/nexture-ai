@@ -2,6 +2,7 @@ import { randomUUID } from 'node:crypto'
 import { resolve } from 'node:path'
 import type {
   AgentEvent,
+  ApiConversationMessage,
   RunConfig,
   SessionContinuationStrategy,
   SessionRoute,
@@ -73,13 +74,14 @@ export class SingleSessionManager {
     const strategy = this.chooseStrategy(session, activeSegment, input.route, sameContext)
     const previousCwd = session.cwd
     const segment = this.createSegment(session, input.route, strategy, targetCwd, !cwdEqual(previousCwd, targetCwd))
-    const prompt = strategy === 'logic-replay'
-      ? this.transcripts.buildReplayPromptFromTimeline(
-          this.nativeSessionIdsBefore(session, segment.id),
-          clean
-        )
+    const previousSessionIds = this.nativeSessionIdsBefore(session, segment.id)
+    const replayMessages = strategy === 'logic-replay' && input.route.vendor === 'api'
+      ? this.transcripts.buildReplayMessagesFromTimeline(previousSessionIds, clean)
+      : undefined
+    const prompt = strategy === 'logic-replay' && input.route.vendor !== 'api'
+      ? this.transcripts.buildReplayPromptFromTimeline(previousSessionIds, clean)
       : clean
-    const config = this.buildRunConfig(session, input, prompt, strategy, activeSegment)
+    const config = this.buildRunConfig(session, input, prompt, strategy, activeSegment, replayMessages)
     const { launchConfig, injectedMemoryIds } = this.withMemoryContext(config)
     if (injectedMemoryIds.length > 0) {
       session.injectedMemoryIds = mergeIds(session.injectedMemoryIds ?? [], injectedMemoryIds)
@@ -93,7 +95,7 @@ export class SingleSessionManager {
       this.handleAgentEvent(session.id, segment.id, runId, event)
     })
     segment.runId = runId
-    this.transcripts.recordUserInput(runId, launchConfig.prompt)
+    this.transcripts.recordUserInput(runId, launchConfig.messages ? clean : launchConfig.prompt)
     this.persistAndEmit(session)
     return this.toDetail(session)
   }
@@ -189,7 +191,8 @@ export class SingleSessionManager {
     input: SingleSessionSendInput,
     prompt: string,
     strategy: SessionContinuationStrategy,
-    previousSegment: SessionSegment | undefined
+    previousSegment: SessionSegment | undefined,
+    replayMessages?: ApiConversationMessage[]
   ): RunConfig {
     const route = input.route
     const resumeFrom = strategy === 'native-resume' && previousSegment?.nativeSessionId
@@ -209,6 +212,11 @@ export class SingleSessionManager {
       codexServiceTier: route.vendor === 'codex' ? route.codexServiceTier : undefined,
       apiProviderId: route.vendor === 'api' ? route.apiProviderId : undefined,
       apiMaxSteps: input.apiMaxSteps,
+      apiTemperature: route.vendor === 'api' ? input.apiTemperature ?? route.apiTemperature : undefined,
+      apiTopP: route.vendor === 'api' ? input.apiTopP ?? route.apiTopP : undefined,
+      messages: replayMessages,
+      attachments: route.vendor === 'api' ? input.attachments : undefined,
+      apiLogSource: route.vendor === 'api' ? 'single' : undefined,
       addDirs: input.addDirs,
       appendSystemPrompt: input.appendSystemPrompt,
       resumeFrom,
@@ -224,7 +232,8 @@ export class SingleSessionManager {
     return {
       launchConfig: {
         ...config,
-        prompt: `${text}\n${config.prompt}`
+        prompt: `${text}\n${config.prompt}`,
+        messages: config.messages ? prependMemoryToMessages(config.messages, text) : undefined
       },
       injectedMemoryIds
     }
@@ -301,6 +310,8 @@ function routesEqual(a: SessionRoute, b: SessionRoute): boolean {
     empty(a.model) === empty(b.model) &&
     empty(a.agentId) === empty(b.agentId) &&
     empty(a.apiProviderId) === empty(b.apiProviderId) &&
+    numberEmpty(a.apiTemperature) === numberEmpty(b.apiTemperature) &&
+    numberEmpty(a.apiTopP) === numberEmpty(b.apiTopP) &&
     empty(a.codexReasoningEffort) === empty(b.codexReasoningEffort) &&
     empty(a.codexServiceTier) === empty(b.codexServiceTier) &&
     empty(a.permissionMode) === empty(b.permissionMode)
@@ -313,6 +324,38 @@ function cwdEqual(a: string, b: string): boolean {
 
 function empty(value: string | undefined): string {
   return value?.trim() ?? ''
+}
+
+function numberEmpty(value: number | undefined): string {
+  return value === undefined ? '' : String(value)
+}
+
+function prependMemoryToMessages(
+  messages: ApiConversationMessage[],
+  text: string
+): ApiConversationMessage[] {
+  const next = messages.map((message) => ({
+    ...message,
+    content: Array.isArray(message.content)
+      ? message.content.map((part) => ({ ...part }))
+      : message.content
+  }))
+  for (let i = next.length - 1; i >= 0; i--) {
+    const message = next[i]
+    if (message.role !== 'user') continue
+    if (typeof message.content === 'string') {
+      message.content = `${text}\n${message.content}`
+      return next
+    }
+    const textPart = message.content.find((part) => part.type === 'text')
+    if (textPart) {
+      textPart.text = `${text}\n${String(textPart.text ?? '')}`
+    } else {
+      message.content.unshift({ type: 'text', text })
+    }
+    return next
+  }
+  return [{ role: 'user', content: text }, ...next]
 }
 
 function truncate(value: string, max: number): string {

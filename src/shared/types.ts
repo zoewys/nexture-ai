@@ -21,6 +21,7 @@ export interface ApiProviderConfig {
   baseUrl?: string
   models: string[]
   defaultModel?: string
+  maxOutputTokens?: number
 }
 
 // ── CLI model catalogs ──────────────────────────────────────────────────────
@@ -104,6 +105,46 @@ export interface AdapterCapabilities {
 /** A JSON Schema object; kept loose to avoid pulling in a schema lib here. */
 export type JSONSchema = Record<string, unknown>
 
+export type ApiLogSource = 'single' | 'workflow' | 'provider-test' | 'model-fetch' | 'reflection'
+
+export type ApiCallLogStatus = 'started' | 'success' | 'error' | 'aborted'
+
+export interface ApiCallLogEntry {
+  id: string
+  timestamp: string
+  source: ApiLogSource
+  providerId?: string
+  providerName?: string
+  format?: ApiProviderFormat
+  baseUrl?: string
+  model?: string
+  cwd?: string
+  messagesSummary?: string
+  systemSummary?: string
+  toolNames?: string[]
+  apiMaxSteps?: number
+  temperature?: number
+  topP?: number
+  durationMs?: number
+  status: ApiCallLogStatus
+  usage?: { inputTokens: number; outputTokens: number; costUsd?: number }
+  error?: string
+  structuredOutput?: 'native' | 'fallback' | 'none'
+  costUsd?: number
+}
+
+export interface RunAttachment {
+  path: string
+  kind?: 'image' | 'file'
+  mediaType?: string
+  name?: string
+}
+
+export interface ApiConversationMessage {
+  role: 'system' | 'user' | 'assistant' | 'tool'
+  content: string | Array<Record<string, unknown>>
+}
+
 export interface ResumeHandle {
   sessionId: string
   vendor: AgentVendor
@@ -130,6 +171,8 @@ export interface SessionRoute {
   model?: string
   agentId?: string
   apiProviderId?: string
+  apiTemperature?: number
+  apiTopP?: number
   codexReasoningEffort?: CodexReasoningEffort
   codexServiceTier?: string
   permissionMode?: PermissionMode
@@ -189,6 +232,9 @@ export interface SingleSessionSendInput {
   appendSystemPrompt?: string
   addDirs?: string[]
   apiMaxSteps?: number
+  apiTemperature?: number
+  apiTopP?: number
+  attachments?: RunAttachment[]
 }
 
 export type SingleSessionEvent =
@@ -222,6 +268,18 @@ export interface RunConfig {
   apiProviderId?: string
   /** API-only: maximum tool-calling steps for the AI SDK loop. */
   apiMaxSteps?: number
+  /** API-only: temperature override. Defaults to provider-safe 0.2. */
+  apiTemperature?: number
+  /** API-only: top-p override. Defaults to 1. */
+  apiTopP?: number
+  /** API-only: structured replay messages used across logical session segments. */
+  messages?: ApiConversationMessage[]
+  /** API-only: local files attached to the user message. */
+  attachments?: RunAttachment[]
+  /** API-only: identifies the source shown in local API call logs. */
+  apiLogSource?: ApiLogSource
+  /** True for workflow/scheduled/background runs without an interactive permission UI. */
+  headless?: boolean
   addDirs?: string[]
   appendSystemPrompt?: string
   outputSchema?: JSONSchema
@@ -252,6 +310,8 @@ export interface AgentDefinition {
   codexReasoningEffort?: CodexReasoningEffort
   codexServiceTier?: string
   apiProviderId?: string
+  apiTemperature?: number
+  apiTopP?: number
   /** System prompt injected via --append-system-prompt at run time. */
   systemPrompt: string
   /** CLI permission mode for this agent. Defaults to bypassPermissions. */
@@ -704,6 +764,14 @@ export const IPC = {
   providersFetchModels: 'providers:fetch-models',
   /** renderer → main: get a provider with decrypted apiKey. */
   providersGetDecrypted: 'providers:get-decrypted',
+  /** renderer → main: list recent local API call logs. */
+  apiLogsList: 'apiLogs:list',
+  /** renderer → main: clear local API call logs. */
+  apiLogsClear: 'apiLogs:clear',
+  /** renderer → main: open the local API call log directory. */
+  apiLogsOpenDir: 'apiLogs:openDir',
+  /** renderer → main: get one API call log entry by id. */
+  apiLogsGet: 'apiLogs:get',
   /** main → renderer: request tool permission. */
   permissionRequest: 'permission:request',
   /** renderer → main: respond to a tool permission request. */

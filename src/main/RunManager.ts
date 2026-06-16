@@ -4,6 +4,7 @@ import type { CliAdapter } from './adapters/types'
 import { createAdapter, getAdapterCapabilities } from './adapters/factory'
 import type { TranscriptStore } from './TranscriptStore'
 import type { ProviderStore } from './ProviderStore'
+import type { ApiCallLogStore } from './ApiCallLogStore'
 
 interface LiveRun {
   id: string
@@ -31,7 +32,8 @@ export class RunManager {
 
   constructor(
     private readonly transcripts: TranscriptStore,
-    private readonly providerStore?: ProviderStore
+    private readonly providerStore?: ProviderStore,
+    private readonly apiCallLogStore?: ApiCallLogStore
   ) {}
 
   /**
@@ -42,6 +44,7 @@ export class RunManager {
     const id = randomUUID()
     const adapter = createAdapter(config.vendor, {
       providerStore: this.providerStore,
+      apiCallLogStore: this.apiCallLogStore,
       runConfig: config,
       emitEvent: (ev) => onEvent(id, ev)
     })
@@ -85,6 +88,7 @@ export class RunManager {
       // same AbortController so a user abort still targets the live process.
       const retryAdapter = createAdapter(config.vendor, {
         providerStore: this.providerStore,
+        apiCallLogStore: this.apiCallLogStore,
         runConfig: retryConfig,
         emitEvent: (ev) => onEvent(id, ev)
       })
@@ -116,6 +120,11 @@ export class RunManager {
       codexReasoningEffort: config.codexReasoningEffort,
       codexServiceTier: config.codexServiceTier,
       apiMaxSteps: config.apiMaxSteps,
+      apiTemperature: config.apiTemperature,
+      apiTopP: config.apiTopP,
+      messages: config.messages,
+      attachments: config.attachments,
+      apiLogSource: config.apiLogSource,
       addDirs: config.addDirs,
       appendSystemPrompt: config.appendSystemPrompt,
       outputSchema: config.outputSchema,
@@ -123,6 +132,7 @@ export class RunManager {
       keepStdinOpenAfterTurnDone: config.keepStdinOpenAfterTurnDone,
       cliPath: config.cliPath,
       permissionMode: config.permissionMode,
+      headless: config.headless,
       abortSignal: abort.signal
     })
 

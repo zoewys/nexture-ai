@@ -5,11 +5,12 @@ const MAX_BODY_CHARS = 100 * 1024
 
 export function createFetchTool() {
   return tool({
+    description: 'Fetch an HTTP(S) URL. Use this for web/API content; use file_read for local files.',
     inputSchema: z.object({
-      url: z.string(),
-      format: z.enum(['text', 'json', 'markdown']).optional()
+      url: z.string().describe('HTTP or HTTPS URL to fetch.'),
+      format: z.enum(['text', 'json']).optional().describe('Response format. Use json to parse and pretty-print JSON; defaults to text.')
     }),
-    execute: async (input: { url: string; format?: 'text' | 'json' | 'markdown' }) => {
+    execute: async (input: { url: string; format?: 'text' | 'json' }) => {
       let url: URL
       try {
         url = new URL(input.url)

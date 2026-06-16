@@ -2,9 +2,12 @@ import type {
   AdapterCapabilities,
   AgentEvent,
   AgentVendor,
+  ApiConversationMessage,
+  ApiLogSource,
   CodexReasoningEffort,
   JSONSchema,
   PermissionMode,
+  RunAttachment,
   ResumeHandle
 } from '@shared/types'
 
@@ -16,6 +19,11 @@ export interface RunTurnInput {
   codexReasoningEffort?: CodexReasoningEffort
   codexServiceTier?: string
   apiMaxSteps?: number
+  apiTemperature?: number
+  apiTopP?: number
+  messages?: ApiConversationMessage[]
+  attachments?: RunAttachment[]
+  apiLogSource?: ApiLogSource
   addDirs?: string[]
   appendSystemPrompt?: string
   outputSchema?: JSONSchema
@@ -23,6 +31,7 @@ export interface RunTurnInput {
   keepStdinOpenAfterTurnDone?: boolean
   cliPath?: string
   permissionMode?: PermissionMode
+  headless?: boolean
   abortSignal: AbortSignal
 }
 

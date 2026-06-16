@@ -46,7 +46,8 @@ export class ProviderStore {
       apiKey: encryptedKey,
       baseUrl: input.baseUrl,
       models: input.models,
-      defaultModel: input.defaultModel
+      defaultModel: input.defaultModel,
+      maxOutputTokens: input.maxOutputTokens
     }
 
     const idx = list.findIndex((provider) => provider.id === id)
