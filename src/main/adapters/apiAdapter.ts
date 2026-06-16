@@ -16,6 +16,8 @@ import type { PermissionGuard } from './api-tools/PermissionGuard'
 const DEFAULT_MAX_OUTPUT_TOKENS = 8192
 const DEFAULT_TEMPERATURE = 0.2
 const DEFAULT_TOP_P = 1
+const MAX_OUTPUT_TOKENS_ERROR_MESSAGE =
+  'API response hit the max output token limit before completion. Increase max output tokens or rerun with a shorter task.'
 
 const BASE_CORE_PROMPT = [
   'You are an autonomous agent equipped with tools for reading files, editing files, running shell commands, searching content, fetching URLs, and tracking multi-step work.',
@@ -206,6 +208,7 @@ interface StreamState {
   meaningful: boolean
   turnDone: boolean
   noOutput: boolean
+  finishReason?: string
   usage: { inputTokens: number; outputTokens: number }
 }
 
@@ -268,12 +271,17 @@ function mapStreamPart(part: Record<string, unknown>, sessionId: string, queue: 
       return
     case 'finish-step':
     case 'step-finish': {
+      const finishReason = stringValue(part.finishReason)
+      if (finishReason) state.finishReason = finishReason
       const usage = isRecord(part.usage) ? part.usage : part
       emitUsage(usage, queue, state)
       return
     }
     case 'finish': {
+      const finishReason = stringValue(part.finishReason)
+      if (finishReason) state.finishReason = finishReason
       if (isRecord(part.totalUsage)) emitUsage(part.totalUsage, queue, state)
+      if (isLengthFinishReason(state.finishReason)) return
       finishComplete(sessionId, queue, state)
       return
     }
@@ -323,6 +331,11 @@ async function executeModelTurn(
       mapStreamPart(part, sessionId, queue, state)
     }
 
+    if (isLengthFinishReason(state.finishReason)) {
+      flushAssistantMessage(queue, state)
+      throw new Error(MAX_OUTPUT_TOKENS_ERROR_MESSAGE)
+    }
+
     if (state.noOutput && !state.turnDone) {
       if (state.meaningful) finishComplete(sessionId, queue, state)
       else return runGenerateFallback(options as Parameters<typeof generateText>[0], sessionId, queue)
@@ -348,6 +361,20 @@ async function runGenerateFallback(
 ): Promise<{ inputTokens: number; outputTokens: number }> {
   const result = await generateText(options)
   const text = result.text.trim()
+  const usage = {
+    inputTokens: numberValue(result.totalUsage?.inputTokens),
+    outputTokens: numberValue(result.totalUsage?.outputTokens)
+  }
+  const emitFallbackUsage = (): void => {
+    if (usage.inputTokens > 0 || usage.outputTokens > 0) queue.push({ kind: 'usage', ...usage })
+  }
+
+  if (isLengthFinishReason(result.finishReason)) {
+    if (text) queue.push({ kind: 'message', role: 'assistant', text })
+    emitFallbackUsage()
+    throw new Error(MAX_OUTPUT_TOKENS_ERROR_MESSAGE)
+  }
+
   if (!text) {
     queue.push({
       kind: 'error',
@@ -359,11 +386,7 @@ async function runGenerateFallback(
   }
 
   queue.push({ kind: 'message', role: 'assistant', text })
-  const usage = {
-    inputTokens: numberValue(result.totalUsage?.inputTokens),
-    outputTokens: numberValue(result.totalUsage?.outputTokens)
-  }
-  if (usage.inputTokens > 0 || usage.outputTokens > 0) queue.push({ kind: 'usage', ...usage })
+  emitFallbackUsage()
   queue.push({ kind: 'turn-done', sessionId, reason: 'complete' })
   return usage
 }
@@ -587,6 +610,10 @@ function stringValue(value: unknown): string {
 
 function numberValue(value: unknown): number {
   return typeof value === 'number' && Number.isFinite(value) ? value : 0
+}
+
+function isLengthFinishReason(value: unknown): boolean {
+  return value === 'length'
 }
 
 function errorMessage(value: unknown): string {
