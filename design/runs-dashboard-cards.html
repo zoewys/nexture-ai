@@ -1,0 +1,1175 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Runs Dashboard — Agent Studio</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=JetBrains+Mono:wght@400;500;600;700&family=Ma+Shan+Zheng&family=ZCOOL+XiaoWei&family=Noto+Serif+SC:wght@400;600;700&display=swap" rel="stylesheet">
+  <style>
+    :root {
+      --brand-primary: #3d8e86;
+      --brand-primary-hover: #2a7a72;
+      --brand-secondary: #55bb8b;
+      --brand-accent: #6abd79;
+      --brand-muted: #8faa6e;
+      --brand-surface: #77d2d1;
+      --brand-deep: #28414a;
+      --brand-dark: #364e36;
+      --semantic-success: #6abd79;
+      --semantic-warning: #c9952c;
+      --semantic-error: #c94f4f;
+      --semantic-info: #3d8e86;
+
+      --neutral-bg: #f7f5f0;
+      --neutral-surface: rgba(255, 253, 248, 0.72);
+      --neutral-surface-raised: rgba(255, 255, 255, 0.85);
+      --neutral-border: rgba(120, 140, 130, 0.22);
+      --neutral-border-subtle: rgba(120, 140, 130, 0.12);
+      --neutral-text-primary: #1e2e28;
+      --neutral-text-secondary: #5a7268;
+      --neutral-text-muted: #8a9e90;
+      --neutral-canvas: #edeae3;
+      --neutral-canvas-dot: #d5d0c8;
+
+      --shadow-xs: 0 1px 2px rgba(30, 46, 40, 0.04);
+      --shadow-sm: 0 2px 8px rgba(30, 46, 40, 0.06);
+      --shadow-md: 0 4px 16px rgba(30, 46, 40, 0.08);
+      --shadow-lg: 0 8px 32px rgba(30, 46, 40, 0.1);
+      --shadow-focus: 0 0 0 2px rgba(61, 142, 134, 0.12);
+
+      --glass-bg: rgba(255, 253, 248, 0.55);
+      --glass-border: rgba(120, 140, 130, 0.18);
+      --glass-blur: blur(16px) saturate(140%);
+      --glass-blur-heavy: blur(24px) saturate(150%);
+    }
+
+    [data-theme="dark"] {
+      --brand-primary: #00d4aa;
+      --brand-primary-hover: #00b894;
+      --brand-secondary: #00f5d4;
+      --brand-accent: #2ecc71;
+      --brand-muted: #7fdbca;
+      --brand-surface: #00d4aa;
+      --brand-deep: #0a1628;
+      --brand-dark: #0d1f3c;
+      --semantic-success: #2ecc71;
+      --semantic-warning: #f1c40f;
+      --semantic-error: #e74c3c;
+      --semantic-info: #00d4aa;
+
+      --neutral-bg: #0a0f1a;
+      --neutral-surface: rgba(15, 25, 45, 0.8);
+      --neutral-surface-raised: rgba(20, 35, 60, 0.9);
+      --neutral-border: rgba(0, 212, 170, 0.15);
+      --neutral-border-subtle: rgba(0, 212, 170, 0.08);
+      --neutral-text-primary: #e8f4f8;
+      --neutral-text-secondary: #7a9db0;
+      --neutral-text-muted: #4a6a7a;
+      --neutral-canvas: #060a12;
+      --neutral-canvas-dot: #0f1a2e;
+
+      --shadow-xs: 0 1px 2px rgba(0, 212, 170, 0.05);
+      --shadow-sm: 0 2px 8px rgba(0, 0, 0, 0.4);
+      --shadow-md: 0 4px 16px rgba(0, 0, 0, 0.5);
+      --shadow-lg: 0 8px 32px rgba(0, 0, 0, 0.6);
+      --shadow-focus: 0 0 0 2px rgba(0, 212, 170, 0.2);
+
+      --glass-bg: rgba(15, 25, 45, 0.6);
+      --glass-border: rgba(0, 212, 170, 0.12);
+      --glass-blur: blur(12px);
+      --glass-blur-heavy: blur(20px);
+    }
+
+    * { box-sizing: border-box; }
+    html, body { height: 100%; margin: 0; }
+
+    body {
+      font-family: "JetBrains Mono", "Fira Code", "SF Mono", "Cascadia Code", "Noto Serif SC", serif;
+      font-size: 14px; line-height: 1.65; color: var(--neutral-text-primary);
+      background: var(--neutral-bg);
+      transition: background 300ms ease, color 300ms ease;
+    }
+
+    body::before {
+      content: '';
+      position: fixed; inset: 0; z-index: -1; pointer-events: none;
+      background-image: url("data:image/svg+xml,%3Csvg width='200' height='200' xmlns='http://www.w3.org/2000/svg'%3E%3Cfilter id='n'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='0.75' numOctaves='4' stitchTiles='stitch'/%3E%3C/filter%3E%3Crect width='100%25' height='100%25' filter='url(%23n)' opacity='0.025'/%3E%3C/svg%3E");
+      opacity: 0.6;
+    }
+
+    [data-theme="light"] .chinese-pattern-bg {
+      position: fixed; inset: 0; z-index: 0; pointer-events: none; overflow: hidden;
+    }
+    [data-theme="light"] .chinese-pattern-bg::before {
+      content: ''; position: absolute; opacity: 0.03;
+      top: 0; right: 0; width: 45%; height: 60%;
+      background-image: url("data:image/svg+xml,%3Csvg width='120' height='60' xmlns='http://www.w3.org/2000/svg'%3E%3Cpath d='M10 30 Q20 10 40 20 T70 15 T100 25' fill='none' stroke='%233d8e86' stroke-width='1.5'/%3E%3Cpath d='M0 45 Q30 25 60 40 T120 35' fill='none' stroke='%233d8e86' stroke-width='1'/%3E%3C/svg%3E");
+      background-size: 120px 60px; background-repeat: repeat;
+    }
+
+    [data-theme="dark"] .tech-grid-bg {
+      position: fixed; inset: 0; z-index: 0; pointer-events: none;
+      background-image:
+        linear-gradient(rgba(0, 212, 170, 0.03) 1px, transparent 1px),
+        linear-gradient(90deg, rgba(0, 212, 170, 0.03) 1px, transparent 1px);
+      background-size: 40px 40px;
+    }
+    [data-theme="dark"] .tech-glow {
+      position: fixed; border-radius: 50%; pointer-events: none; z-index: 0;
+      filter: blur(100px); opacity: 0.15;
+    }
+    [data-theme="dark"] .tech-glow-1 {
+      width: 400px; height: 400px; background: radial-gradient(circle, #00d4aa 0%, transparent 70%);
+      top: -100px; right: -80px;
+    }
+
+    .ink-wash {
+      position: fixed; border-radius: 50%; pointer-events: none; z-index: 0;
+      filter: blur(80px); opacity: 0.08;
+    }
+    [data-theme="dark"] .ink-wash { display: none; }
+    .ink-wash-1 {
+      width: 500px; height: 500px; background: radial-gradient(circle, var(--brand-primary) 0%, transparent 70%);
+      top: -120px; right: -80px;
+    }
+
+    .app { display: flex; flex-direction: column; height: 100vh; overflow: hidden; position: relative; z-index: 1; }
+
+    .app-header {
+      height: 56px; display: flex; align-items: center; justify-content: space-between;
+      padding: 0 24px;
+      background: var(--glass-bg);
+      backdrop-filter: var(--glass-blur);
+      -webkit-backdrop-filter: var(--glass-blur);
+      border-bottom: 1px solid var(--glass-border);
+      flex-shrink: 0;
+    }
+    .app-brand { display: flex; align-items: baseline; gap: 14px; }
+    .app-brand h1 {
+      font-family: "Ma Shan Zheng", "ZCOOL XiaoWei", cursive;
+      font-size: 24px; font-weight: 400; margin: 0;
+      letter-spacing: 2px; color: var(--brand-primary);
+    }
+    [data-theme="dark"] .app-brand h1 {
+      font-family: "JetBrains Mono", monospace;
+      font-size: 20px; font-weight: 700;
+      letter-spacing: 1px; text-transform: uppercase;
+    }
+    .app-subtitle {
+      font-family: "ZCOOL XiaoWei", "Noto Serif SC", serif;
+      font-size: 13px; color: var(--neutral-text-secondary); letter-spacing: 1px;
+    }
+    [data-theme="dark"] .app-subtitle {
+      font-family: "JetBrains Mono", monospace;
+      font-size: 11px; letter-spacing: 2px; text-transform: uppercase;
+    }
+    .topbar-chips { display: flex; gap: 8px; }
+    .topbar-chip {
+      font-size: 10px; font-weight: 500; letter-spacing: 0.8px; text-transform: uppercase;
+      padding: 4px 10px; border-radius: 4px;
+      background: var(--glass-bg); backdrop-filter: var(--glass-blur);
+      border: 1px solid var(--glass-border);
+      color: var(--neutral-text-secondary);
+    }
+    [data-theme="dark"] .topbar-chip {
+      border-color: rgba(0, 212, 170, 0.15);
+      background: rgba(0, 212, 170, 0.05);
+      font-family: "JetBrains Mono", monospace;
+      font-size: 9px; letter-spacing: 1.5px;
+    }
+
+    .app-body { display: flex; flex: 1; overflow: hidden; }
+
+    .mode-rail {
+      width: 60px; display: flex; flex-direction: column; align-items: center; gap: 6px;
+      padding: 16px 0;
+      background: var(--glass-bg); backdrop-filter: var(--glass-blur);
+      border-right: 1px solid var(--glass-border);
+      flex-shrink: 0;
+    }
+    [data-theme="dark"] .mode-rail {
+      border-right-color: rgba(0, 212, 170, 0.08);
+      background: rgba(10, 15, 26, 0.8);
+    }
+    .mode-rail-btn {
+      width: 44px; height: 44px; display: flex; align-items: center; justify-content: center;
+      border-radius: 12px; border: none;
+      background: transparent;
+      color: var(--neutral-text-secondary);
+      cursor: pointer; transition: all 200ms ease;
+    }
+    .mode-rail-btn:hover {
+      background: rgba(61, 142, 134, 0.08);
+      color: var(--brand-primary);
+      transform: translateY(-1px);
+    }
+    [data-theme="dark"] .mode-rail-btn:hover {
+      background: rgba(0, 212, 170, 0.1);
+      box-shadow: 0 0 12px rgba(0, 212, 170, 0.15);
+    }
+    .mode-rail-btn.active {
+      background: rgba(61, 142, 134, 0.12);
+      color: var(--brand-primary);
+      box-shadow: 0 2px 8px rgba(61, 142, 134, 0.12);
+    }
+    [data-theme="dark"] .mode-rail-btn.active {
+      background: rgba(0, 212, 170, 0.15);
+      box-shadow: 0 0 16px rgba(0, 212, 170, 0.2);
+      border: 1px solid rgba(0, 212, 170, 0.3);
+    }
+
+    .main-content { flex: 1; overflow-y: auto; padding: 24px; }
+
+    .page-header {
+      display: flex; align-items: center; justify-content: space-between;
+      margin-bottom: 24px;
+    }
+    .page-title {
+      font-family: "ZCOOL XiaoWei", "Noto Serif SC", serif;
+      font-size: 22px; font-weight: 600; letter-spacing: 1px;
+      color: var(--neutral-text-primary);
+    }
+    [data-theme="dark"] .page-title {
+      font-family: "JetBrains Mono", monospace;
+      font-size: 18px; letter-spacing: 1px; text-transform: uppercase;
+    }
+    .page-actions { display: flex; gap: 10px; align-items: center; }
+
+    /* Buttons */
+    .btn {
+      display: inline-flex; align-items: center; justify-content: center; gap: 6px;
+      padding: 8px 18px; border-radius: 10px;
+      font-family: "ZCOOL XiaoWei", "Noto Serif SC", serif;
+      font-size: 13px; font-weight: 600; letter-spacing: 0.5px;
+      cursor: pointer; transition: all 200ms ease; border: none; white-space: nowrap;
+    }
+    [data-theme="dark"] .btn {
+      font-family: "JetBrains Mono", monospace;
+      font-size: 11px; letter-spacing: 1.5px; text-transform: uppercase;
+      border-radius: 6px;
+    }
+    .btn-primary {
+      background: linear-gradient(135deg, var(--brand-primary) 0%, var(--brand-primary-hover) 100%);
+      color: #fff;
+      box-shadow: 0 2px 8px rgba(61, 142, 134, 0.25);
+    }
+    .btn-primary:hover {
+      transform: translateY(-1px);
+      box-shadow: 0 4px 14px rgba(61, 142, 134, 0.35);
+    }
+    [data-theme="dark"] .btn-primary {
+      background: linear-gradient(135deg, #00d4aa 0%, #00b894 100%);
+      box-shadow: 0 0 16px rgba(0, 212, 170, 0.25);
+    }
+    .btn-secondary {
+      background: var(--glass-bg); backdrop-filter: var(--glass-blur);
+      color: var(--brand-primary);
+      border: 1px solid var(--glass-border);
+    }
+    .btn-secondary:hover {
+      border-color: rgba(61, 142, 134, 0.3);
+      background: rgba(61, 142, 134, 0.06);
+    }
+    [data-theme="dark"] .btn-secondary {
+      border-color: rgba(0, 212, 170, 0.2); color: #00d4aa;
+    }
+    .btn-ghost {
+      background: transparent; color: var(--neutral-text-secondary); border: none;
+    }
+    .btn-ghost:hover { background: rgba(61, 142, 134, 0.06); color: var(--brand-primary); }
+    .btn-sm { padding: 6px 14px; font-size: 12px; }
+    .btn-icon {
+      width: 34px; height: 34px; padding: 0;
+      border-radius: 8px;
+    }
+
+    /* Inputs */
+    .input, .select {
+      padding: 8px 14px;
+      border: 1px solid var(--glass-border); border-radius: 10px;
+      background: var(--glass-bg); backdrop-filter: var(--glass-blur);
+      color: var(--neutral-text-primary);
+      font-family: inherit; font-size: 13px;
+      outline: none; transition: all 200ms ease;
+    }
+    [data-theme="dark"] .input, [data-theme="dark"] .select {
+      border-radius: 6px;
+      border-color: rgba(0, 212, 170, 0.15);
+      background: rgba(15, 25, 45, 0.6);
+      font-family: "JetBrains Mono", monospace; font-size: 12px;
+    }
+    .input:focus, .select:focus {
+      border-color: rgba(61, 142, 134, 0.35);
+      box-shadow: var(--shadow-focus);
+    }
+    .search-input {
+      width: 240px;
+      padding-left: 36px;
+      background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='16' height='16' viewBox='0 0 24 24' fill='none' stroke='%238a9e90' stroke-width='2' stroke-linecap='round' stroke-linejoin='round'%3E%3Ccircle cx='11' cy='11' r='8'/%3E%3Cline x1='21' y1='21' x2='16.65' y2='16.65'/%3E%3C/svg%3E");
+      background-repeat: no-repeat;
+      background-position: 12px center;
+    }
+
+    /* Filter chips */
+    .filter-chips { display: flex; gap: 8px; flex-wrap: wrap; }
+    .filter-chip {
+      padding: 6px 14px; border-radius: 20px;
+      border: 1px solid var(--glass-border);
+      background: var(--glass-bg); backdrop-filter: var(--glass-blur);
+      color: var(--neutral-text-secondary);
+      font-size: 12px; cursor: pointer; transition: all 200ms ease;
+      font-family: inherit;
+      display: inline-flex; align-items: center; gap: 6px;
+    }
+    .filter-chip:hover {
+      border-color: rgba(61, 142, 134, 0.3);
+      color: var(--brand-primary);
+      transform: translateY(-1px);
+    }
+    .filter-chip.active {
+      border-color: rgba(61, 142, 134, 0.45);
+      background: rgba(61, 142, 134, 0.1);
+      color: var(--brand-primary);
+    }
+
+    .filter-chip.running { color: var(--brand-primary); border-color: rgba(61, 142, 134, 0.35); }
+    .filter-chip.running:hover, .filter-chip.running.active { background: rgba(61, 142, 134, 0.12); border-color: rgba(61, 142, 134, 0.55); }
+
+    .filter-chip.success { color: var(--semantic-success); border-color: rgba(106, 189, 121, 0.35); }
+    .filter-chip.success:hover, .filter-chip.success.active { background: rgba(106, 189, 121, 0.12); border-color: rgba(106, 189, 121, 0.55); }
+
+    .filter-chip.error { color: var(--semantic-error); border-color: rgba(201, 79, 79, 0.35); }
+    .filter-chip.error:hover, .filter-chip.error.active { background: rgba(201, 79, 79, 0.12); border-color: rgba(201, 79, 79, 0.55); }
+
+    .filter-chip.awaiting { color: var(--semantic-warning); border-color: rgba(201, 149, 44, 0.35); }
+    .filter-chip.awaiting:hover, .filter-chip.awaiting.active { background: rgba(201, 149, 44, 0.12); border-color: rgba(201, 149, 44, 0.55); }
+
+    .filter-chip-count {
+      font-family: "JetBrains Mono", monospace;
+      font-size: 11px; font-weight: 600;
+      padding: 1px 7px; border-radius: 10px;
+      background: rgba(120, 140, 130, 0.12);
+      color: inherit;
+      min-width: 20px;
+      text-align: center;
+    }
+
+    [data-theme="dark"] .filter-chip {
+      border-color: rgba(0, 212, 170, 0.1);
+      background: rgba(15, 25, 45, 0.4);
+    }
+    [data-theme="dark"] .filter-chip:hover {
+      border-color: rgba(0, 212, 170, 0.3);
+      color: #00d4aa;
+    }
+    [data-theme="dark"] .filter-chip.active {
+      border-color: rgba(0, 212, 170, 0.4);
+      background: rgba(0, 212, 170, 0.08);
+      color: #00d4aa;
+    }
+    [data-theme="dark"] .filter-chip.running { color: #00d4aa; border-color: rgba(0, 212, 170, 0.3); }
+    [data-theme="dark"] .filter-chip.running:hover, [data-theme="dark"] .filter-chip.running.active { background: rgba(0, 212, 170, 0.12); border-color: rgba(0, 212, 170, 0.5); }
+    [data-theme="dark"] .filter-chip.success { color: #2ecc71; border-color: rgba(46, 204, 113, 0.3); }
+    [data-theme="dark"] .filter-chip.success:hover, [data-theme="dark"] .filter-chip.success.active { background: rgba(46, 204, 113, 0.12); border-color: rgba(46, 204, 113, 0.5); }
+    [data-theme="dark"] .filter-chip.error { color: #e74c3c; border-color: rgba(231, 76, 60, 0.3); }
+    [data-theme="dark"] .filter-chip.error:hover, [data-theme="dark"] .filter-chip.error.active { background: rgba(231, 76, 60, 0.12); border-color: rgba(231, 76, 60, 0.5); }
+    [data-theme="dark"] .filter-chip.awaiting { color: #f1c40f; border-color: rgba(241, 196, 15, 0.3); }
+    [data-theme="dark"] .filter-chip.awaiting:hover, [data-theme="dark"] .filter-chip.awaiting.active { background: rgba(241, 196, 15, 0.12); border-color: rgba(241, 196, 15, 0.5); }
+
+    /* Toolbar */
+    .toolbar {
+      display: flex; align-items: center; justify-content: space-between;
+      gap: 12px; margin-bottom: 24px;
+    }
+    .toolbar-left, .toolbar-right { display: flex; align-items: center; gap: 10px; }
+
+    /* Cards Grid */
+    .cards-grid {
+      display: grid;
+      grid-template-columns: repeat(auto-fill, minmax(320px, 1fr));
+      gap: 20px;
+    }
+
+    /* Run Card */
+    .run-card {
+      position: relative;
+      padding: 20px;
+      border-radius: 16px;
+      border: 1px solid var(--glass-border);
+      background: var(--glass-bg);
+      backdrop-filter: var(--glass-blur);
+      transition: all 350ms cubic-bezier(0.4, 0, 0.2, 1);
+      cursor: pointer;
+      overflow: hidden;
+      opacity: 0;
+      transform: translateY(20px);
+      animation: card-enter 500ms cubic-bezier(0.4, 0, 0.2, 1) forwards;
+    }
+    [data-theme="dark"] .run-card {
+      border-radius: 12px;
+      border-color: rgba(0, 212, 170, 0.08);
+      background: rgba(15, 25, 45, 0.5);
+    }
+
+    .run-card:hover {
+      transform: translateY(-4px);
+      border-color: rgba(61, 142, 134, 0.3);
+      box-shadow: 0 12px 40px rgba(30, 46, 40, 0.12);
+    }
+    [data-theme="dark"] .run-card:hover {
+      border-color: rgba(0, 212, 170, 0.25);
+      box-shadow: 0 8px 32px rgba(0, 0, 0, 0.5), 0 0 40px rgba(0, 212, 170, 0.06);
+    }
+
+    @keyframes card-enter {
+      to { opacity: 1; transform: translateY(0); }
+    }
+
+    /* Card Header */
+    .card-header {
+      display: flex; align-items: flex-start; justify-content: space-between;
+      margin-bottom: 18px;
+      position: relative; z-index: 1;
+    }
+    .card-title-wrap {
+      display: flex; flex-direction: column; gap: 3px;
+      flex: 1; min-width: 0;
+    }
+    .card-title {
+      font-family: "JetBrains Mono", monospace;
+      font-size: 15px; font-weight: 600;
+      color: var(--neutral-text-primary);
+      letter-spacing: 0.3px;
+      white-space: nowrap;
+      overflow: hidden;
+      text-overflow: ellipsis;
+    }
+    .card-template {
+      font-size: 12px; color: var(--neutral-text-muted);
+    }
+
+    /* Status badge */
+    .card-status {
+      display: flex; align-items: center; gap: 5px;
+      padding: 3px 10px; border-radius: 20px;
+      font-family: "ZCOOL XiaoWei", serif;
+      font-size: 11px; font-weight: 600; letter-spacing: 1px;
+      border: 1px solid currentColor;
+      flex-shrink: 0;
+      position: relative; z-index: 1;
+    }
+    [data-theme="dark"] .card-status {
+      font-family: "JetBrains Mono", monospace;
+      font-size: 9px; letter-spacing: 1.5px;
+      border-radius: 12px;
+      text-transform: uppercase;
+    }
+    .card-status-running { color: var(--brand-primary); background: rgba(61, 142, 134, 0.08); }
+    .card-status-success { color: var(--semantic-success); background: rgba(106, 189, 121, 0.08); }
+    .card-status-error { color: var(--semantic-error); background: rgba(201, 79, 79, 0.08); }
+    .card-status-awaiting { color: var(--semantic-warning); background: rgba(201, 149, 44, 0.08); }
+    .card-status-aborted { color: var(--neutral-text-muted); background: rgba(120, 140, 130, 0.08); }
+
+    .status-pulse {
+      width: 7px; height: 7px; border-radius: 50%;
+      position: relative;
+    }
+    .status-pulse.running {
+      background: var(--brand-primary);
+      animation: pulse-ring 2s infinite;
+    }
+    [data-theme="dark"] .status-pulse.running { animation: pulse-ring-tech 2s infinite; }
+
+    @keyframes pulse-ring {
+      0% { box-shadow: 0 0 0 0 rgba(61, 142, 134, 0.5); }
+      50% { box-shadow: 0 0 0 5px rgba(61, 142, 134, 0.1); }
+      100% { box-shadow: 0 0 0 0 rgba(61, 142, 134, 0); }
+    }
+    @keyframes pulse-ring-tech {
+      0% { box-shadow: 0 0 0 0 rgba(0, 212, 170, 0.5); }
+      50% { box-shadow: 0 0 0 6px rgba(0, 212, 170, 0.15); }
+      100% { box-shadow: 0 0 0 0 rgba(0, 212, 170, 0); }
+    }
+    .status-pulse.success { background: var(--semantic-success); }
+    .status-pulse.error { background: var(--semantic-error); }
+    .status-pulse.awaiting { background: var(--semantic-warning); }
+    .status-pulse.aborted { background: var(--neutral-text-muted); }
+
+    /* ====== Workflow: Progress Bar + Step Pills ====== */
+    .workflow-steps {
+      margin-bottom: 14px;
+      z-index: 1;
+    }
+    .workflow-steps-header {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      margin-bottom: 10px;
+    }
+    .workflow-steps-label {
+      font-size: 10px;
+      color: var(--neutral-text-muted);
+      text-transform: uppercase;
+      letter-spacing: 1.2px;
+      font-family: "JetBrains Mono", monospace;
+      font-weight: 500;
+    }
+    .workflow-steps-count {
+      font-family: "JetBrains Mono", monospace;
+      font-size: 10px;
+      color: var(--neutral-text-secondary);
+      font-weight: 600;
+    }
+
+    /* Glowing progress bar — no dots, clean line */
+    .progress-glow {
+      width: 100%;
+      height: 4px;
+      border-radius: 2px;
+      background: var(--neutral-border-subtle);
+      position: relative;
+      overflow: hidden;
+      margin-bottom: 10px;
+    }
+    [data-theme="dark"] .progress-glow {
+      background: rgba(0, 212, 170, 0.08);
+    }
+    .progress-glow-fill {
+      height: 100%;
+      border-radius: 2px;
+      transition: width 700ms cubic-bezier(0.4, 0, 0.2, 1);
+      position: relative;
+    }
+    .progress-glow-fill::after {
+      content: '';
+      position: absolute;
+      top: 0; right: 0; bottom: 0;
+      width: 40px;
+      background: linear-gradient(90deg, transparent, rgba(255,255,255,0.4));
+      animation: shimmer-flow 2s infinite;
+    }
+    @keyframes shimmer-flow {
+      0% { transform: translateX(0); opacity: 0; }
+      50% { opacity: 1; }
+      100% { transform: translateX(20px); opacity: 0; }
+    }
+    .progress-glow-fill.done {
+      background: var(--semantic-success);
+      box-shadow: 0 0 10px rgba(106, 189, 121, 0.35);
+    }
+    .progress-glow-fill.running {
+      background: linear-gradient(90deg, var(--semantic-success), var(--brand-primary));
+      box-shadow: 0 0 12px rgba(61, 142, 134, 0.35);
+    }
+    .progress-glow-fill.error {
+      background: linear-gradient(90deg, var(--semantic-success), var(--semantic-error));
+      box-shadow: 0 0 10px rgba(201, 79, 79, 0.3);
+    }
+    [data-theme="dark"] .progress-glow-fill.done {
+      box-shadow: 0 0 14px rgba(46, 204, 113, 0.4);
+    }
+    [data-theme="dark"] .progress-glow-fill.running {
+      background: linear-gradient(90deg, #2ecc71, #00d4aa);
+      box-shadow: 0 0 16px rgba(0, 212, 170, 0.4);
+    }
+    [data-theme="dark"] .progress-glow-fill.error {
+      box-shadow: 0 0 14px rgba(231, 76, 60, 0.35);
+    }
+
+    /* Step pills */
+    .step-pills {
+      display: flex;
+      flex-wrap: wrap;
+      gap: 6px;
+    }
+    .step-pill {
+      display: inline-flex;
+      align-items: center;
+      gap: 5px;
+      padding: 3px 10px;
+      border-radius: 12px;
+      font-size: 11px;
+      font-family: "JetBrains Mono", monospace;
+      letter-spacing: 0.3px;
+      border: 1px solid var(--neutral-border-subtle);
+      background: var(--glass-bg);
+      backdrop-filter: var(--glass-blur);
+      color: var(--neutral-text-secondary);
+      transition: all 300ms ease;
+      white-space: nowrap;
+    }
+    [data-theme="dark"] .step-pill {
+      border-color: rgba(0, 212, 170, 0.1);
+      background: rgba(15, 25, 45, 0.4);
+      color: #7a9db0;
+    }
+
+    .step-pill.done {
+      border-color: rgba(106, 189, 121, 0.3);
+      background: rgba(106, 189, 121, 0.08);
+      color: var(--semantic-success);
+    }
+    [data-theme="dark"] .step-pill.done {
+      border-color: rgba(46, 204, 113, 0.25);
+      background: rgba(46, 204, 113, 0.08);
+      color: #2ecc71;
+    }
+
+    .step-pill.running {
+      border-color: rgba(61, 142, 134, 0.35);
+      background: rgba(61, 142, 134, 0.08);
+      color: var(--brand-primary);
+      animation: pill-pulse 2.5s infinite ease-in-out;
+    }
+    @keyframes pill-pulse {
+      0%, 100% { box-shadow: 0 0 0 0 rgba(61, 142, 134, 0.15); }
+      50% { box-shadow: 0 0 0 4px rgba(61, 142, 134, 0.05); }
+    }
+    [data-theme="dark"] .step-pill.running {
+      border-color: rgba(0, 212, 170, 0.3);
+      background: rgba(0, 212, 170, 0.08);
+      color: #00d4aa;
+      animation: pill-pulse-tech 2.5s infinite ease-in-out;
+    }
+    @keyframes pill-pulse-tech {
+      0%, 100% { box-shadow: 0 0 0 0 rgba(0, 212, 170, 0.2); }
+      50% { box-shadow: 0 0 0 5px rgba(0, 212, 170, 0.08); }
+    }
+
+    .step-pill.error {
+      border-color: rgba(201, 79, 79, 0.3);
+      background: rgba(201, 79, 79, 0.08);
+      color: var(--semantic-error);
+    }
+    [data-theme="dark"] .step-pill.error {
+      border-color: rgba(231, 76, 60, 0.25);
+      background: rgba(231, 76, 60, 0.08);
+      color: #e74c3c;
+    }
+
+    .step-pill.awaiting {
+      border-color: rgba(201, 149, 44, 0.3);
+      background: rgba(201, 149, 44, 0.08);
+      color: var(--semantic-warning);
+    }
+    [data-theme="dark"] .step-pill.awaiting {
+      border-color: rgba(241, 196, 15, 0.25);
+      background: rgba(241, 196, 15, 0.08);
+      color: #f1c40f;
+    }
+
+    .step-pill.pending {
+      opacity: 0.55;
+    }
+
+    /* Status indicator dot inside pill */
+    .pill-indicator {
+      width: 6px; height: 6px;
+      border-radius: 50%;
+      flex-shrink: 0;
+    }
+    .pill-indicator.done { background: var(--semantic-success); }
+    .pill-indicator.running { background: var(--brand-primary); animation: indicator-blink 2s infinite; }
+    .pill-indicator.error { background: var(--semantic-error); }
+    .pill-indicator.awaiting { background: var(--semantic-warning); }
+    .pill-indicator.pending { background: var(--neutral-text-muted); opacity: 0.4; }
+    @keyframes indicator-blink {
+      0%, 100% { opacity: 1; }
+      50% { opacity: 0.4; }
+    }
+    [data-theme="dark"] .pill-indicator.done { background: #2ecc71; }
+    [data-theme="dark"] .pill-indicator.running { background: #00d4aa; }
+    [data-theme="dark"] .pill-indicator.error { background: #e74c3c; }
+    [data-theme="dark"] .pill-indicator.awaiting { background: #f1c40f; }
+
+    /* Card Meta (duration + time, compact) */
+    .card-meta {
+      display: flex;
+      align-items: center;
+      gap: 16px;
+      margin-bottom: 14px;
+      position: relative; z-index: 1;
+    }
+    .card-meta-item-inline {
+      display: flex;
+      align-items: center;
+      gap: 6px;
+      font-size: 12px;
+      color: var(--neutral-text-secondary);
+    }
+    .card-meta-item-inline svg {
+      color: var(--neutral-text-muted);
+      flex-shrink: 0;
+    }
+    .card-meta-duration {
+      font-family: "JetBrains Mono", monospace;
+      font-weight: 600;
+      color: var(--neutral-text-primary);
+    }
+
+    /* Card Footer */
+    .card-footer {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      padding-top: 12px;
+      border-top: 1px solid var(--neutral-border-subtle);
+      position: relative; z-index: 1;
+    }
+    [data-theme="dark"] .card-footer {
+      border-top-color: rgba(0, 212, 170, 0.06);
+    }
+    .card-time-compact {
+      font-size: 11px;
+      color: var(--neutral-text-muted);
+    }
+    .card-actions {
+      display: flex;
+      gap: 4px;
+    }
+    .card-action-btn {
+      width: 26px; height: 26px;
+      border-radius: 5px; border: none;
+      background: transparent;
+      color: var(--neutral-text-muted);
+      cursor: pointer;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      transition: all 150ms ease;
+      opacity: 0;
+      transform: translateX(5px);
+    }
+    .run-card:hover .card-action-btn {
+      opacity: 1;
+      transform: translateX(0);
+    }
+    .run-card:hover .card-action-btn:nth-child(1) { transition-delay: 0ms; }
+    .run-card:hover .card-action-btn:nth-child(2) { transition-delay: 40ms; }
+    .run-card:hover .card-action-btn:nth-child(3) { transition-delay: 80ms; }
+    .card-action-btn:hover {
+      background: rgba(61, 142, 134, 0.08);
+      color: var(--brand-primary);
+    }
+    [data-theme="dark"] .card-action-btn:hover {
+      background: rgba(0, 212, 170, 0.1);
+      color: #00d4aa;
+    }
+
+    /* Running card special glow */
+    .run-card.running-card {
+      border-color: rgba(61, 142, 134, 0.25);
+    }
+    .run-card.running-card::after {
+      content: '';
+      position: absolute;
+      inset: -1px;
+      border-radius: inherit;
+      border: 1px solid transparent;
+      animation: border-pulse 3s infinite ease-in-out;
+      pointer-events: none;
+      z-index: 2;
+    }
+    [data-theme="dark"] .run-card.running-card {
+      border-color: rgba(0, 212, 170, 0.2);
+    }
+    [data-theme="dark"] .run-card.running-card::after {
+      animation: border-pulse-tech 3s infinite ease-in-out;
+    }
+    @keyframes border-pulse {
+      0%, 100% { border-color: rgba(61, 142, 134, 0.25); box-shadow: 0 0 0 0 rgba(61, 142, 134, 0.05); }
+      50% { border-color: rgba(61, 142, 134, 0.4); box-shadow: 0 0 20px rgba(61, 142, 134, 0.08); }
+    }
+    @keyframes border-pulse-tech {
+      0%, 100% { border-color: rgba(0, 212, 170, 0.2); box-shadow: 0 0 0 0 rgba(0, 212, 170, 0.05); }
+      50% { border-color: rgba(0, 212, 170, 0.4); box-shadow: 0 0 24px rgba(0, 212, 170, 0.1); }
+    }
+
+    /* Theme Toggle */
+    .theme-toggle {
+      position: fixed; top: 68px; right: 24px; z-index: 50;
+      padding: 8px 16px; border-radius: 6px;
+      border: 2px solid var(--brand-primary);
+      background: rgba(61, 142, 134, 0.08);
+      backdrop-filter: var(--glass-blur);
+      color: var(--brand-primary);
+      cursor: pointer;
+      font-family: "Ma Shan Zheng", cursive;
+      font-size: 14px; letter-spacing: 2px;
+      transition: all 200ms ease;
+      box-shadow: var(--shadow-sm);
+    }
+    .theme-toggle:hover {
+      background: rgba(61, 142, 134, 0.15);
+      transform: translateY(-1px);
+      box-shadow: var(--shadow-md);
+    }
+    [data-theme="dark"] .theme-toggle {
+      font-family: "JetBrains Mono", monospace;
+      font-size: 10px; letter-spacing: 2px; text-transform: uppercase;
+      border-radius: 4px; border-color: #00d4aa; color: #00d4aa;
+      background: rgba(0, 212, 170, 0.08);
+      box-shadow: 0 0 12px rgba(0, 212, 170, 0.15);
+    }
+
+    /* Scrollbar */
+    ::-webkit-scrollbar { width: 5px; height: 5px; }
+    ::-webkit-scrollbar-track { background: transparent; }
+    ::-webkit-scrollbar-thumb { background: var(--neutral-border); border-radius: 3px; }
+    ::-webkit-scrollbar-thumb:hover { background: var(--neutral-text-muted); }
+    [data-theme="dark"] ::-webkit-scrollbar-thumb { background: rgba(0, 212, 170, 0.2); }
+    [data-theme="dark"] ::-webkit-scrollbar-thumb:hover { background: rgba(0, 212, 170, 0.35); }
+
+    /* Responsive */
+    @media (max-width: 768px) {
+      .cards-grid { grid-template-columns: 1fr; }
+      .toolbar { flex-direction: column; align-items: stretch; }
+      .toolbar-left, .toolbar-right { justify-content: space-between; }
+      .card-action-btn { opacity: 1; transform: none; }
+      .node-label { opacity: 1; transform: none; }
+    }
+  </style>
+</head>
+<body>
+  <div class="app">
+    <div class="chinese-pattern-bg"></div>
+    <div class="tech-grid-bg"></div>
+    <div class="tech-glow tech-glow-1"></div>
+    <div class="ink-wash ink-wash-1"></div>
+
+    <button class="theme-toggle" onclick="toggleTheme()">暗色</button>
+
+    <header class="app-header">
+      <div class="app-brand">
+        <h1>竹林工坊</h1>
+        <span class="app-subtitle">运行记录</span>
+      </div>
+      <div class="topbar-chips">
+        <span class="topbar-chip">2 运行中</span>
+        <span class="topbar-chip">1 待处理</span>
+        <span class="topbar-chip">8 模板</span>
+        <span class="topbar-chip">5 智能体</span>
+      </div>
+    </header>
+
+    <div class="app-body">
+      <nav class="mode-rail">
+        <button class="mode-rail-btn active" title="Workflow">
+          <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="3" width="7" height="7"/><rect x="14" y="3" width="7" height="7"/><rect x="14" y="14" width="7" height="7"/><rect x="3" y="14" width="7" height="7"/></svg>
+        </button>
+        <button class="mode-rail-btn" title="Templates">
+          <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polygon points="12 2 2 7 12 12 22 7 12 2"/><polyline points="2 17 12 22 22 17"/><polyline points="2 12 12 17 22 12"/></svg>
+        </button>
+        <button class="mode-rail-btn" title="Agents">
+          <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="11" width="18" height="10" rx="2"/><circle cx="12" cy="5" r="2"/><path d="M12 7v4"/><line x1="8" y1="16" x2="8" y2="16"/><line x1="16" y1="16" x2="16" y2="16"/></svg>
+        </button>
+        <button class="mode-rail-btn" title="Single">
+          <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M21 11.5a8.38 8.38 0 0 1-.9 3.8 8.5 8.5 0 0 1-7.6 4.7 8.38 8.38 0 0 1-3.8-.9L3 21l1.9-5.7a8.38 8.38 0 0 1-.9-3.8 8.5 8.5 0 0 1 4.7-7.6 8.38 8.38 0 0 1 3.8-.9h.5a8.48 8.48 0 0 1 8 8v.5z"/></svg>
+        </button>
+        <button class="mode-rail-btn" title="Settings">
+          <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="3"/><path d="M19.4 15a1.65 1.65 0 0 0 .33 1.82l.06.06a2 2 0 0 1 0 2.83 2 2 0 0 1-2.83 0l-.06-.06a1.65 1.65 0 0 0-1.82-.33 1.65 1.65 0 0 0-1 1.51V21a2 2 0 0 1-2 2 2 2 0 0 1-2-2v-.09A1.65 1.65 0 0 0 9 19.4a1.65 1.65 0 0 0-1.82.33l-.06.06a2 2 0 0 1-2.83 0 2 2 0 0 1 0-2.83l.06-.06A1.65 1.65 0 0 0 4.68 15a1.65 1.65 0 0 0-1.51-1H3a2 2 0 0 1-2-2 2 2 0 0 1 2-2h.09A1.65 1.65 0 0 0 4.6 9a1.65 1.65 0 0 0-.33-1.82l-.06-.06a2 2 0 0 1 0-2.83 2 2 0 0 1 2.83 0l.06.06A1.65 1.65 0 0 0 9 4.68a1.65 1.65 0 0 0 1-1.51V3a2 2 0 0 1 2-2 2 2 0 0 1 2 2v.09a1.65 1.65 0 0 0 1.51 1H21a2 2 0 0 1 2 2 2 2 0 0 1-2 2h-.09a1.65 1.65 0 0 0-1.51 1z"/></svg>
+        </button>
+      </nav>
+
+      <main class="main-content">
+        <div class="page-header">
+          <h2 class="page-title">全部运行记录</h2>
+          <div class="page-actions">
+            <button class="btn btn-secondary btn-sm">
+              <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><polyline points="7 10 12 15 17 10"/><line x1="12" y1="15" x2="12" y2="3"/></svg>
+              导出
+            </button>
+            <button class="btn btn-primary btn-sm">
+              <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><line x1="12" y1="5" x2="12" y2="19"/><line x1="5" y1="12" x2="19" y2="12"/></svg>
+              新建运行
+            </button>
+          </div>
+        </div>
+
+        <div class="toolbar">
+          <div class="toolbar-left">
+            <input type="text" class="input search-input" placeholder="搜索运行名称、模板...">
+            <div class="filter-chips">
+              <button class="filter-chip active">全部 <span class="filter-chip-count">24</span></button>
+              <button class="filter-chip running">运行中 <span class="filter-chip-count">2</span></button>
+              <button class="filter-chip success">已完成 <span class="filter-chip-count">18</span></button>
+              <button class="filter-chip error">出错 <span class="filter-chip-count">3</span></button>
+              <button class="filter-chip awaiting">待处理 <span class="filter-chip-count">1</span></button>
+            </div>
+          </div>
+          <div class="toolbar-right">
+            <select class="select">
+              <option>按时间倒序</option>
+              <option>按时间正序</option>
+              <option>按名称</option>
+            </select>
+            <button class="btn btn-icon btn-ghost" title="刷新">
+              <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polyline points="23 4 23 10 17 10"/><path d="M20.49 15a9 9 0 1 1-2.12-9.36L23 10"/></svg>
+            </button>
+          </div>
+        </div>
+
+        <div class="cards-grid" id="cardsGrid"></div>
+      </main>
+    </div>
+  </div>
+
+  <script>
+    // run data with per-step status for workflow visualization
+    const runs = [
+      {
+        id: 1, name: 'feature-auth-workflow', template: 'auth-refactor-pipeline',
+        status: 'running', stepText: '2 / 5', duration: '12m 34s', ago: '2m ago',
+        steps: [
+          { name: '分析', status: 'done' },
+          { name: '生成', status: 'running' },
+          { name: '重构', status: 'pending' },
+          { name: '文档', status: 'pending' },
+          { name: '审查', status: 'pending' },
+        ]
+      },
+      {
+        id: 2, name: 'refactor-db-layer', template: 'db-optimization',
+        status: 'awaiting-confirm', stepText: '3 / 4', duration: '45m 12s', ago: '15m ago',
+        steps: [
+          { name: '分析', status: 'done' },
+          { name: '设计', status: 'done' },
+          { name: '实现', status: 'awaiting' },
+          { name: '测试', status: 'pending' },
+        ]
+      },
+      {
+        id: 3, name: 'update-deps-pr', template: 'dependency-update',
+        status: 'completed', stepText: '4 / 4', duration: '32m 08s', ago: '1h ago',
+        steps: [
+          { name: '检查', status: 'done' },
+          { name: '更新', status: 'done' },
+          { name: '测试', status: 'done' },
+          { name: '提交', status: 'done' },
+        ]
+      },
+      {
+        id: 4, name: 'fix-login-bug', template: 'bug-fix-pipeline',
+        status: 'error', stepText: '2 / 3', duration: '18m 22s', ago: '2h ago',
+        steps: [
+          { name: '复现', status: 'done' },
+          { name: '修复', status: 'error' },
+          { name: '验证', status: 'pending' },
+        ]
+      },
+      {
+        id: 5, name: 'docs-update', template: 'documentation-sync',
+        status: 'completed', stepText: '2 / 2', duration: '8m 15s', ago: '3h ago',
+        steps: [
+          { name: '收集', status: 'done' },
+          { name: '生成', status: 'done' },
+        ]
+      },
+      {
+        id: 6, name: 'security-audit', template: 'security-scan',
+        status: 'aborted', stepText: '1 / 3', duration: '5m 42s', ago: '1d ago',
+        steps: [
+          { name: '扫描', status: 'done' },
+          { name: '分析', status: 'pending' },
+          { name: '报告', status: 'pending' },
+        ]
+      },
+      {
+        id: 7, name: 'parallel-deploy', template: 'ci-cd-pipeline',
+        status: 'running', stepText: '3 / 6', duration: '6m 18s', ago: '8m ago',
+        dag: {
+          nodes: [
+            { id: 'n1', name: '构建', status: 'done', pos: { x: 0, y: 0.5 } },
+            { id: 'n2', name: '测试', status: 'done', pos: { x: 1, y: 0.5 } },
+            { id: 'n3', name: '镜像', status: 'running', pos: { x: 2, y: 0 } },
+            { id: 'n4', name: '配置', status: 'done', pos: { x: 2, y: 1 } },
+            { id: 'n5', name: '部署', status: 'pending', pos: { x: 3, y: 0.5 } },
+            { id: 'n6', name: '验证', status: 'pending', pos: { x: 4, y: 0.5 } },
+          ],
+          edges: [
+            { from: 'n1', to: 'n2' },
+            { from: 'n2', to: 'n3' },
+            { from: 'n2', to: 'n4' },
+            { from: 'n3', to: 'n5' },
+            { from: 'n4', to: 'n5' },
+            { from: 'n5', to: 'n6' },
+          ]
+        }
+      },
+    ];
+
+    const statusMap = {
+      'running': { label: '运行中', cls: 'running', cardCls: 'running-card' },
+      'awaiting-confirm': { label: '待确认', cls: 'awaiting', cardCls: 'awaiting-card' },
+      'completed': { label: '已完成', cls: 'success', cardCls: 'success-card' },
+      'error': { label: '出错', cls: 'error', cardCls: 'error-card' },
+      'aborted': { label: '已停止', cls: 'aborted', cardCls: '' },
+    };
+
+    function renderWorkflow(run) {
+      if (run.dag) {
+        return renderDagSteps(run.dag);
+      }
+      return renderLinearSteps(run.steps);
+    }
+
+    function renderLinearSteps(steps) {
+      const pillClass = (status) => status === 'done' ? 'done'
+        : status === 'running' ? 'running'
+        : status === 'error' ? 'error'
+        : status === 'awaiting' ? 'awaiting'
+        : 'pending';
+
+      // progress bar fill
+      let fillStatus = '';
+      let fillPct = 0;
+      const total = steps.length - 1 || 1;
+      for (let i = 0; i < steps.length; i++) {
+        if (steps[i].status === 'done') {
+          fillStatus = 'done';
+          fillPct = (i / total) * 100;
+        } else if (steps[i].status === 'running' || steps[i].status === 'awaiting') {
+          fillStatus = steps[i].status === 'running' ? 'running' : 'done';
+          fillPct = (i / total) * 100;
+          break;
+        } else if (steps[i].status === 'error') {
+          fillStatus = 'error';
+          fillPct = (i / total) * 100;
+          break;
+        } else {
+          break;
+        }
+      }
+
+      const pills = steps.map(step => {
+        const pClass = pillClass(step.status);
+        return `<span class="step-pill ${pClass}"><span class="pill-indicator ${pClass}"></span>${step.name}</span>`;
+      }).join('');
+
+      return `
+        <div class="progress-glow">
+          <div class="progress-glow-fill ${fillStatus}" style="width: ${fillPct}%"></div>
+        </div>
+        <div class="step-pills">${pills}</div>
+      `;
+    }
+
+    function renderDagSteps(dag) {
+      const { nodes } = dag;
+      const pillClass = (status) => status === 'done' ? 'done'
+        : status === 'running' ? 'running'
+        : status === 'error' ? 'error'
+        : status === 'awaiting' ? 'awaiting'
+        : 'pending';
+
+      // group by x level (column)
+      const levels = {};
+      nodes.forEach(n => {
+        const x = n.pos.x;
+        if (!levels[x]) levels[x] = [];
+        levels[x].push(n);
+      });
+      const sortedLevels = Object.keys(levels).sort((a, b) => a - b).map(k => levels[k]);
+
+      // count done / total for progress bar
+      const doneCount = nodes.filter(n => n.status === 'done').length;
+      const fillPct = (doneCount / nodes.length) * 100;
+      const hasError = nodes.some(n => n.status === 'error');
+      const hasRunning = nodes.some(n => n.status === 'running');
+      const fillStatus = hasError ? 'error' : hasRunning ? 'running' : 'done';
+
+      // render each level as a row of pills
+      const levelRows = sortedLevels.map(levelNodes => {
+        const pills = levelNodes.map(n => {
+          const pClass = pillClass(n.status);
+          return `<span class="step-pill ${pClass}"><span class="pill-indicator ${pClass}"></span>${n.name}</span>`;
+        }).join('');
+        return `<div class="step-pills">${pills}</div>`;
+      }).join('');
+
+      return `
+        <div class="progress-glow">
+          <div class="progress-glow-fill ${fillStatus}" style="width: ${fillPct}%"></div>
+        </div>
+        ${levelRows}
+      `;
+    }
+
+    function renderCards() {
+      const grid = document.getElementById('cardsGrid');
+      grid.innerHTML = runs.map((run, i) => {
+        const s = statusMap[run.status] || statusMap['aborted'];
+        return `
+          <div class="run-card ${s.cardCls}" style="animation-delay: ${i * 80}ms">
+            <div class="card-header">
+              <div class="card-title-wrap">
+                <div class="card-title" title="${run.name}">${run.name}</div>
+                <div class="card-template">${run.template}</div>
+              </div>
+              <div class="card-status card-status-${s.cls}">
+                <span class="status-pulse ${s.cls}"></span>
+                ${s.label}
+              </div>
+            </div>
+
+            <!-- Workflow Steps with Nodes + Lines -->
+            <div class="workflow-steps">
+              <div class="workflow-steps-header">
+                <span class="workflow-steps-label">步骤</span>
+                <span class="workflow-steps-count">${run.stepText}</span>
+              </div>
+              ${renderWorkflow(run)}
+            </div>
+
+            <!-- Compact Meta: Duration + Ago -->
+            <div class="card-meta">
+              <div class="card-meta-item-inline">
+                <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="10"/><polyline points="12 6 12 12 16 14"/></svg>
+                <span class="card-meta-duration">${run.duration}</span>
+              </div>
+              <div class="card-meta-item-inline">
+                <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polyline points="22 12 18 12 15 21 9 3 6 12 2 12"/></svg>
+                <span>${run.ago}</span>
+              </div>
+            </div>
+
+            <div class="card-footer">
+              <span class="card-time-compact">${run.ago}</span>
+              <div class="card-actions">
+                <button class="card-action-btn" title="查看">
+                  <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M1 12s4-8 11-8 11 8 11 8-4 8-11 8-11-8-11-8z"/><circle cx="12" cy="12" r="3"/></svg>
+                </button>
+                <button class="card-action-btn" title="重跑">
+                  <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polyline points="23 4 23 10 17 10"/><path d="M20.49 15a9 9 0 1 1-2.12-9.36L23 10"/></svg>
+                </button>
+                <button class="card-action-btn" title="删除">
+                  <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polyline points="3 6 5 6 21 6"/><path d="M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6m3 0V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2"/></svg>
+                </button>
+              </div>
+            </div>
+          </div>
+        `;
+      }).join('');
+    }
+
+    renderCards();
+
+    function toggleTheme() {
+      const html = document.documentElement;
+      const current = html.getAttribute('data-theme') || 'light';
+      const next = current === 'light' ? 'dark' : 'light';
+      html.setAttribute('data-theme', next);
+      document.querySelector('.theme-toggle').textContent = next === 'light' ? '暗色' : '亮色';
+    }
+
+    document.querySelectorAll('.filter-chip').forEach(chip => {
+      chip.addEventListener('click', () => {
+        document.querySelectorAll('.filter-chip').forEach(c => c.classList.remove('active'));
+        chip.classList.add('active');
+      });
+    });
+  </script>
+</body>
+</html>
