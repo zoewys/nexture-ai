@@ -34,6 +34,8 @@ const SETTINGS_NAV = [
   { key: 'preference', label: '偏好设置', Icon: Sliders }
 ]
 
+const MAX_VISIBLE_API_LOGS = 6
+
 export function SettingsPanel({ settings, loading, onSave }: SettingsPanelProps): JSX.Element {
   const [clis, setClis] = useState<Record<string, CliInfo>>({})
   const [refreshing, setRefreshing] = useState(false)
@@ -72,7 +74,7 @@ export function SettingsPanel({ settings, loading, onSave }: SettingsPanelProps)
   const refreshApiLogs = useCallback(async () => {
     setApiLogsLoading(true)
     try {
-      setApiLogs((await window.api.listApiLogs()).slice(0, 20))
+      setApiLogs(await window.api.listApiLogs(MAX_VISIBLE_API_LOGS))
     } finally {
       setApiLogsLoading(false)
     }
@@ -268,7 +270,7 @@ export function SettingsPanel({ settings, loading, onSave }: SettingsPanelProps)
         <div className="settings-section-head">
           <div>
             <h3 className="settings-section-title">API 调用日志</h3>
-            <p className="settings-section-desc">查看最近的 API 调用结果、模型、耗时和 token 用量。</p>
+            <p className="settings-section-desc">这里只展示最近几条调用摘要；完整记录请直接打开日志目录查看。</p>
           </div>
           <div className="api-log-actions">
             <button type="button" className="settings-refresh-btn" onClick={() => void refreshApiLogs()} disabled={apiLogsLoading} title="刷新 API 调用日志">
@@ -290,16 +292,19 @@ export function SettingsPanel({ settings, loading, onSave }: SettingsPanelProps)
               <div key={log.id} className={`api-log-row api-log-${log.status}`}>
                 <div className="api-log-main">
                   <strong>{log.providerName ?? 'API'}{log.model ? ` / ${log.model}` : ''}</strong>
-                  <span>{log.source} · {new Date(log.timestamp).toLocaleString()}</span>
+                  <span>{formatLogSource(log.source)} · {formatLogTimestamp(log.timestamp)}</span>
                 </div>
                 <div className="api-log-meta">
-                  <span>{log.status}</span>
+                  <span className={`api-log-status api-log-status-${log.status}`}>{formatLogStatus(log.status)}</span>
                   {log.durationMs !== undefined ? <span>{log.durationMs}ms</span> : null}
                   {log.usage ? <span>{log.usage.inputTokens + log.usage.outputTokens} tokens</span> : null}
                 </div>
               </div>
             ))
           )}
+        </div>
+        <div className="api-log-footnote">
+          仅显示最近 {MAX_VISIBLE_API_LOGS} 条摘要，避免设置页被完整日志列表占满。
         </div>
       </section>
 
@@ -555,6 +560,46 @@ export function SettingsPanel({ settings, loading, onSave }: SettingsPanelProps)
       )}
     </div>
   )
+}
+
+function formatLogStatus(status: ApiCallLogEntry['status']): string {
+  switch (status) {
+    case 'success':
+      return '成功'
+    case 'error':
+      return '错误'
+    case 'aborted':
+      return '中止'
+    case 'started':
+      return '进行中'
+    default:
+      return status
+  }
+}
+
+function formatLogSource(source: ApiCallLogEntry['source']): string {
+  switch (source) {
+    case 'provider-test':
+      return 'provider-test'
+    case 'model-fetch':
+      return 'model-fetch'
+    case 'workflow':
+      return 'workflow'
+    case 'reflection':
+      return 'reflection'
+    case 'single':
+    default:
+      return 'single'
+  }
+}
+
+function formatLogTimestamp(timestamp: string): string {
+  const date = new Date(timestamp)
+  const month = String(date.getMonth() + 1).padStart(2, '0')
+  const day = String(date.getDate()).padStart(2, '0')
+  const hours = String(date.getHours()).padStart(2, '0')
+  const minutes = String(date.getMinutes()).padStart(2, '0')
+  return `${month}/${day} ${hours}:${minutes}`
 }
 
 function feishuStatusLabel(status: FeishuConnectionStatus): string {

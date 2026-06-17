@@ -8473,27 +8473,31 @@ select:focus,
 
 .api-log-list {
   display: grid;
-  gap: 6px;
+  gap: 8px;
 }
 
 .api-log-row {
   display: grid;
   grid-template-columns: minmax(0, 1fr) auto;
-  gap: 10px;
-  align-items: center;
-  padding: 8px 10px;
-  border-radius: 7px;
-  border: 1px solid var(--border-soft);
-  background: rgba(36, 40, 51, 0.55);
+  gap: 14px;
+  align-items: start;
+  padding: 12px 14px;
+  border-radius: 14px;
+  border: 1px solid var(--neutral-border-subtle);
+  background: color-mix(in srgb, var(--neutral-surface-raised) 88%, transparent);
+  box-shadow: 0 10px 24px rgba(30, 46, 40, 0.04);
 }
 
 .api-log-main {
   min-width: 0;
   display: grid;
-  gap: 2px;
+  gap: 4px;
 }
 
 .api-log-main strong {
+  color: var(--neutral-text-primary);
+  font-size: 14px;
+  line-height: 1.25;
   overflow: hidden;
   white-space: nowrap;
   text-overflow: ellipsis;
@@ -8501,25 +8505,98 @@ select:focus,
 
 .api-log-main span,
 .api-log-meta {
-  color: var(--text-dim);
+  color: var(--neutral-text-muted);
   font-size: 11px;
 }
 
 .api-log-meta {
   display: flex;
   align-items: center;
-  gap: 7px;
+  justify-content: flex-end;
+  gap: 8px;
   white-space: nowrap;
+  flex-wrap: wrap;
+  text-align: right;
+  line-height: 1.2;
+}
+
+.api-log-status {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  min-height: 24px;
+  padding: 0 9px;
+  border-radius: 999px;
+  border: 1px solid transparent;
+  font-size: 11px;
+  font-weight: 700;
+  letter-spacing: 0.02em;
+}
+
+.api-log-status-success {
+  background: rgba(61, 142, 134, 0.1);
+  border-color: rgba(61, 142, 134, 0.18);
+  color: #2b746d;
+}
+
+.api-log-status-error {
+  background: rgba(219, 107, 107, 0.1);
+  border-color: rgba(219, 107, 107, 0.18);
+  color: #b65757;
+}
+
+.api-log-status-started,
+.api-log-status-aborted {
+  background: rgba(120, 140, 130, 0.1);
+  border-color: rgba(120, 140, 130, 0.18);
+  color: var(--neutral-text-secondary);
 }
 
 .api-log-error {
-  border-color: rgba(219, 107, 107, 0.35);
+  border-color: rgba(219, 107, 107, 0.22);
+  background: linear-gradient(180deg, rgba(219, 107, 107, 0.08) 0%, color-mix(in srgb, var(--neutral-surface-raised) 88%, transparent) 100%);
 }
 
 .api-log-empty {
-  color: var(--text-dim);
+  color: var(--neutral-text-muted);
   font-size: 12px;
   padding: 8px 0;
+}
+
+.api-log-footnote {
+  margin-top: 10px;
+  color: var(--neutral-text-muted);
+  font-size: 11px;
+  line-height: 1.45;
+}
+
+[data-theme="dark"] .api-log-row {
+  background: color-mix(in srgb, var(--neutral-surface-raised) 78%, transparent);
+  border-color: var(--neutral-border);
+  box-shadow: none;
+}
+
+[data-theme="dark"] .api-log-status-success {
+  background: rgba(0, 212, 170, 0.12);
+  border-color: rgba(0, 212, 170, 0.18);
+  color: #7be6d1;
+}
+
+[data-theme="dark"] .api-log-status-error {
+  background: rgba(219, 107, 107, 0.14);
+  border-color: rgba(219, 107, 107, 0.18);
+  color: #ffb4b4;
+}
+
+[data-theme="dark"] .api-log-status-started,
+[data-theme="dark"] .api-log-status-aborted {
+  background: rgba(122, 157, 176, 0.12);
+  border-color: rgba(122, 157, 176, 0.18);
+  color: var(--neutral-text-secondary);
+}
+
+[data-theme="dark"] .api-log-error {
+  background: linear-gradient(180deg, rgba(219, 107, 107, 0.08) 0%, color-mix(in srgb, var(--neutral-surface-raised) 82%, transparent) 100%);
 }
 
 .add-provider-btn {

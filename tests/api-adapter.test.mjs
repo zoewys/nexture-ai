@@ -389,6 +389,9 @@ test('ApiAdapter builds layered system context from base prompt, environment, pr
 
     const text = systemText(calls[0].system)
     assert.match(text, /You are an autonomous agent/i)
+    assert.match(text, /This turn is running inside Nexture AI API mode\./)
+    assert.match(text, /Configured provider: OpenAI/)
+    assert.match(text, /Configured model id: gpt-4o/)
     assert.match(text, new RegExp(dir.replace(/[.*+?^${}()|[\]\\]/g, '\\$&')))
     assert.match(text, /Operating system:/)
     assert.match(text, /Current date:/)
@@ -401,6 +404,37 @@ test('ApiAdapter builds layered system context from base prompt, environment, pr
   } finally {
     cleanup()
   }
+})
+
+test('ApiAdapter system prompt pins runtime identity even when replay messages are provided', async () => {
+  const calls = []
+  const { ApiAdapter } = await importApiAdapter(mocksFor([{ type: 'finish' }], calls))
+  const adapter = new ApiAdapter({
+    id: 'p1',
+    name: 'Volcengine',
+    format: 'openai-compatible',
+    apiKey: 'sk-test',
+    baseUrl: 'https://example.com/v1',
+    models: ['kimi-k2.6']
+  }, guard)
+
+  await collect(adapter.runTurn({
+    prompt: 'ignored when replay messages exist',
+    cwd: root,
+    model: 'kimi-k2.6',
+    messages: [
+      { role: 'user', content: '你是什么模型' },
+      { role: 'assistant', content: '我是 Claude。' },
+      { role: 'user', content: '再说一次' }
+    ],
+    abortSignal: new AbortController().signal
+  }))
+
+  const text = systemText(calls[0].system)
+  assert.match(text, /Configured provider: Volcengine/)
+  assert.match(text, /Configured model id: kimi-k2\.6/)
+  assert.match(text, /Do not claim to be Claude, Codex, GPT, Kimi, Gemini, Playwright MCP/)
+  assert.match(text, /Earlier transcript messages may come from a different session segment or model\./)
 })
 
 test('ApiAdapter uses tunable generation settings, max output tokens, prompt caching, and structured output', async () => {

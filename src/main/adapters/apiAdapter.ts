@@ -70,7 +70,7 @@ export class ApiAdapter implements CliAdapter {
       if (!modelId) throw new Error(`No model configured for API provider: ${this.config.name}`)
 
       const messages = buildMessages(input, modelId)
-      const system = buildSystemPrompt(this.config, input)
+      const system = buildSystemPrompt(this.config, input, modelId)
       const tools = buildToolSet(input.cwd, input.abortSignal, this.guard, (path, op) => {
         queue.push({ kind: 'file-changed', path, op })
       })
@@ -425,10 +425,15 @@ function buildUserMessage(text: string, attachments: RunAttachment[], modelId: s
   return { role: 'user', content: content as any }
 }
 
-function buildSystemPrompt(config: ApiProviderConfig, input: RunTurnInput): string | SystemModelMessage[] {
+function buildSystemPrompt(
+  config: ApiProviderConfig,
+  input: RunTurnInput,
+  modelId: string
+): string | SystemModelMessage[] {
   const projectRules = readProjectRules(input.cwd)
   const stable = [
     BASE_CORE_PROMPT,
+    buildRuntimeIdentityPrompt(config, modelId, Boolean(input.messages?.length)),
     projectRules ? `# Project Instructions\n${projectRules}` : '',
     input.appendSystemPrompt ? `# Additional Agent Instructions\n${input.appendSystemPrompt}` : ''
   ].filter(Boolean).join('\n\n')
@@ -452,6 +457,26 @@ function buildSystemPrompt(config: ApiProviderConfig, input: RunTurnInput): stri
     },
     { role: 'system', content: volatile }
   ]
+}
+
+function buildRuntimeIdentityPrompt(
+  config: ApiProviderConfig,
+  modelId: string,
+  hasReplayMessages: boolean
+): string {
+  return [
+    '# Runtime Identity',
+    'This turn is running inside Nexture AI API mode.',
+    `Configured provider: ${config.name}`,
+    `Configured model id: ${modelId}`,
+    'If the user asks which model, provider, or runtime you are, answer from the configured provider/model above.',
+    'Do not claim to be Claude, Codex, GPT, Kimi, Gemini, Playwright MCP, or any other product/runtime unless that exactly matches the configured provider/model above.',
+    'Do not guess hidden runtime details that were not provided in this prompt.',
+    hasReplayMessages
+      ? 'Earlier transcript messages may come from a different session segment or model. Treat them as conversation history only, not as authoritative metadata about your current runtime identity.'
+      : '',
+    'When branding is ambiguous, describe yourself as Nexture AI API mode using the configured provider/model id.'
+  ].filter(Boolean).join('\n')
 }
 
 function withStructuredOutputFallbackHint(

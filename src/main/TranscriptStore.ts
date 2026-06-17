@@ -134,12 +134,12 @@ export class TranscriptStore {
     const records = this.readSessionTimeline(sessionIds)
     const messages: ApiConversationMessage[] = []
     const resultIds = new Set<string>()
-    const calls = new Map<string, { toolName: string; input: unknown }>()
+    const calls = new Map<string, { toolName: string }>()
     for (const rec of records) {
       if (rec.kind !== 'event') continue
       if (rec.event.kind === 'tool-result') resultIds.add(rec.event.id)
       if (rec.event.kind === 'tool-call') {
-        calls.set(rec.event.id, { toolName: rec.event.name, input: rec.event.input })
+        calls.set(rec.event.id, { toolName: rec.event.name })
       }
     }
 
@@ -179,8 +179,7 @@ export class TranscriptStore {
             type: 'tool-result',
             toolCallId: event.id,
             toolName: call.toolName,
-            input: call.input,
-            output: event.output
+            output: normalizeToolResultOutput(event.output)
           }]
         })
       }
@@ -272,4 +271,34 @@ export class TranscriptStore {
       }
     })
   }
+
+}
+
+// Replay messages must satisfy AI SDK ToolResultOutput schema.
+function normalizeToolResultOutput(output: unknown): Record<string, unknown> {
+  if (isToolResultOutput(output)) return output
+  if (typeof output === 'string') return { type: 'text', value: output }
+  return { type: 'json', value: output ?? null }
+}
+
+function isToolResultOutput(output: unknown): output is Record<string, unknown> {
+  if (!isRecord(output) || typeof output.type !== 'string') return false
+  switch (output.type) {
+    case 'text':
+    case 'error-text':
+      return typeof output.value === 'string'
+    case 'json':
+    case 'error-json':
+      return 'value' in output
+    case 'execution-denied':
+      return output.reason === undefined || typeof output.reason === 'string'
+    case 'content':
+      return Array.isArray(output.value)
+    default:
+      return false
+  }
+}
+
+function isRecord(value: unknown): value is Record<string, unknown> {
+  return typeof value === 'object' && value !== null
 }
