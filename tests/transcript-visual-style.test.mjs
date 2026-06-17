@@ -53,18 +53,31 @@ test('assistant messages are the primary transcript reading surface', () => {
   assert.match(marker, /background:\s*var\(--text-strong\);/)
 })
 
-test('multi workflow layout keeps runs, detail, and step chips readable', () => {
-  const workspace = block('.workflow-workspace')
-  const runCard = lastRootBlock('.workflow-run-card')
+test('assistant code blocks stay readable in the light workflow transcript', () => {
+  const pre = block('.cli-msg pre')
+  const code = block('.cli-msg pre code')
+
+  assert.doesNotMatch(pre, /background:\s*#1a1b1e;/)
+  assert.match(pre, /background:\s*rgba\(61, 142, 134, 0\.035\);/)
+  assert.match(pre, /color:\s*var\(--neutral-text-primary,\s*var\(--text-strong\)\);/)
+  assert.match(pre, /max-height:\s*min\(440px, 52vh\);/)
+  assert.match(pre, /white-space:\s*pre-wrap;/)
+  assert.match(pre, /overflow-wrap:\s*anywhere;/)
+  assert.match(code, /display:\s*block;/)
+  assert.match(code, /background:\s*transparent;/)
+  assert.match(code, /color:\s*inherit;/)
+  assert.match(css, /\[data-theme="dark"\] \.cli-msg pre\s*\{[\s\S]*background:\s*rgba\(10, 15, 26, 0\.78\) !important;[\s\S]*color:\s*var\(--neutral-text-primary\) !important;/)
+})
+
+test('workflow card dashboard keeps runs, detail, and step chips readable', () => {
   const runTime = lastRootBlock('.workflow-run-card-time')
   const stepNav = block('.workflow-step-nav')
 
-  assert.match(workspace, /grid-template-columns:\s*400px minmax\(0,\s*1fr\);/)
+  assert.match(css, /\.workflow-workspace,\s*\n\.schedule-workspace\s*\{[\s\S]*display:\s*flex !important;/)
   assert.doesNotMatch(runsList, /workflowRunTailLines/)
   assert.doesNotMatch(runsList, /workflow-run-card-tail/)
-  assert.match(runCard, /min-height:\s*106px;/)
-  assert.match(runCard, /flex-direction:\s*column;/)
-  assert.match(css, /\.workflow-run-card-top,\s*\n\.run-item-header,[\s\S]*justify-content:\s*space-between;/)
-  assert.match(runTime, /display:\s*inline-flex;/)
+  assert.match(css, /\.workflow-run-card,\s*\n\.schedule-card\s*\{[\s\S]*min-height:\s*218px !important;[\s\S]*flex-direction:\s*column !important;/)
+  assert.match(css, /\.workflow-run-card-top,\s*\n\.schedule-card-header\s*\{[\s\S]*justify-content:\s*space-between !important;/)
+  assert.match(runTime, /display:\s*inline-flex(?:\s*!important)?;/)
   assert.match(stepNav, /overflow-x:\s*auto;/)
 })

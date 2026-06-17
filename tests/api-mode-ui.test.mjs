@@ -58,12 +58,14 @@ test('ProviderSettings shows decrypted API keys directly when editing providers'
   assert.doesNotMatch(component, /留空则沿用已保存的 Key/)
 })
 
-test('single run panel supports API vendor tabs, provider selection, and API run config', () => {
+test('single run panel supports runtime cascade, provider selection, and API run config', () => {
   const panel = source('src/renderer/src/SingleRunPanel.tsx')
 
   assert.match(panel, /import \{ useProviders \} from '\.\/useProviders'/)
-  assert.match(panel, /vendor-tabs/)
-  assert.match(panel, /vendor-tab/)
+  assert.match(panel, /RuntimeModelCascade/)
+  assert.match(panel, /apiProviders=\{providerState\.providers\}/)
+  assert.match(panel, /handleVendorChange\(selection\.vendor\)/)
+  assert.match(panel, /handleProviderChange\(nextProviderId\)/)
   assert.match(panel, /selectedProviderId/)
   assert.match(panel, /providerState\.providers/)
   assert.match(panel, /apiProviderId: vendor === 'api' \? selectedProviderId/)

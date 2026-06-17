@@ -4,6 +4,7 @@ import type {
   AgentDefinition,
   AgentEvent,
   WorkflowRun,
+  WorkflowSchedule,
   WorkflowRunGitSafety,
   WorkflowStartInput,
   WorkflowTemplate
@@ -11,17 +12,19 @@ import type {
 import { sortWorkflowRunsByStartedAt } from './workflowRunView'
 import type { NewWorkflowRunDefaults } from './NewWorkflowRunDrawer'
 import type { WorkflowDraft, UseWorkflowsResult } from './useWorkflows'
+import type { ScheduleDraft, UseSchedulesResult } from './useSchedules'
 
 const UI_REVIEW_QUERY = 'uiReview=v4'
 const REVIEW_PROJECT_PATH = '/Users/siyuan/work/app-a'
 export const canvasPreviewLabels = ['需求', '设计', '开发', '测试']
 
-type UiReviewMode = 'workflow' | 'templates' | 'agents' | 'single' | 'settings'
+type UiReviewMode = 'workflow' | 'schedules' | 'templates' | 'agents' | 'single' | 'settings'
 
 export interface UiReviewFixture {
   enabled: boolean
   agents: AgentDefinition[]
   workflows: UseWorkflowsResult
+  schedules: UseSchedulesResult
   topbarChips: Record<UiReviewMode, string[]>
   newRunDefaults: NewWorkflowRunDefaults
 }
@@ -106,6 +109,7 @@ const templates: WorkflowTemplate[] = [
 
 const topbarChips: UiReviewFixture['topbarChips'] = {
   workflow: ['3 running', '1 input', '2 waiting', 'sound per run'],
+  schedules: ['5 schedules', '4 enabled', '1 paused'],
   templates: ['4 模板', 'node canvas', 'branch flow'],
   agents: ['9 agents', '2 CLIs', 'templates linked'],
   single: ['single run', 'follow-up', 'transcript'],
@@ -121,6 +125,7 @@ const newRunDefaults: NewWorkflowRunDefaults = {
 export function useUiReviewFixture(): UiReviewFixture {
   const enabled = isUiReviewEnabled()
   const [runs, setRuns] = useState<WorkflowRun[]>(() => sortWorkflowRunsByStartedAt(createRuns()))
+  const [schedules, setSchedules] = useState<WorkflowSchedule[]>(() => createSchedules())
   const [selectedRunId, setSelectedRunId] = useState<string | null>('run-todo-dev-flow')
 
   const selectedRun = useMemo(
@@ -200,10 +205,43 @@ export function useUiReviewFixture(): UiReviewFixture {
     }
   }, [runs, selectedRun, selectedRunId])
 
+  const scheduleState = useMemo<UseSchedulesResult>(() => {
+    const sort = (items: WorkflowSchedule[]): WorkflowSchedule[] =>
+      [...items].sort((a, b) => b.createdAt - a.createdAt)
+
+    return {
+      schedules,
+      loading: false,
+      save: async (input: ScheduleDraft) => {
+        const saved: WorkflowSchedule = {
+          ...input,
+          id: input.id ?? `schedule-review-${Date.now()}`,
+          createdAt: input.createdAt ?? Date.now()
+        }
+        setSchedules((current) => sort([saved, ...current.filter((item) => item.id !== saved.id)]))
+        return saved
+      },
+      remove: async (id: string) => {
+        setSchedules((current) => current.filter((item) => item.id !== id))
+      },
+      toggle: async (id: string, enabled: boolean) => {
+        const currentSchedule = schedules.find((item) => item.id === id)
+        if (!currentSchedule) throw new Error('Schedule not found')
+        const saved = { ...currentSchedule, enabled }
+        setSchedules((current) =>
+          sort(current.map((item) => (item.id === id ? saved : item)))
+        )
+        return saved
+      },
+      refresh: async () => {}
+    }
+  }, [schedules])
+
   return {
     enabled,
     agents,
     workflows,
+    schedules: scheduleState,
     topbarChips,
     newRunDefaults
   }
@@ -265,6 +303,7 @@ function createRuns(): WorkflowRun[] {
       template: templates[0],
       runName: 'Bookmark Manager · Test',
       projectPath: '/Users/siyuan/work/bookmarks',
+      scheduledBy: 'schedule-bookmark-regression',
       status: 'running',
       currentStepIndex: 1,
       startedAt: fixedTime(14, 12),
@@ -297,6 +336,7 @@ function createRuns(): WorkflowRun[] {
       template: templates[0],
       runName: 'Landing Page · Research',
       projectPath: '/Users/siyuan/work/landing',
+      scheduledBy: 'schedule-nightly-qa',
       status: 'completed',
       currentStepIndex: 13,
       startedAt: fixedTime(13, 7),
@@ -314,6 +354,7 @@ function createRuns(): WorkflowRun[] {
       template: templates[1],
       runName: 'Icon QA · Visual',
       projectPath: '/Users/siyuan/work/agent-studio',
+      scheduledBy: 'schedule-icon-qa',
       status: 'error',
       currentStepIndex: 3,
       startedAt: fixedTime(12, 48),
@@ -329,11 +370,77 @@ function createRuns(): WorkflowRun[] {
   ]
 }
 
+function createSchedules(): WorkflowSchedule[] {
+  const schedules: WorkflowSchedule[] = [
+    {
+      id: 'schedule-nightly-qa',
+      templateId: 'template-dev-flow',
+      name: 'Nightly QA Sweep',
+      cron: '0 21 * * 1-5',
+      enabled: true,
+      projectPath: '/Users/siyuan/work/landing',
+      initialPrompt: '每天晚上跑一轮 landing 页面研发工作流并输出浏览器验证摘要。',
+      createdAt: fixedTime(8, 30),
+      lastTriggeredAt: fixedTime(13, 44),
+      lastRunId: 'run-landing-research',
+      lastRunStatus: 'completed'
+    },
+    {
+      id: 'schedule-bookmark-regression',
+      templateId: 'template-dev-flow',
+      name: 'Bookmark Regression',
+      cron: '*/30 9-18 * * 1-5',
+      enabled: true,
+      projectPath: '/Users/siyuan/work/bookmarks',
+      initialPrompt: '检查 bookmark manager 的核心交互和测试结果。',
+      createdAt: fixedTime(8, 10),
+      lastTriggeredAt: fixedTime(14, 12),
+      lastRunId: 'run-bookmark-test',
+      lastRunStatus: 'running'
+    },
+    {
+      id: 'schedule-icon-qa',
+      templateId: 'template-fix-bug-flow',
+      name: 'Icon QA Visual',
+      cron: '15 10 * * 2,4',
+      enabled: true,
+      projectPath: '/Users/siyuan/work/agent-studio',
+      initialPrompt: '验证 UI 图标、状态徽标和暗色主题视觉一致性。',
+      createdAt: fixedTime(7, 55),
+      lastTriggeredAt: fixedTime(12, 55),
+      lastRunId: 'run-icon-qa-visual',
+      lastRunStatus: 'error'
+    },
+    {
+      id: 'schedule-docs-sync',
+      templateId: 'template-docs-sync',
+      name: 'Docs Sync',
+      cron: '0 17 * * 5',
+      enabled: true,
+      projectPath: '/Users/siyuan/work/docs',
+      initialPrompt: '同步本周变更到文档，并整理缺口清单。',
+      createdAt: fixedTime(7, 20)
+    },
+    {
+      id: 'schedule-dependency-audit',
+      templateId: 'template-fix-bug-flow',
+      name: 'Dependency Audit',
+      cron: '0 9 1 * *',
+      enabled: false,
+      projectPath: '/Users/siyuan/work/agent-studio',
+      initialPrompt: '审计依赖更新风险并生成测试计划。',
+      createdAt: fixedTime(7, 0)
+    }
+  ]
+  return schedules.sort((a, b) => b.createdAt - a.createdAt)
+}
+
 function createRun({
   id,
   template,
   runName,
   projectPath,
+  scheduledBy,
   status,
   currentStepIndex,
   startedAt,
@@ -350,6 +457,7 @@ function createRun({
   template: WorkflowTemplate
   runName: string
   projectPath: string
+  scheduledBy?: string
   status: WorkflowRun['status']
   currentStepIndex: number
   startedAt: number
@@ -375,6 +483,7 @@ function createRun({
     templateName: template.name,
     runName,
     projectPath,
+    scheduledBy,
     initialPrompt,
     status,
     currentStepIndex,

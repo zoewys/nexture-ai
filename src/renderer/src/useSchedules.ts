@@ -6,14 +6,16 @@ export type ScheduleDraft = Omit<WorkflowSchedule, 'id' | 'createdAt'> & {
   createdAt?: number
 }
 
-export function useSchedules(): {
+export interface UseSchedulesResult {
   schedules: WorkflowSchedule[]
   loading: boolean
   save: (input: ScheduleDraft) => Promise<WorkflowSchedule>
   remove: (id: string) => Promise<void>
   toggle: (id: string, enabled: boolean) => Promise<WorkflowSchedule>
   refresh: () => Promise<void>
-} {
+}
+
+export function useSchedules(): UseSchedulesResult {
   const [schedules, setSchedules] = useState<WorkflowSchedule[]>([])
   const [loading, setLoading] = useState(true)
 

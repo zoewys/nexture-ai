@@ -22,6 +22,7 @@ import { AgentManager } from './AgentManager'
 import { TemplatesView } from './TemplatesView'
 import { UiReviewMockNav } from './UiReviewMockNav'
 import { WorkflowWorkspace } from './WorkflowWorkspace'
+import { ScheduleWorkspace } from './ScheduleWorkspace'
 import { SingleRunPanel } from './SingleRunPanel'
 import { ModeRail, type WorkspaceMode } from './ModeRail'
 import { useUiReviewFixture } from './uiReviewFixture'
@@ -47,6 +48,7 @@ export function App(): JSX.Element {
   const [mode, setMode] = useState<WorkspaceMode>('workflow')
   const [uiReviewWorkflowSurface, setUiReviewWorkflowSurface] =
     useState<UiReviewWorkflowSurface>('workflow')
+  const [workflowOpenRunId, setWorkflowOpenRunId] = useState<string | null>(null)
   const appearanceTheme = appSettings.settings.appearanceTheme
 
   useEffect(() => {
@@ -75,6 +77,7 @@ export function App(): JSX.Element {
 
   const isAgents = mode === 'agents'
   const isWorkflow = mode === 'workflow'
+  const isSchedules = mode === 'schedules'
   const isTemplates = mode === 'templates'
   const isSingle = mode === 'single'
   const isSettings = mode === 'settings'
@@ -101,6 +104,8 @@ export function App(): JSX.Element {
         return uiReview.enabled && uiReviewWorkflowSurface === 'new-run'
           ? '工作流 · 新建运行'
           : '工作流'
+      case 'schedules':
+        return '定时任务'
       case 'single':
         return '单次对话'
       case 'settings':
@@ -157,7 +162,7 @@ export function App(): JSX.Element {
         className={[
           'app-body',
           isAgents || isTemplates || isSettings ? 'app-body-agents' : '',
-          isWorkflow ? 'app-body-workflow' : '',
+          isWorkflow || isSchedules ? 'app-body-workflow' : '',
           isSingle ? 'app-body-single' : ''
         ].filter(Boolean).join(' ')}
       >
@@ -191,7 +196,21 @@ export function App(): JSX.Element {
               newRunDefaults={uiReview.enabled ? uiReview.newRunDefaults : undefined}
               uiReviewEnabled={uiReview.enabled}
               onUiReviewSurfaceChange={setUiReviewWorkflowSurface}
+              openRunId={workflowOpenRunId}
+              onOpenRunConsumed={() => setWorkflowOpenRunId(null)}
               showMemoryReferences={appSettings.settings.showMemoryReferences}
+            />
+          </main>
+        ) : isSchedules ? (
+          <main className="panel panel-runtime panel-runtime-workflow">
+          <ScheduleWorkspace
+            templates={workflows.templates}
+            runs={workflows.runs}
+            scheduleState={uiReview.enabled ? uiReview.schedules : undefined}
+            onOpenRun={(runId) => {
+              setWorkflowOpenRunId(runId)
+              setMode('workflow')
+            }}
             />
           </main>
         ) : isSettings ? (
@@ -240,6 +259,8 @@ function buildTopbarChips(
   switch (mode) {
     case 'workflow':
       return [`${runningCount} 运行中`, `${waitingCount} 待处理`, `${templateCount} 模板`, `${agentCount} 智能体`]
+    case 'schedules':
+      return ['定时任务', '后台执行', `${templateCount} 模板`]
     case 'templates':
       return [`${templateCount} 模板`, 'DAG 画布', `${agentCount} 智能体`]
     case 'agents':

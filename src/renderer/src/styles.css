@@ -3561,17 +3561,21 @@ button.icon-only {
 .cli-msg h4 { font-size: 12px; }
 
 .cli-msg pre {
-  margin: 6px 0;
-  padding: 10px 14px;
-  border-radius: 6px;
-  background: #1a1b1e;
-  border: 1px solid var(--border);
-  overflow-x: auto;
+  margin: 10px 0 12px;
+  padding: 12px 14px;
+  max-height: min(440px, 52vh);
+  border-radius: 10px;
+  background: rgba(61, 142, 134, 0.035);
+  border: 1px solid rgba(61, 142, 134, 0.16);
+  color: var(--neutral-text-primary, var(--text-strong));
+  overflow: auto;
   font-size: 12px;
   line-height: 1.5;
   font-family: 'SF Mono', Menlo, monospace;
-  white-space: pre;
-  word-break: normal;
+  white-space: pre-wrap;
+  overflow-wrap: anywhere;
+  word-break: break-word;
+  box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.22);
 }
 
 .cli-msg code {
@@ -3584,10 +3588,15 @@ button.icon-only {
 }
 
 .cli-msg pre code {
-  background: none;
+  display: block;
+  background: transparent;
+  color: inherit;
   padding: 0;
   border-radius: 0;
   font-size: inherit;
+  white-space: inherit;
+  overflow-wrap: inherit;
+  word-break: inherit;
 }
 
 .cli-msg ul, .cli-msg ol {
@@ -10850,6 +10859,17 @@ select:focus,
   color: var(--neutral-text-primary) !important;
 }
 
+[data-theme="dark"] .cli-msg pre {
+  border-color: rgba(0, 212, 170, 0.16) !important;
+  background: rgba(10, 15, 26, 0.78) !important;
+  color: var(--neutral-text-primary) !important;
+  box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.04) !important;
+}
+
+[data-theme="dark"] .cli-msg pre code {
+  color: inherit !important;
+}
+
 [data-theme="dark"] .single-session-card-active,
 [data-theme="dark"] .agent-item-active {
   border-color: rgba(0, 212, 170, 0.42) !important;
@@ -12040,4 +12060,775 @@ button:disabled,
     rgba(15, 25, 45, 0.88) !important;
   box-shadow: inset 3px 0 0 rgba(0, 212, 170, 0.76), 0 0 0 2px rgba(0, 212, 170, 0.16), 0 0 16px rgba(0, 212, 170, 0.12) !important;
   transform: none !important;
+}
+
+/* Workflow and schedule card dashboard pages. */
+.workflow-workspace,
+.schedule-workspace {
+  flex: 1 1 auto !important;
+  width: 100% !important;
+  min-width: 0 !important;
+  min-height: 0 !important;
+  display: flex !important;
+  overflow: hidden !important;
+  background: transparent !important;
+}
+
+.workflow-dashboard-page,
+.schedule-dashboard-page,
+.workflow-detail-page,
+.schedule-detail-page {
+  flex: 1 1 auto !important;
+  min-width: 0 !important;
+  min-height: 0 !important;
+  display: flex !important;
+  flex-direction: column !important;
+  overflow: hidden !important;
+  padding: 24px !important;
+}
+
+.workflow-dashboard-page .workflow-runs-header,
+.schedule-dashboard-page .workflow-runs-header,
+.workflow-detail-page > .detail-header,
+.schedule-detail-page > .detail-header {
+  flex: 0 0 auto !important;
+  display: flex !important;
+  align-items: center !important;
+  justify-content: space-between !important;
+  gap: 14px !important;
+  margin: 0 0 20px !important;
+  padding: 0 !important;
+  border: 0 !important;
+  background: transparent !important;
+  backdrop-filter: none !important;
+}
+
+.page-title-block {
+  min-width: 0 !important;
+  display: grid !important;
+  gap: 4px !important;
+}
+
+.page-title-block p {
+  margin: 0 !important;
+  color: var(--neutral-text-muted) !important;
+  font-size: 12px !important;
+  line-height: 1.45 !important;
+}
+
+.workflow-dashboard-toolbar,
+.schedule-dashboard-toolbar {
+  flex: 0 0 auto !important;
+  display: flex !important;
+  align-items: center !important;
+  justify-content: space-between !important;
+  gap: 12px !important;
+  margin: 0 0 22px !important;
+}
+
+.search-field {
+  width: min(280px, 100%) !important;
+  display: grid !important;
+  grid-template-columns: auto minmax(0, 1fr) !important;
+  align-items: center !important;
+  gap: 8px !important;
+  min-height: 38px !important;
+  padding: 0 12px !important;
+  border: 1px solid var(--glass-border) !important;
+  border-radius: 12px !important;
+  background: var(--glass-bg) !important;
+  color: var(--neutral-text-muted) !important;
+  backdrop-filter: var(--glass-blur) !important;
+  -webkit-backdrop-filter: var(--glass-blur) !important;
+}
+
+.search-field input {
+  min-height: 36px !important;
+  padding: 0 !important;
+  border: 0 !important;
+  background: transparent !important;
+  box-shadow: none !important;
+}
+
+.search-field input:focus {
+  box-shadow: none !important;
+}
+
+.filter-chips {
+  flex: 1 1 auto !important;
+  min-width: 0 !important;
+  display: flex !important;
+  align-items: center !important;
+  gap: 8px !important;
+  flex-wrap: wrap !important;
+}
+
+.filter-chip {
+  display: inline-flex !important;
+  align-items: center !important;
+  gap: 6px !important;
+  min-height: 32px !important;
+  padding: 6px 13px !important;
+  border: 1px solid var(--glass-border) !important;
+  border-radius: 999px !important;
+  background: var(--glass-bg) !important;
+  color: var(--neutral-text-secondary) !important;
+  font-family: inherit !important;
+  font-size: 12px !important;
+  font-weight: 700 !important;
+  cursor: pointer !important;
+  backdrop-filter: var(--glass-blur) !important;
+  transition: border-color 160ms ease, background 160ms ease, color 160ms ease, transform 160ms ease !important;
+}
+
+.filter-chip:hover,
+.filter-chip.active {
+  border-color: rgba(61, 142, 134, 0.42) !important;
+  background: rgba(61, 142, 134, 0.1) !important;
+  color: var(--brand-primary) !important;
+  transform: translateY(-1px) !important;
+}
+
+.filter-chip.success {
+  color: var(--semantic-success) !important;
+  border-color: rgba(106, 189, 121, 0.3) !important;
+}
+
+.filter-chip.error {
+  color: var(--semantic-error) !important;
+  border-color: rgba(201, 79, 79, 0.3) !important;
+}
+
+.filter-chip.awaiting,
+.filter-chip.running {
+  color: var(--semantic-warning) !important;
+  border-color: rgba(201, 149, 44, 0.32) !important;
+}
+
+.filter-chip.running {
+  color: var(--brand-primary) !important;
+  border-color: rgba(61, 142, 134, 0.34) !important;
+}
+
+.filter-chip-count {
+  min-width: 20px !important;
+  padding: 1px 7px !important;
+  border-radius: 999px !important;
+  background: rgba(120, 140, 130, 0.12) !important;
+  color: inherit !important;
+  font-family: "JetBrains Mono", monospace !important;
+  font-size: 11px !important;
+  text-align: center !important;
+}
+
+.workflow-sort-select {
+  width: 150px !important;
+  flex: 0 0 150px !important;
+}
+
+.cards-grid,
+.workflow-run-cards.cards-grid,
+.schedule-cards.cards-grid {
+  flex: 1 1 auto !important;
+  min-height: 0 !important;
+  overflow-y: auto !important;
+  display: grid !important;
+  grid-template-columns: repeat(auto-fill, minmax(320px, 1fr)) !important;
+  align-content: start !important;
+  gap: 20px !important;
+  padding: 2px 2px 24px !important;
+}
+
+.workflow-dashboard-empty,
+.schedule-empty {
+  min-height: 150px !important;
+  display: flex !important;
+  align-items: center !important;
+  justify-content: center !important;
+  gap: 8px !important;
+  border: 1px dashed var(--glass-border) !important;
+  border-radius: 16px !important;
+  background: var(--glass-bg) !important;
+  color: var(--neutral-text-muted) !important;
+  backdrop-filter: var(--glass-blur) !important;
+}
+
+.workflow-run-card,
+.schedule-card {
+  position: relative !important;
+  width: 100% !important;
+  min-height: 218px !important;
+  display: flex !important;
+  flex-direction: column !important;
+  gap: 14px !important;
+  padding: 20px !important;
+  border: 1px solid var(--glass-border) !important;
+  border-radius: 16px !important;
+  background: var(--glass-bg) !important;
+  color: var(--neutral-text-primary) !important;
+  overflow: hidden !important;
+  cursor: pointer !important;
+  opacity: 0;
+  transform: translateY(16px);
+  animation: card-enter 420ms cubic-bezier(0.4, 0, 0.2, 1) forwards !important;
+  backdrop-filter: var(--glass-blur) !important;
+  -webkit-backdrop-filter: var(--glass-blur) !important;
+  box-shadow: var(--shadow-xs) !important;
+  transition: border-color 180ms ease, background 180ms ease, transform 180ms ease, box-shadow 180ms ease !important;
+}
+
+@keyframes card-enter {
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
+.workflow-run-card:hover,
+.schedule-card:hover {
+  border-color: rgba(61, 142, 134, 0.3) !important;
+  box-shadow: 0 12px 36px rgba(30, 46, 40, 0.11) !important;
+  transform: translateY(-3px) !important;
+}
+
+.workflow-run-card-active,
+.schedule-card-active {
+  border-color: rgba(61, 142, 134, 0.48) !important;
+  background: rgba(61, 142, 134, 0.06) !important;
+  box-shadow: var(--shadow-focus), var(--shadow-sm) !important;
+}
+
+.workflow-run-card-running {
+  border-color: rgba(61, 142, 134, 0.28) !important;
+}
+
+.workflow-run-card-running::after {
+  content: "";
+  position: absolute;
+  inset: -1px;
+  border-radius: inherit;
+  border: 1px solid rgba(61, 142, 134, 0.2);
+  pointer-events: none;
+  animation: border-pulse 2.8s infinite ease-in-out;
+}
+
+@keyframes border-pulse {
+  0%, 100% {
+    border-color: rgba(61, 142, 134, 0.2);
+    box-shadow: 0 0 0 0 rgba(61, 142, 134, 0);
+  }
+  50% {
+    border-color: rgba(61, 142, 134, 0.42);
+    box-shadow: 0 0 20px rgba(61, 142, 134, 0.08);
+  }
+}
+
+.workflow-run-card-top,
+.schedule-card-header {
+  display: flex !important;
+  align-items: flex-start !important;
+  justify-content: space-between !important;
+  gap: 12px !important;
+}
+
+.workflow-run-card-title-wrap {
+  min-width: 0 !important;
+  display: grid !important;
+  gap: 4px !important;
+}
+
+.workflow-run-card-title {
+  min-width: 0 !important;
+  display: flex !important;
+  align-items: center !important;
+  gap: 7px !important;
+}
+
+.workflow-run-card-title strong,
+.schedule-card-name {
+  min-width: 0 !important;
+  overflow: hidden !important;
+  text-overflow: ellipsis !important;
+  white-space: nowrap !important;
+  color: var(--neutral-text-primary) !important;
+  font-family: "JetBrains Mono", "SF Mono", monospace !important;
+  font-size: 15px !important;
+  font-weight: 700 !important;
+  line-height: 1.25 !important;
+}
+
+.workflow-run-card-template {
+  min-width: 0 !important;
+  overflow: hidden !important;
+  text-overflow: ellipsis !important;
+  white-space: nowrap !important;
+  color: var(--neutral-text-muted) !important;
+  font-size: 12px !important;
+}
+
+.workflow-run-card-meta {
+  min-width: 0 !important;
+  margin: -4px 0 0 !important;
+  overflow: hidden !important;
+  text-overflow: ellipsis !important;
+  white-space: nowrap !important;
+  color: var(--neutral-text-muted) !important;
+  font-size: 11px !important;
+  line-height: 1.35 !important;
+}
+
+.workflow-run-card-actions {
+  display: inline-flex !important;
+  align-items: center !important;
+  gap: 8px !important;
+  flex: 0 0 auto !important;
+}
+
+.workflow-run-card-status {
+  border-radius: 999px !important;
+  padding: 4px 10px !important;
+}
+
+.workflow-run-status-icon-running {
+  animation: workflow-status-pulse 1.8s infinite ease-in-out;
+}
+
+@keyframes workflow-status-pulse {
+  0%, 100% { opacity: 1; transform: scale(1); }
+  50% { opacity: 0.52; transform: scale(0.9); }
+}
+
+.workflow-run-card-delete {
+  opacity: 0 !important;
+}
+
+.workflow-run-card:hover .workflow-run-card-delete,
+.workflow-run-card:focus-within .workflow-run-card-delete {
+  opacity: 0.8 !important;
+}
+
+.workflow-run-card-steps {
+  display: grid !important;
+  gap: 9px !important;
+}
+
+.workflow-run-card-steps-header {
+  display: flex !important;
+  align-items: center !important;
+  justify-content: space-between !important;
+  gap: 10px !important;
+  color: var(--neutral-text-muted) !important;
+  font-family: "JetBrains Mono", monospace !important;
+  font-size: 10px !important;
+  font-weight: 700 !important;
+  text-transform: uppercase !important;
+}
+
+.workflow-run-card-progress {
+  height: 5px !important;
+  display: flex !important;
+  gap: 3px !important;
+  overflow: hidden !important;
+}
+
+.workflow-run-card-segment {
+  flex: 1 1 0 !important;
+  border-radius: 999px !important;
+  background: var(--neutral-border-subtle) !important;
+}
+
+.workflow-run-card-segment-done {
+  background: var(--semantic-success) !important;
+}
+
+.workflow-run-card-segment-running {
+  background: var(--brand-primary) !important;
+  box-shadow: 0 0 10px rgba(61, 142, 134, 0.34) !important;
+}
+
+.workflow-run-card-segment-awaiting-input,
+.workflow-run-card-segment-awaiting-confirm,
+.workflow-run-card-segment-waiting {
+  background: var(--semantic-warning) !important;
+}
+
+.workflow-run-card-segment-error {
+  background: var(--semantic-error) !important;
+}
+
+.workflow-run-card-step-pills {
+  display: flex !important;
+  gap: 6px !important;
+  flex-wrap: wrap !important;
+  overflow: visible !important;
+  scrollbar-width: none !important;
+}
+
+.workflow-run-card-step-pills::-webkit-scrollbar {
+  display: none !important;
+}
+
+.workflow-run-card-step-pill {
+  flex: 0 1 auto !important;
+  min-width: 0 !important;
+  display: inline-flex !important;
+  align-items: center !important;
+  gap: 5px !important;
+  max-width: 100% !important;
+  padding: 4px 10px !important;
+  border: 1px solid var(--neutral-border-subtle) !important;
+  border-radius: 999px !important;
+  background: var(--glass-bg) !important;
+  color: var(--neutral-text-secondary) !important;
+  font-family: "JetBrains Mono", monospace !important;
+  font-size: 11px !important;
+  white-space: nowrap !important;
+  overflow: hidden !important;
+  text-overflow: ellipsis !important;
+}
+
+.workflow-run-card-step-pill svg {
+  flex: 0 0 auto !important;
+}
+
+.workflow-run-card-step-pill-label {
+  min-width: 0 !important;
+  overflow: hidden !important;
+  text-overflow: ellipsis !important;
+  white-space: nowrap !important;
+}
+
+.workflow-run-card-step-pill-done {
+  border-color: rgba(106, 189, 121, 0.3) !important;
+  background: rgba(106, 189, 121, 0.08) !important;
+  color: var(--semantic-success) !important;
+}
+
+.workflow-run-card-step-pill-running {
+  border-color: rgba(61, 142, 134, 0.36) !important;
+  background: rgba(61, 142, 134, 0.1) !important;
+  color: var(--brand-primary) !important;
+}
+
+.workflow-run-card-step-pill-awaiting-input {
+  border-color: rgba(201, 149, 44, 0.32) !important;
+  background: rgba(201, 149, 44, 0.1) !important;
+  color: var(--semantic-warning) !important;
+}
+
+.workflow-run-card-step-pill-error {
+  border-color: rgba(201, 79, 79, 0.32) !important;
+  background: rgba(201, 79, 79, 0.1) !important;
+  color: var(--semantic-error) !important;
+}
+
+.workflow-run-card-footer {
+  display: flex !important;
+  align-items: center !important;
+  gap: 16px !important;
+  margin-top: auto !important;
+  color: var(--neutral-text-secondary) !important;
+}
+
+.workflow-run-card-time {
+  display: inline-flex !important;
+  align-items: center !important;
+  gap: 6px !important;
+  min-width: 0 !important;
+  color: var(--neutral-text-secondary) !important;
+  font-size: 12px !important;
+}
+
+.workflow-run-card-duration {
+  color: var(--neutral-text-primary) !important;
+  font-family: "JetBrains Mono", monospace !important;
+  font-weight: 700 !important;
+}
+
+.schedule-card {
+  min-height: 240px !important;
+}
+
+.schedule-card-disabled {
+  opacity: 0.68 !important;
+}
+
+.schedule-card-header {
+  align-items: center !important;
+}
+
+.schedule-cron {
+  width: fit-content !important;
+  max-width: 100% !important;
+  display: inline-flex !important;
+  padding: 4px 10px !important;
+  border-radius: 999px !important;
+  border: 1px solid rgba(61, 142, 134, 0.2) !important;
+  background: rgba(61, 142, 134, 0.08) !important;
+  color: var(--brand-primary) !important;
+  font-family: "JetBrains Mono", monospace !important;
+  font-size: 11px !important;
+  overflow: hidden !important;
+  text-overflow: ellipsis !important;
+  white-space: nowrap !important;
+}
+
+.schedule-countdown-wrap {
+  display: grid !important;
+  gap: 4px !important;
+}
+
+.schedule-countdown-label {
+  color: var(--neutral-text-muted) !important;
+  font-family: "JetBrains Mono", monospace !important;
+  font-size: 10px !important;
+  font-weight: 700 !important;
+  text-transform: uppercase !important;
+}
+
+.schedule-countdown {
+  color: var(--brand-primary) !important;
+  font-family: "JetBrains Mono", monospace !important;
+  font-size: 24px !important;
+  font-weight: 800 !important;
+  line-height: 1.2 !important;
+}
+
+.schedule-countdown.dim {
+  color: var(--neutral-text-muted) !important;
+  font-size: 18px !important;
+}
+
+.schedule-next-time {
+  color: var(--neutral-text-secondary) !important;
+  font-size: 11px !important;
+}
+
+.schedule-stats-row {
+  display: flex !important;
+  align-items: center !important;
+  justify-content: space-between !important;
+  gap: 10px !important;
+}
+
+.schedule-stats-text {
+  flex: 0 0 auto !important;
+  color: var(--neutral-text-muted) !important;
+  font-size: 11px !important;
+}
+
+.schedule-stats-text strong {
+  color: var(--neutral-text-secondary) !important;
+}
+
+.schedule-stats-bar {
+  flex: 1 1 auto !important;
+  max-width: 130px !important;
+  height: 5px !important;
+  border-radius: 999px !important;
+  background: var(--neutral-border-subtle) !important;
+  overflow: hidden !important;
+}
+
+.schedule-stats-bar-fill {
+  display: block !important;
+  height: 100% !important;
+  border-radius: inherit !important;
+  background: var(--semantic-success) !important;
+}
+
+.schedule-last-run {
+  width: fit-content !important;
+  display: inline-flex !important;
+  align-items: center !important;
+  gap: 6px !important;
+  padding: 4px 10px !important;
+  border: 1px solid var(--neutral-border-subtle) !important;
+  border-radius: 999px !important;
+  background: var(--glass-bg) !important;
+  color: var(--neutral-text-secondary) !important;
+  font-family: "JetBrains Mono", monospace !important;
+  font-size: 11px !important;
+}
+
+.schedule-last-run.success {
+  border-color: rgba(106, 189, 121, 0.32) !important;
+  background: rgba(106, 189, 121, 0.08) !important;
+  color: var(--semantic-success) !important;
+}
+
+.schedule-last-run.error {
+  border-color: rgba(201, 79, 79, 0.32) !important;
+  background: rgba(201, 79, 79, 0.08) !important;
+  color: var(--semantic-error) !important;
+}
+
+.schedule-card-footer {
+  display: flex !important;
+  align-items: center !important;
+  justify-content: space-between !important;
+  gap: 10px !important;
+  margin-top: auto !important;
+  padding-top: 10px !important;
+  border-top: 1px solid var(--neutral-border-subtle) !important;
+}
+
+.schedule-template-name {
+  min-width: 0 !important;
+  display: inline-flex !important;
+  align-items: center !important;
+  gap: 5px !important;
+  overflow: hidden !important;
+  text-overflow: ellipsis !important;
+  white-space: nowrap !important;
+  color: var(--neutral-text-muted) !important;
+  font-size: 11px !important;
+}
+
+.schedule-toggle {
+  width: 38px !important;
+  height: 22px !important;
+  min-width: 38px !important;
+  min-height: 22px !important;
+  padding: 0 !important;
+  border: 1px solid var(--neutral-border) !important;
+  border-radius: 999px !important;
+  background: rgba(120, 140, 130, 0.18) !important;
+  position: relative !important;
+}
+
+.schedule-toggle::before {
+  content: "" !important;
+  position: absolute !important;
+  width: 16px !important;
+  height: 16px !important;
+  left: 2px !important;
+  top: 2px !important;
+  margin: 0 !important;
+  border-radius: 50% !important;
+  background: var(--neutral-text-muted) !important;
+  transition: transform 160ms ease, background 160ms ease !important;
+}
+
+.schedule-toggle.on {
+  border-color: rgba(61, 142, 134, 0.4) !important;
+  background: rgba(61, 142, 134, 0.16) !important;
+}
+
+.schedule-toggle.on::before {
+  background: var(--brand-primary) !important;
+  transform: translateX(16px) !important;
+}
+
+.workflow-detail-page .workflow-run-detail,
+.schedule-detail-page .schedule-detail {
+  flex: 1 1 auto !important;
+  min-height: 0 !important;
+  border: 1px solid var(--glass-border) !important;
+  border-radius: 16px !important;
+  background: var(--glass-bg) !important;
+  overflow: hidden !important;
+  backdrop-filter: var(--glass-blur) !important;
+  -webkit-backdrop-filter: var(--glass-blur) !important;
+}
+
+.workflow-run-detail-heading {
+  flex: 1 1 auto !important;
+  min-width: 0 !important;
+  display: flex !important;
+  align-items: center !important;
+  gap: 12px !important;
+}
+
+.workflow-detail-back {
+  flex: 0 0 auto !important;
+  min-height: 34px !important;
+  padding: 7px 12px !important;
+  border-radius: 9px !important;
+}
+
+.workflow-run-detail-heading .workflow-detail-title {
+  flex: 1 1 auto !important;
+}
+
+.workflow-run-detail-actions {
+  flex: 0 0 auto !important;
+}
+
+.schedule-detail-page .schedule-detail-body {
+  padding: 20px !important;
+}
+
+[data-theme="dark"] .workflow-run-card,
+[data-theme="dark"] .schedule-card,
+[data-theme="dark"] .workflow-detail-page .workflow-run-detail,
+[data-theme="dark"] .schedule-detail-page .schedule-detail {
+  border-color: rgba(0, 212, 170, 0.12) !important;
+  border-radius: 12px !important;
+  background: rgba(15, 25, 45, 0.64) !important;
+  color: var(--neutral-text-primary) !important;
+  box-shadow: none !important;
+}
+
+[data-theme="dark"] .workflow-run-card:hover,
+[data-theme="dark"] .schedule-card:hover {
+  border-color: rgba(0, 212, 170, 0.28) !important;
+  background: rgba(0, 212, 170, 0.06) !important;
+  box-shadow: 0 8px 28px rgba(0, 0, 0, 0.42), 0 0 32px rgba(0, 212, 170, 0.06) !important;
+  transform: translateY(-3px) !important;
+}
+
+[data-theme="dark"] .workflow-run-card-running::after {
+  border-color: rgba(0, 212, 170, 0.22);
+}
+
+[data-theme="dark"] .filter-chip,
+[data-theme="dark"] .search-field {
+  border-color: rgba(0, 212, 170, 0.12) !important;
+  background: rgba(15, 25, 45, 0.54) !important;
+}
+
+[data-theme="dark"] .filter-chip:hover,
+[data-theme="dark"] .filter-chip.active {
+  border-color: rgba(0, 212, 170, 0.34) !important;
+  background: rgba(0, 212, 170, 0.08) !important;
+  color: #00d4aa !important;
+}
+
+[data-theme="dark"] .workflow-run-card-segment-running,
+[data-theme="dark"] .schedule-stats-bar-fill,
+[data-theme="dark"] .schedule-toggle.on::before {
+  background: #00d4aa !important;
+}
+
+[data-theme="dark"] .workflow-run-card-step-pill,
+[data-theme="dark"] .schedule-last-run {
+  border-color: rgba(0, 212, 170, 0.1) !important;
+  background: rgba(15, 25, 45, 0.42) !important;
+}
+
+[data-theme="dark"] .schedule-cron {
+  border-color: rgba(0, 212, 170, 0.18) !important;
+  background: rgba(0, 212, 170, 0.06) !important;
+  color: #00d4aa !important;
+}
+
+@media (max-width: 900px) {
+  .workflow-dashboard-toolbar,
+  .schedule-dashboard-toolbar {
+    align-items: stretch !important;
+    flex-direction: column !important;
+  }
+
+  .search-field,
+  .workflow-sort-select {
+    width: 100% !important;
+    flex-basis: auto !important;
+  }
+
+  .cards-grid,
+  .workflow-run-cards.cards-grid,
+  .schedule-cards.cards-grid {
+    grid-template-columns: minmax(0, 1fr) !important;
+  }
 }

@@ -499,14 +499,25 @@
 
     /* ====== Workflow: Progress Bar + Step Pills ====== */
     .workflow-steps {
-      margin-bottom: 14px;
+      margin-bottom: 12px;
+      position: relative;
       z-index: 1;
+    }
+    /* right-edge fade to hint scrollable pills */
+    .workflow-steps::after {
+      content: '';
+      position: absolute;
+      right: 0; top: 36px; bottom: 0; width: 32px;
+      background: linear-gradient(to right, transparent, var(--glass-bg));
+      pointer-events: none;
+      border-radius: 0 0 12px 0;
+      z-index: 2;
     }
     .workflow-steps-header {
       display: flex;
       justify-content: space-between;
       align-items: center;
-      margin-bottom: 10px;
+      margin-bottom: 8px;
     }
     .workflow-steps-label {
       font-size: 10px;
@@ -523,67 +534,119 @@
       font-weight: 600;
     }
 
-    /* Glowing progress bar — no dots, clean line */
+    /* ====== Segmented Progress Bar ====== */
     .progress-glow {
       width: 100%;
       height: 4px;
       border-radius: 2px;
-      background: var(--neutral-border-subtle);
+      background: transparent;
       position: relative;
       overflow: hidden;
       margin-bottom: 10px;
-    }
-    [data-theme="dark"] .progress-glow {
-      background: rgba(0, 212, 170, 0.08);
-    }
-    .progress-glow-fill {
-      height: 100%;
-      border-radius: 2px;
-      transition: width 700ms cubic-bezier(0.4, 0, 0.2, 1);
-      position: relative;
-    }
-    .progress-glow-fill::after {
-      content: '';
-      position: absolute;
-      top: 0; right: 0; bottom: 0;
-      width: 40px;
-      background: linear-gradient(90deg, transparent, rgba(255,255,255,0.4));
-      animation: shimmer-flow 2s infinite;
-    }
-    @keyframes shimmer-flow {
-      0% { transform: translateX(0); opacity: 0; }
-      50% { opacity: 1; }
-      100% { transform: translateX(20px); opacity: 0; }
-    }
-    .progress-glow-fill.done {
-      background: var(--semantic-success);
-      box-shadow: 0 0 10px rgba(106, 189, 121, 0.35);
-    }
-    .progress-glow-fill.running {
-      background: linear-gradient(90deg, var(--semantic-success), var(--brand-primary));
-      box-shadow: 0 0 12px rgba(61, 142, 134, 0.35);
-    }
-    .progress-glow-fill.error {
-      background: linear-gradient(90deg, var(--semantic-success), var(--semantic-error));
-      box-shadow: 0 0 10px rgba(201, 79, 79, 0.3);
-    }
-    [data-theme="dark"] .progress-glow-fill.done {
-      box-shadow: 0 0 14px rgba(46, 204, 113, 0.4);
-    }
-    [data-theme="dark"] .progress-glow-fill.running {
-      background: linear-gradient(90deg, #2ecc71, #00d4aa);
-      box-shadow: 0 0 16px rgba(0, 212, 170, 0.4);
-    }
-    [data-theme="dark"] .progress-glow-fill.error {
-      box-shadow: 0 0 14px rgba(231, 76, 60, 0.35);
+      display: flex;
+      gap: 2px;
     }
 
-    /* Step pills */
+    /* scan-line sweeps across the whole bar */
+    .progress-glow::after {
+      content: '';
+      position: absolute;
+      top: 0; left: -40%; width: 40%; height: 100%;
+      background: linear-gradient(90deg, transparent, rgba(255,255,255,0.35), transparent);
+      animation: scan-flow 2.8s infinite ease-in-out;
+      pointer-events: none;
+      z-index: 2;
+    }
+    [data-theme="dark"] .progress-glow::after {
+      background: linear-gradient(90deg, transparent, rgba(0, 212, 170, 0.2), transparent);
+    }
+    @keyframes scan-flow {
+      0%   { left: -40%; opacity: 0; }
+      15%  { opacity: 1; }
+      85%  { opacity: 1; }
+      100% { left: 140%; opacity: 0; }
+    }
+
+    .progress-segment {
+      height: 100%;
+      border-radius: 1px;
+      transition: all 500ms cubic-bezier(0.4, 0, 0.2, 1);
+      position: relative;
+      overflow: hidden;
+      flex-shrink: 0;
+    }
+    .progress-segment:first-child { border-radius: 2px 1px 1px 2px; }
+    .progress-segment:last-child  { border-radius: 1px 2px 2px 1px; }
+    .progress-segment:only-child  { border-radius: 2px; }
+
+    .progress-segment.done {
+      background: var(--semantic-success);
+      box-shadow: 0 0 8px rgba(106, 189, 121, 0.35);
+    }
+    .progress-segment.running {
+      background: var(--brand-primary);
+      box-shadow: 0 0 10px rgba(61, 142, 134, 0.45);
+    }
+    .progress-segment.running::before {
+      /* shimmer inside the running segment */
+      content: '';
+      position: absolute;
+      inset: 0;
+      background: linear-gradient(90deg, transparent 30%, rgba(255,255,255,0.45) 50%, transparent 70%);
+      animation: segment-shimmer 1.6s infinite linear;
+    }
+    @keyframes segment-shimmer {
+      0%   { transform: translateX(-100%); }
+      100% { transform: translateX(100%); }
+    }
+    [data-theme="dark"] .progress-segment.running::before {
+      background: linear-gradient(90deg, transparent 30%, rgba(0, 212, 170, 0.35) 50%, transparent 70%);
+    }
+
+    .progress-segment.error {
+      background: var(--semantic-error);
+      box-shadow: 0 0 8px rgba(201, 79, 79, 0.35);
+      animation: segment-error-blink 1.2s infinite ease-in-out;
+    }
+    @keyframes segment-error-blink {
+      0%, 100% { opacity: 1; }
+      50% { opacity: 0.65; }
+    }
+    .progress-segment.awaiting {
+      background: var(--semantic-warning);
+      box-shadow: 0 0 6px rgba(201, 149, 44, 0.25);
+    }
+    .progress-segment.pending {
+      background: var(--neutral-border-subtle);
+      opacity: 0.35;
+    }
+    [data-theme="dark"] .progress-segment.pending {
+      background: rgba(0, 212, 170, 0.06);
+    }
+
+    [data-theme="dark"] .progress-segment.done {
+      box-shadow: 0 0 12px rgba(46, 204, 113, 0.45);
+    }
+    [data-theme="dark"] .progress-segment.running {
+      background: #00d4aa;
+      box-shadow: 0 0 14px rgba(0, 212, 170, 0.5);
+    }
+    [data-theme="dark"] .progress-segment.error {
+      box-shadow: 0 0 12px rgba(231, 76, 60, 0.4);
+    }
+
+    /* Step pills — single-line scrollable so cards stay same height */
     .step-pills {
       display: flex;
-      flex-wrap: wrap;
+      flex-wrap: nowrap;
       gap: 6px;
+      overflow-x: auto;
+      overflow-y: hidden;
+      scrollbar-width: none;
+      -ms-overflow-style: none;
+      padding-bottom: 2px;
     }
+    .step-pills::-webkit-scrollbar { display: none; }
     .step-pill {
       display: inline-flex;
       align-items: center;
@@ -689,7 +752,7 @@
       display: flex;
       align-items: center;
       gap: 16px;
-      margin-bottom: 14px;
+      margin-bottom: 12px;
       position: relative; z-index: 1;
     }
     .card-meta-item-inline {
@@ -707,55 +770,6 @@
       font-family: "JetBrains Mono", monospace;
       font-weight: 600;
       color: var(--neutral-text-primary);
-    }
-
-    /* Card Footer */
-    .card-footer {
-      display: flex;
-      align-items: center;
-      justify-content: space-between;
-      padding-top: 12px;
-      border-top: 1px solid var(--neutral-border-subtle);
-      position: relative; z-index: 1;
-    }
-    [data-theme="dark"] .card-footer {
-      border-top-color: rgba(0, 212, 170, 0.06);
-    }
-    .card-time-compact {
-      font-size: 11px;
-      color: var(--neutral-text-muted);
-    }
-    .card-actions {
-      display: flex;
-      gap: 4px;
-    }
-    .card-action-btn {
-      width: 26px; height: 26px;
-      border-radius: 5px; border: none;
-      background: transparent;
-      color: var(--neutral-text-muted);
-      cursor: pointer;
-      display: flex;
-      align-items: center;
-      justify-content: center;
-      transition: all 150ms ease;
-      opacity: 0;
-      transform: translateX(5px);
-    }
-    .run-card:hover .card-action-btn {
-      opacity: 1;
-      transform: translateX(0);
-    }
-    .run-card:hover .card-action-btn:nth-child(1) { transition-delay: 0ms; }
-    .run-card:hover .card-action-btn:nth-child(2) { transition-delay: 40ms; }
-    .run-card:hover .card-action-btn:nth-child(3) { transition-delay: 80ms; }
-    .card-action-btn:hover {
-      background: rgba(61, 142, 134, 0.08);
-      color: var(--brand-primary);
-    }
-    [data-theme="dark"] .card-action-btn:hover {
-      background: rgba(0, 212, 170, 0.1);
-      color: #00d4aa;
     }
 
     /* Running card special glow */
@@ -822,6 +836,585 @@
     [data-theme="dark"] ::-webkit-scrollbar-thumb { background: rgba(0, 212, 170, 0.2); }
     [data-theme="dark"] ::-webkit-scrollbar-thumb:hover { background: rgba(0, 212, 170, 0.35); }
 
+    /* ====== Schedule Cards ====== */
+    .schedule-card {
+      position: relative;
+      padding: 20px;
+      border-radius: 16px;
+      border: 1px solid var(--glass-border);
+      background: var(--glass-bg);
+      backdrop-filter: var(--glass-blur);
+      transition: all 350ms cubic-bezier(0.4, 0, 0.2, 1);
+      cursor: pointer;
+      overflow: hidden;
+      opacity: 0;
+      transform: translateY(20px);
+      animation: card-enter 500ms cubic-bezier(0.4, 0, 0.2, 1) forwards;
+      display: flex;
+      flex-direction: column;
+      gap: 14px;
+    }
+    [data-theme="dark"] .schedule-card {
+      border-radius: 12px;
+      border-color: rgba(0, 212, 170, 0.08);
+      background: rgba(15, 25, 45, 0.5);
+    }
+    .schedule-card:hover {
+      transform: translateY(-4px);
+      border-color: rgba(61, 142, 134, 0.3);
+      box-shadow: 0 12px 40px rgba(30, 46, 40, 0.12);
+    }
+    [data-theme="dark"] .schedule-card:hover {
+      border-color: rgba(0, 212, 170, 0.25);
+      box-shadow: 0 8px 32px rgba(0, 0, 0, 0.5), 0 0 40px rgba(0, 212, 170, 0.06);
+    }
+
+    .schedule-card-header {
+      display: flex;
+      align-items: flex-start;
+      justify-content: space-between;
+      gap: 10px;
+    }
+    .schedule-card-name {
+      font-family: "JetBrains Mono", monospace;
+      font-size: 15px;
+      font-weight: 600;
+      color: var(--neutral-text-primary);
+      letter-spacing: 0.3px;
+      white-space: nowrap;
+      overflow: hidden;
+      text-overflow: ellipsis;
+      flex: 1;
+      min-width: 0;
+    }
+
+    .schedule-cron {
+      display: inline-block;
+      font-family: "JetBrains Mono", monospace;
+      font-size: 11px;
+      font-weight: 500;
+      color: var(--brand-primary);
+      padding: 3px 10px;
+      border-radius: 10px;
+      background: rgba(61, 142, 134, 0.08);
+      border: 1px solid rgba(61, 142, 134, 0.2);
+      letter-spacing: 0.5px;
+      width: fit-content;
+    }
+    [data-theme="dark"] .schedule-cron {
+      background: rgba(0, 212, 170, 0.06);
+      border-color: rgba(0, 212, 170, 0.18);
+      color: #00d4aa;
+    }
+
+    .schedule-countdown-wrap {
+      display: flex;
+      flex-direction: column;
+      gap: 4px;
+    }
+    .schedule-countdown-label {
+      font-size: 10px;
+      color: var(--neutral-text-muted);
+      text-transform: uppercase;
+      letter-spacing: 1.2px;
+      font-family: "JetBrains Mono", monospace;
+      font-weight: 500;
+    }
+    .schedule-countdown {
+      font-family: "JetBrains Mono", monospace;
+      font-size: 24px;
+      font-weight: 700;
+      color: var(--brand-primary);
+      line-height: 1.2;
+      letter-spacing: -0.5px;
+    }
+    .schedule-countdown.dim {
+      color: var(--neutral-text-muted);
+      font-size: 18px;
+    }
+    [data-theme="dark"] .schedule-countdown {
+      color: #00d4aa;
+    }
+    [data-theme="dark"] .schedule-countdown.dim {
+      color: #4a6a7a;
+    }
+    .schedule-next-time {
+      font-size: 11px;
+      color: var(--neutral-text-secondary);
+    }
+
+    .schedule-stats-row {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      gap: 8px;
+    }
+    .schedule-stats-text {
+      font-size: 11px;
+      color: var(--neutral-text-muted);
+    }
+    .schedule-stats-text strong {
+      color: var(--neutral-text-secondary);
+      font-weight: 600;
+    }
+    .schedule-stats-bar {
+      flex: 1;
+      height: 4px;
+      border-radius: 2px;
+      background: var(--neutral-border-subtle);
+      overflow: hidden;
+      max-width: 120px;
+    }
+    .schedule-stats-bar-fill {
+      height: 100%;
+      border-radius: 2px;
+      transition: width 500ms ease;
+    }
+
+    .schedule-last-run {
+      display: inline-flex;
+      align-items: center;
+      gap: 5px;
+      padding: 3px 10px;
+      border-radius: 12px;
+      font-size: 11px;
+      font-family: "JetBrains Mono", monospace;
+      border: 1px solid var(--neutral-border-subtle);
+      background: var(--glass-bg);
+      backdrop-filter: var(--glass-blur);
+      color: var(--neutral-text-secondary);
+      width: fit-content;
+    }
+    .schedule-last-run.success {
+      border-color: rgba(106, 189, 121, 0.3);
+      background: rgba(106, 189, 121, 0.08);
+      color: var(--semantic-success);
+    }
+    .schedule-last-run.error {
+      border-color: rgba(201, 79, 79, 0.3);
+      background: rgba(201, 79, 79, 0.08);
+      color: var(--semantic-error);
+    }
+    [data-theme="dark"] .schedule-last-run.success {
+      border-color: rgba(46, 204, 113, 0.25);
+      background: rgba(46, 204, 113, 0.08);
+      color: #2ecc71;
+    }
+    [data-theme="dark"] .schedule-last-run.error {
+      border-color: rgba(231, 76, 60, 0.25);
+      background: rgba(231, 76, 60, 0.08);
+      color: #e74c3c;
+    }
+
+    .schedule-card-footer {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      padding-top: 10px;
+      border-top: 1px solid var(--neutral-border-subtle);
+    }
+    [data-theme="dark"] .schedule-card-footer {
+      border-top-color: rgba(0, 212, 170, 0.06);
+    }
+    .schedule-template-name {
+      font-size: 11px;
+      color: var(--neutral-text-muted);
+    }
+    .schedule-template-name svg {
+      vertical-align: -2px;
+      margin-right: 4px;
+    }
+
+    /* Toggle Switch */
+    .switch {
+      position: relative;
+      display: inline-block;
+      width: 38px;
+      height: 20px;
+      flex-shrink: 0;
+    }
+    .switch input {
+      opacity: 0;
+      width: 0;
+      height: 0;
+    }
+    .slider {
+      position: absolute;
+      cursor: pointer;
+      inset: 0;
+      background: var(--neutral-border);
+      border-radius: 20px;
+      transition: background 250ms ease;
+    }
+    .slider::before {
+      content: '';
+      position: absolute;
+      height: 14px;
+      width: 14px;
+      left: 3px;
+      bottom: 3px;
+      background: #fff;
+      border-radius: 50%;
+      transition: transform 250ms cubic-bezier(0.4, 0, 0.2, 1);
+      box-shadow: 0 1px 3px rgba(0,0,0,0.15);
+    }
+    input:checked + .slider {
+      background: var(--brand-primary);
+    }
+    input:checked + .slider::before {
+      transform: translateX(18px);
+    }
+    [data-theme="dark"] input:checked + .slider {
+      background: #00d4aa;
+      box-shadow: 0 0 10px rgba(0, 212, 170, 0.3);
+    }
+
+    /* ====== Detail Pages ====== */
+    .detail-header {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      margin-bottom: 24px;
+      gap: 12px;
+    }
+
+    /* ====== Workspace-style Detail Page ====== */
+    .detail-workspace {
+      display: flex;
+      flex: 1;
+      overflow: hidden;
+      border-radius: 16px;
+      border: 1px solid var(--glass-border);
+      background: var(--glass-bg);
+      backdrop-filter: var(--glass-blur);
+      margin-top: 8px;
+    }
+    [data-theme="dark"] .detail-workspace {
+      border-color: rgba(0, 212, 170, 0.08);
+      background: rgba(15, 25, 45, 0.5);
+      border-radius: 12px;
+    }
+
+    .detail-main {
+      flex: 1;
+      display: flex;
+      flex-direction: column;
+      min-width: 0;
+      overflow: hidden;
+    }
+    .detail-side {
+      width: 360px;
+      flex-shrink: 0;
+      border-left: 1px solid var(--glass-border);
+      background: var(--neutral-surface);
+      display: flex;
+      flex-direction: column;
+      overflow: hidden;
+    }
+    [data-theme="dark"] .detail-side {
+      border-left-color: rgba(0, 212, 170, 0.08);
+      background: rgba(10, 15, 26, 0.6);
+    }
+    @media (max-width: 768px) {
+      .detail-workspace { flex-direction: column; }
+      .detail-side { width: 100%; border-left: none; border-top: 1px solid var(--glass-border); height: 300px; }
+    }
+
+    .detail-resize-handle {
+      width: 4px; cursor: col-resize; background: transparent;
+      border-left: 1px solid var(--glass-border);
+    }
+
+    /* Run Detail Header */
+    .detail-run-header {
+      padding: 16px 20px;
+      border-bottom: 1px solid var(--glass-border);
+      display: flex;
+      align-items: flex-start;
+      justify-content: space-between;
+      gap: 12px;
+      flex-shrink: 0;
+    }
+    [data-theme="dark"] .detail-run-header {
+      border-bottom-color: rgba(0, 212, 170, 0.08);
+    }
+    .detail-run-title-wrap {
+      display: flex;
+      align-items: center;
+      gap: 10px;
+      flex-wrap: wrap;
+    }
+    .detail-run-title-wrap h2 {
+      margin: 0; font-size: 18px; font-weight: 600; letter-spacing: -0.2px;
+      color: var(--neutral-text-primary);
+    }
+    .detail-run-status-badge {
+      font-size: 11px; font-weight: 600; letter-spacing: 0.3px;
+      padding: 3px 10px; border-radius: 4px;
+    }
+    .detail-run-status-running { background: rgba(61, 142, 134, 0.12); color: var(--brand-primary); }
+    .detail-run-status-awaiting { background: rgba(201, 149, 44, 0.12); color: var(--semantic-warning); }
+    .detail-run-status-success { background: rgba(106, 189, 121, 0.12); color: var(--semantic-success); }
+    .detail-run-status-error { background: rgba(201, 79, 79, 0.10); color: var(--semantic-error); }
+    .detail-run-meta { font-size: 11px; color: var(--neutral-text-muted); }
+    .detail-run-actions { display: flex; gap: 8px; flex-shrink: 0; }
+
+    /* Step Nav Chips */
+    .detail-step-nav {
+      display: flex; align-items: center; gap: 6px;
+      padding: 10px 20px; border-bottom: 1px solid var(--glass-border);
+      overflow-x: auto; flex-shrink: 0;
+    }
+    [data-theme="dark"] .detail-step-nav {
+      border-bottom-color: rgba(0, 212, 170, 0.06);
+    }
+    .detail-step-chip {
+      display: inline-flex; align-items: center; gap: 6px;
+      padding: 5px 10px; border-radius: 8px;
+      border: 1.5px solid var(--glass-border);
+      background: var(--neutral-surface);
+      cursor: pointer; font-family: inherit;
+      font-size: 12px; color: var(--neutral-text-primary); white-space: nowrap;
+      transition: all 150ms ease;
+    }
+    .detail-step-chip:hover { border-color: var(--neutral-border); background: var(--neutral-surface-raised); }
+    .detail-step-chip.active { border-color: var(--brand-primary); background: rgba(61, 142, 134, 0.06); }
+    .detail-step-chip.done { border-color: var(--semantic-success); border-left: 3px solid var(--semantic-success); }
+    .detail-step-chip.running { border-color: var(--brand-primary); animation: pulse-ring 2s infinite; }
+    .detail-step-chip.error { border-color: var(--semantic-error); border-left: 3px solid var(--semantic-error); }
+    .detail-step-chip-num {
+      width: 18px; height: 18px; display: flex; align-items: center; justify-content: center;
+      border-radius: 4px; background: var(--glass-bg);
+      font-size: 10px; font-weight: 700; color: var(--neutral-text-muted);
+    }
+    .detail-step-chip.active .detail-step-chip-num { background: var(--brand-primary); color: #fff; }
+    .detail-step-chip-arrow { color: var(--neutral-text-muted); display: flex; align-items: center; }
+
+    /* Prompt Section */
+    .detail-prompt-section {
+      padding: 10px 20px; border-bottom: 1px solid var(--glass-border); flex-shrink: 0;
+    }
+    [data-theme="dark"] .detail-prompt-section {
+      border-bottom-color: rgba(0, 212, 170, 0.06);
+    }
+    .detail-prompt-box {
+      background: var(--neutral-surface); border: 1px solid var(--glass-border);
+      border-radius: 8px; padding: 10px 14px; cursor: pointer; transition: all 150ms ease;
+    }
+    .detail-prompt-box:hover { border-color: var(--neutral-border); }
+    .detail-prompt-label {
+      font-size: 10px; font-weight: 600; color: var(--neutral-text-muted);
+      text-transform: uppercase; letter-spacing: 0.4px; display: block; margin-bottom: 4px;
+    }
+    .detail-prompt-text { font-size: 13px; color: var(--neutral-text-primary); display: block; line-height: 1.5; }
+    .detail-prompt-hint { font-size: 11px; color: var(--neutral-text-muted); display: block; margin-top: 6px; }
+
+    /* Transcript */
+    .detail-transcript {
+      flex: 1; overflow-y: auto; padding: 16px 20px; min-height: 0;
+    }
+    .transcript-event { margin-bottom: 16px; }
+    .transcript-event-meta {
+      font-size: 11px; color: var(--neutral-text-muted); margin-bottom: 6px;
+      display: flex; align-items: center; gap: 6px;
+    }
+    .transcript-event-role { font-weight: 600; color: var(--neutral-text-secondary); }
+    .transcript-msg {
+      padding: 12px 16px; border-radius: 4px; font-size: 14px; line-height: 1.65;
+    }
+    .transcript-msg-user {
+      background: rgba(61, 142, 134, 0.08);
+      border-radius: 4px 4px 4px 0;
+    }
+    .transcript-msg-ai {
+      background: var(--neutral-surface); border: 1px solid var(--glass-border);
+      border-radius: 4px 4px 0 4px;
+    }
+    .transcript-msg-tool {
+      background: var(--neutral-surface); border: 1px solid var(--glass-border);
+      border-radius: 4px; font-size: 12px; color: var(--neutral-text-secondary);
+    }
+    .transcript-tool-call { padding: 8px 12px; border-bottom: 1px solid var(--glass-border); }
+    .transcript-tool-result { padding: 8px 12px; background: rgba(61, 142, 134, 0.03); }
+
+    /* Artifacts */
+    .artifact-cards { margin-top: 16px; }
+    .artifact-cards-header { font-size: 12px; font-weight: 600; color: var(--neutral-text-secondary); margin-bottom: 8px; }
+    .artifact-card-row {
+      display: flex; align-items: center; gap: 10px;
+      padding: 8px 12px; border-radius: 8px; border: 1px solid var(--glass-border);
+      background: var(--neutral-surface); cursor: pointer; margin-bottom: 6px;
+      transition: all 150ms ease;
+    }
+    .artifact-card-row:hover { border-color: var(--neutral-border); box-shadow: var(--shadow-sm); }
+    .artifact-card-row.active { border-color: var(--brand-primary); background: rgba(61, 142, 134, 0.04); }
+    .artifact-card-icon { color: var(--neutral-text-muted); display: flex; }
+    .artifact-card-info { flex: 1; min-width: 0; }
+    .artifact-card-name { font-size: 12px; font-weight: 600; color: var(--neutral-text-primary); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+    .artifact-card-meta { font-size: 11px; color: var(--neutral-text-muted); }
+    .artifact-card-open { font-size: 11px; color: var(--brand-primary); font-weight: 500; }
+
+    /* Composer */
+    .detail-composer {
+      border-top: 1px solid var(--glass-border);
+      background: var(--glass-bg);
+      backdrop-filter: var(--glass-blur);
+      padding: 10px 20px;
+      display: flex; align-items: flex-end; gap: 10px;
+      flex-shrink: 0;
+    }
+    [data-theme="dark"] .detail-composer {
+      border-top-color: rgba(0, 212, 170, 0.08);
+    }
+    .composer-input-wrap { flex: 1; display: flex; flex-direction: column; gap: 6px; }
+    .composer-textarea {
+      width: 100%; resize: none; border: 1px solid var(--glass-border);
+      border-radius: 8px; padding: 10px 12px; font-family: inherit; font-size: 14px;
+      color: var(--neutral-text-primary); background: var(--neutral-bg);
+      outline: none; line-height: 1.5; min-height: 44px; max-height: 160px;
+    }
+    .composer-textarea:focus { border-color: var(--brand-primary); box-shadow: var(--shadow-focus); }
+    .composer-textarea::placeholder { color: var(--neutral-text-muted); }
+    .composer-send {
+      width: 36px; height: 36px; border-radius: 8px;
+      border: none; background: var(--brand-primary); color: #fff;
+      cursor: pointer; display: flex; align-items: center; justify-content: center;
+      transition: all 150ms ease; flex-shrink: 0;
+    }
+    .composer-send:hover { background: var(--brand-primary-hover); }
+
+    /* Preview Pane */
+    .preview-pane { display: flex; flex-direction: column; height: 100%; overflow: hidden; }
+    .preview-breadcrumb {
+      padding: 10px 14px; border-bottom: 1px solid var(--glass-border);
+      font-size: 11px; color: var(--neutral-text-muted);
+      white-space: nowrap; overflow: hidden; text-overflow: ellipsis;
+    }
+    [data-theme="dark"] .preview-breadcrumb {
+      border-bottom-color: rgba(0, 212, 170, 0.06);
+    }
+    .preview-toolbar {
+      display: flex; align-items: center; justify-content: space-between;
+      padding: 8px 14px; border-bottom: 1px solid var(--glass-border);
+    }
+    [data-theme="dark"] .preview-toolbar {
+      border-bottom-color: rgba(0, 212, 170, 0.06);
+    }
+    .preview-filename { font-size: 12px; font-weight: 600; }
+    .preview-body { flex: 1; overflow-y: auto; padding: 14px; }
+    .preview-code {
+      font-family: "JetBrains Mono", monospace; font-size: 13px; line-height: 1.7;
+      margin: 0; white-space: pre-wrap; word-break: break-word;
+      color: var(--neutral-text-secondary);
+    }
+
+    /* ====== Schedule Detail Card Layout (preserved) ====== */
+    .detail-layout {
+      display: grid;
+      grid-template-columns: 280px 1fr;
+      gap: 20px;
+    }
+    @media (max-width: 768px) {
+      .detail-layout { grid-template-columns: 1fr; }
+    }
+
+    .detail-panel {
+      border-radius: 16px;
+      border: 1px solid var(--glass-border);
+      background: var(--glass-bg);
+      backdrop-filter: var(--glass-blur);
+      padding: 20px;
+      display: flex;
+      flex-direction: column;
+      gap: 16px;
+    }
+    [data-theme="dark"] .detail-panel {
+      border-color: rgba(0, 212, 170, 0.08);
+      background: rgba(15, 25, 45, 0.5);
+      border-radius: 12px;
+    }
+
+    .detail-section-title {
+      font-size: 13px;
+      font-weight: 600;
+      color: var(--neutral-text-primary);
+      letter-spacing: 0.5px;
+      margin: 0;
+    }
+    [data-theme="dark"] .detail-section-title {
+      font-family: "JetBrains Mono", monospace;
+      font-size: 11px;
+      text-transform: uppercase;
+      letter-spacing: 1.5px;
+    }
+
+    .detail-field {
+      display: flex;
+      flex-direction: column;
+      gap: 4px;
+    }
+    .detail-field-label {
+      font-size: 10px;
+      color: var(--neutral-text-muted);
+      text-transform: uppercase;
+      letter-spacing: 1px;
+      font-family: "JetBrains Mono", monospace;
+      font-weight: 500;
+    }
+    .detail-field-value {
+      font-size: 13px;
+      color: var(--neutral-text-primary);
+      word-break: break-word;
+    }
+
+    .history-list {
+      display: flex;
+      flex-direction: column;
+      gap: 8px;
+    }
+    .history-row {
+      display: grid;
+      grid-template-columns: 1fr 100px 100px;
+      align-items: center;
+      gap: 12px;
+      padding: 10px 14px;
+      border-radius: 10px;
+      background: rgba(0,0,0,0.02);
+      font-size: 12px;
+      transition: background 200ms ease;
+    }
+    [data-theme="dark"] .history-row {
+      background: rgba(0, 0, 0, 0.15);
+    }
+    .history-row:hover {
+      background: rgba(61, 142, 134, 0.05);
+    }
+    [data-theme="dark"] .history-row:hover {
+      background: rgba(0, 212, 170, 0.05);
+    }
+    .history-status-dot {
+      width: 7px; height: 7px; border-radius: 50%; display: inline-block; margin-right: 6px;
+    }
+
+    /* Schedule Detail — info panel */
+    .schedule-info-grid {
+      display: grid;
+      grid-template-columns: repeat(auto-fill, minmax(180px, 1fr));
+      gap: 16px;
+      padding: 20px;
+    }
+    .schedule-info-item {
+      display: flex; flex-direction: column; gap: 4px;
+    }
+    .schedule-info-label {
+      font-size: 10px; color: var(--neutral-text-muted);
+      text-transform: uppercase; letter-spacing: 1px;
+      font-family: "JetBrains Mono", monospace; font-weight: 500;
+    }
+    .schedule-info-value {
+      font-size: 13px; color: var(--neutral-text-primary); word-break: break-word;
+    }
+
     /* Responsive */
     @media (max-width: 768px) {
       .cards-grid { grid-template-columns: 1fr; }
@@ -829,6 +1422,7 @@
       .toolbar-left, .toolbar-right { justify-content: space-between; }
       .card-action-btn { opacity: 1; transform: none; }
       .node-label { opacity: 1; transform: none; }
+      .schedule-card { padding: 16px; }
     }
   </style>
 </head>
@@ -865,6 +1459,9 @@
         <button class="mode-rail-btn" title="Agents">
           <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="11" width="18" height="10" rx="2"/><circle cx="12" cy="5" r="2"/><path d="M12 7v4"/><line x1="8" y1="16" x2="8" y2="16"/><line x1="16" y1="16" x2="16" y2="16"/></svg>
         </button>
+        <button class="mode-rail-btn" title="Schedules" id="nav-schedules">
+          <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="4" width="18" height="18" rx="2" ry="2"/><line x1="16" y1="2" x2="16" y2="6"/><line x1="8" y1="2" x2="8" y2="6"/><line x1="3" y1="10" x2="21" y2="10"/></svg>
+        </button>
         <button class="mode-rail-btn" title="Single">
           <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M21 11.5a8.38 8.38 0 0 1-.9 3.8 8.5 8.5 0 0 1-7.6 4.7 8.38 8.38 0 0 1-3.8-.9L3 21l1.9-5.7a8.38 8.38 0 0 1-.9-3.8 8.5 8.5 0 0 1 4.7-7.6 8.38 8.38 0 0 1 3.8-.9h.5a8.48 8.48 0 0 1 8 8v.5z"/></svg>
         </button>
@@ -873,7 +1470,7 @@
         </button>
       </nav>
 
-      <main class="main-content">
+      <main class="main-content" id="runsPage">
         <div class="page-header">
           <h2 class="page-title">全部运行记录</h2>
           <div class="page-actions">
@@ -912,6 +1509,65 @@
         </div>
 
         <div class="cards-grid" id="cardsGrid"></div>
+      </main>
+
+      <!-- ====== Schedules Page ====== -->
+      <main class="main-content" id="schedulesPage" style="display:none">
+        <div class="page-header">
+          <h2 class="page-title">定时任务</h2>
+          <div class="page-actions">
+            <button class="btn btn-primary btn-sm" onclick="alert('新建定时任务')">
+              <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><line x1="12" y1="5" x2="12" y2="19"/><line x1="5" y1="12" x2="19" y2="12"/></svg>
+              新建定时任务
+            </button>
+          </div>
+        </div>
+
+        <div class="cards-grid" id="schedulesList"></div>
+      </main>
+
+      <!-- ====== Run Detail Page ====== -->
+      <main class="main-content" id="runDetailPage" style="display:none">
+        <div class="detail-header">
+          <button class="btn btn-ghost btn-sm" onclick="goBack()">
+            <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polyline points="15 18 9 12 15 6"/></svg>
+            返回
+          </button>
+          <div class="page-actions">
+            <button class="btn btn-secondary btn-sm" onclick="alert('重跑')">
+              <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polyline points="23 4 23 10 17 10"/><path d="M20.49 15a9 9 0 1 1-2.12-9.36L23 10"/></svg>
+              重跑
+            </button>
+            <button class="btn btn-ghost btn-sm" style="color:var(--semantic-error)" onclick="alert('停止')">
+              <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="6" y="6" width="12" height="12" rx="2"/></svg>
+              停止
+            </button>
+          </div>
+        </div>
+
+        <div id="runDetailContent"></div>
+      </main>
+
+      <!-- ====== Schedule Detail Page ====== -->
+      <main class="main-content" id="scheduleDetailPage" style="display:none">
+        <div class="detail-header">
+          <button class="btn btn-ghost btn-sm" onclick="goBack()">
+            <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polyline points="15 18 9 12 15 6"/></svg>
+            返回
+          </button>
+          <div class="page-actions">
+            <button class="btn btn-secondary btn-sm" onclick="alert('编辑')">
+              <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M11 4H4a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2v-7"/><path d="M18.5 2.5a2.121 2.121 0 0 1 3 3L12 15l-4 1 1-4 9.5-9.5z"/></svg>
+              编辑
+            </button>
+            <button class="btn btn-ghost btn-sm" style="color:var(--semantic-error)" onclick="alert('删除')">
+              <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polyline points="3 6 5 6 21 6"/><path d="M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6m3 0V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2"/></svg>
+              删除
+            </button>
+          </div>
+        </div>
+
+        <div id="scheduleDetailContent"></div>
       </main>
     </div>
   </div>
@@ -1022,26 +1678,12 @@
         : status === 'awaiting' ? 'awaiting'
         : 'pending';
 
-      // progress bar fill
-      let fillStatus = '';
-      let fillPct = 0;
-      const total = steps.length - 1 || 1;
-      for (let i = 0; i < steps.length; i++) {
-        if (steps[i].status === 'done') {
-          fillStatus = 'done';
-          fillPct = (i / total) * 100;
-        } else if (steps[i].status === 'running' || steps[i].status === 'awaiting') {
-          fillStatus = steps[i].status === 'running' ? 'running' : 'done';
-          fillPct = (i / total) * 100;
-          break;
-        } else if (steps[i].status === 'error') {
-          fillStatus = 'error';
-          fillPct = (i / total) * 100;
-          break;
-        } else {
-          break;
-        }
-      }
+      // segmented progress bar — one segment per step
+      const segWidth = (100 / steps.length).toFixed(2);
+      const segments = steps.map(step => {
+        const sClass = pillClass(step.status);
+        return `<div class="progress-segment ${sClass}" style="width: ${segWidth}%"></div>`;
+      }).join('');
 
       const pills = steps.map(step => {
         const pClass = pillClass(step.status);
@@ -1049,9 +1691,7 @@
       }).join('');
 
       return `
-        <div class="progress-glow">
-          <div class="progress-glow-fill ${fillStatus}" style="width: ${fillPct}%"></div>
-        </div>
+        <div class="progress-glow">${segments}</div>
         <div class="step-pills">${pills}</div>
       `;
     }
@@ -1073,27 +1713,28 @@
       });
       const sortedLevels = Object.keys(levels).sort((a, b) => a - b).map(k => levels[k]);
 
-      // count done / total for progress bar
-      const doneCount = nodes.filter(n => n.status === 'done').length;
-      const fillPct = (doneCount / nodes.length) * 100;
-      const hasError = nodes.some(n => n.status === 'error');
-      const hasRunning = nodes.some(n => n.status === 'running');
-      const fillStatus = hasError ? 'error' : hasRunning ? 'running' : 'done';
+      // segmented progress bar — one segment per node
+      const segWidth = (100 / nodes.length).toFixed(2);
+      const segments = nodes.map(n => {
+        const sClass = pillClass(n.status);
+        return `<div class="progress-segment ${sClass}" style="width: ${segWidth}%"></div>`;
+      }).join('');
 
-      // render each level as a row of pills
-      const levelRows = sortedLevels.map(levelNodes => {
+      // flatten DAG levels into a single scrollable row with separators
+      const allPills = sortedLevels.map((levelNodes, idx) => {
         const pills = levelNodes.map(n => {
           const pClass = pillClass(n.status);
           return `<span class="step-pill ${pClass}"><span class="pill-indicator ${pClass}"></span>${n.name}</span>`;
         }).join('');
-        return `<div class="step-pills">${pills}</div>`;
+        const separator = idx < sortedLevels.length - 1
+          ? '<span class="step-pill pending" style="opacity:0.25;padding:3px 5px;font-size:10px;">›</span>'
+          : '';
+        return pills + separator;
       }).join('');
 
       return `
-        <div class="progress-glow">
-          <div class="progress-glow-fill ${fillStatus}" style="width: ${fillPct}%"></div>
-        </div>
-        ${levelRows}
+        <div class="progress-glow">${segments}</div>
+        <div class="step-pills">${allPills}</div>
       `;
     }
 
@@ -1102,7 +1743,7 @@
       grid.innerHTML = runs.map((run, i) => {
         const s = statusMap[run.status] || statusMap['aborted'];
         return `
-          <div class="run-card ${s.cardCls}" style="animation-delay: ${i * 80}ms">
+          <div class="run-card ${s.cardCls}" style="animation-delay: ${i * 80}ms" onclick="showRunDetail(${run.id})">
             <div class="card-header">
               <div class="card-title-wrap">
                 <div class="card-title" title="${run.name}">${run.name}</div>
@@ -1135,26 +1776,609 @@
               </div>
             </div>
 
-            <div class="card-footer">
-              <span class="card-time-compact">${run.ago}</span>
-              <div class="card-actions">
-                <button class="card-action-btn" title="查看">
-                  <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M1 12s4-8 11-8 11 8 11 8-4 8-11 8-11-8-11-8z"/><circle cx="12" cy="12" r="3"/></svg>
-                </button>
-                <button class="card-action-btn" title="重跑">
-                  <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polyline points="23 4 23 10 17 10"/><path d="M20.49 15a9 9 0 1 1-2.12-9.36L23 10"/></svg>
-                </button>
-                <button class="card-action-btn" title="删除">
-                  <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polyline points="3 6 5 6 21 6"/><path d="M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6m3 0V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2"/></svg>
-                </button>
-              </div>
-            </div>
           </div>
         `;
       }).join('');
     }
 
     renderCards();
+
+    /* ====== Schedules Data & Render ====== */
+    const schedules = [
+      {
+        id: 1, name: 'daily-cleanup', template: 'maintenance-pipeline',
+        cron: '0 2 * * *', enabled: true,
+        nextRun: '2026-06-18 02:00', nextRunMs: Date.now() + 4 * 3600 * 1000 + 35 * 60 * 1000,
+        totalRuns: 142, successRate: 0.98,
+        lastRun: { status: 'success', ago: '23h ago' }
+      },
+      {
+        id: 2, name: 'weekly-security-scan', template: 'security-scan',
+        cron: '0 3 * * 1', enabled: true,
+        nextRun: '2026-06-22 03:00', nextRunMs: Date.now() + 4 * 24 * 3600 * 1000 + 6 * 3600 * 1000,
+        totalRuns: 24, successRate: 0.92,
+        lastRun: { status: 'success', ago: '3d ago' }
+      },
+      {
+        id: 3, name: 'dependency-check', template: 'dependency-update',
+        cron: '0 9 * * 1', enabled: false,
+        nextRun: '—', nextRunMs: null,
+        totalRuns: 8, successRate: 0.75,
+        lastRun: { status: 'error', ago: '1w ago' }
+      },
+      {
+        id: 4, name: 'nightly-backup', template: 'backup-pipeline',
+        cron: '0 0 * * *', enabled: true,
+        nextRun: '2026-06-18 00:00', nextRunMs: Date.now() + 2 * 3600 * 1000 + 15 * 60 * 1000,
+        totalRuns: 312, successRate: 1.0,
+        lastRun: { status: 'success', ago: '21h ago' }
+      },
+      {
+        id: 5, name: 'stale-pr-cleanup', template: 'pr-management',
+        cron: '30 10 * * 5', enabled: true,
+        nextRun: '2026-06-20 10:30', nextRunMs: Date.now() + 2 * 24 * 3600 * 1000 + 12 * 3600 * 1000 + 45 * 60 * 1000,
+        totalRuns: 16, successRate: 0.88,
+        lastRun: { status: 'success', ago: '5d ago' }
+      },
+    ];
+
+    function formatDuration(ms) {
+      if (ms < 60000) return Math.ceil(ms / 1000) + 's';
+      if (ms < 3600000) return Math.ceil(ms / 60000) + 'm';
+      const h = Math.floor(ms / 3600000);
+      const m = Math.ceil((ms % 3600000) / 60000);
+      return h + 'h ' + m + 'm';
+    }
+
+    function renderSchedules() {
+      const container = document.getElementById('schedulesList');
+      container.innerHTML = schedules.map((sch, i) => {
+        const countdown = sch.enabled && sch.nextRunMs
+          ? formatDuration(Math.max(0, sch.nextRunMs - Date.now()))
+          : '—';
+        const successPct = Math.round(sch.successRate * 100);
+        const barColor = sch.lastRun.status === 'success' ? 'var(--semantic-success)'
+          : sch.lastRun.status === 'error' ? 'var(--semantic-error)'
+          : 'var(--neutral-text-muted)';
+        const lastRunCls = sch.lastRun.status === 'success' ? 'success'
+          : sch.lastRun.status === 'error' ? 'error' : '';
+        return `
+          <div class="schedule-card" style="animation-delay: ${i * 80}ms" onclick="showScheduleDetail(${sch.id})">
+            <div class="schedule-card-header">
+              <div class="schedule-card-name" title="${sch.name}">${sch.name}</div>
+              <label class="switch" onclick="event.stopPropagation()">
+                <input type="checkbox" ${sch.enabled ? 'checked' : ''} onchange="toggleSchedule(${sch.id}, this.checked)">
+                <span class="slider"></span>
+              </label>
+            </div>
+
+            <div class="schedule-cron">${sch.cron}</div>
+
+            <div class="schedule-countdown-wrap">
+              <span class="schedule-countdown-label">${sch.enabled ? '下次运行' : '已停用'}</span>
+              <span class="schedule-countdown ${sch.enabled ? '' : 'dim'}">${countdown}</span>
+              <span class="schedule-next-time">${sch.enabled ? sch.nextRun : '—'}</span>
+            </div>
+
+            <div class="schedule-stats-row">
+              <span class="schedule-stats-text">成功率 <strong>${successPct}%</strong></span>
+              <div class="schedule-stats-bar">
+                <div class="schedule-stats-bar-fill" style="width: ${successPct}%; background: ${barColor}"></div>
+              </div>
+            </div>
+
+            <div class="schedule-last-run ${lastRunCls}">
+              <span style="width:6px;height:6px;border-radius:50%;background:currentColor;display:inline-block;"></span>
+              上次 ${sch.lastRun.ago}
+            </div>
+
+            <div class="schedule-card-footer">
+              <span class="schedule-template-name">
+                <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polygon points="12 2 2 7 12 12 22 7 12 2"/><polyline points="2 17 12 22 22 17"/><polyline points="2 12 12 17 22 12"/></svg>
+                ${sch.template}
+              </span>
+            </div>
+          </div>
+        `;
+      }).join('');
+    }
+
+    function toggleSchedule(id, enabled) {
+      const sch = schedules.find(s => s.id === id);
+      if (sch) {
+        sch.enabled = enabled;
+        if (!enabled) {
+          sch.nextRunMs = null;
+          sch.nextRun = '—';
+        }
+        renderSchedules();
+      }
+    }
+
+    // Update countdown every 30s
+    setInterval(() => { renderSchedules(); }, 30000);
+
+    /* ====== Navigation ====== */
+    const runsPage = document.getElementById('runsPage');
+    const schedulesPageEl = document.getElementById('schedulesPage');
+    const navRuns = document.querySelector('.mode-rail-btn[title="Workflow"]');
+    const navSchedules = document.getElementById('nav-schedules');
+
+    function showRuns() {
+      hideAllPages();
+      runsPage.style.display = '';
+      navRuns.classList.add('active');
+      navSchedules.classList.remove('active');
+      document.querySelector('.app-subtitle').textContent = '运行记录';
+    }
+
+    function showSchedules() {
+      hideAllPages();
+      schedulesPageEl.style.display = '';
+      navRuns.classList.remove('active');
+      navSchedules.classList.add('active');
+      document.querySelector('.app-subtitle').textContent = '定时任务';
+      renderSchedules();
+    }
+
+    navRuns.addEventListener('click', showRuns);
+    navSchedules.addEventListener('click', showSchedules);
+
+    /* ====== Detail Navigation ====== */
+    const runDetailPage = document.getElementById('runDetailPage');
+    const scheduleDetailPage = document.getElementById('scheduleDetailPage');
+    let detailBackTarget = 'runs'; // 'runs' | 'schedules'
+
+    function hideAllPages() {
+      runsPage.style.display = 'none';
+      schedulesPageEl.style.display = 'none';
+      runDetailPage.style.display = 'none';
+      scheduleDetailPage.style.display = 'none';
+    }
+
+    function showRunDetail(id) {
+      const run = runs.find(r => r.id === id);
+      if (!run) return;
+      detailBackTarget = 'runs';
+      hideAllPages();
+      runDetailPage.style.display = '';
+      document.querySelector('.app-subtitle').textContent = '运行详情';
+      renderRunDetail(run);
+    }
+
+    function showScheduleDetail(id) {
+      const sch = schedules.find(s => s.id === id);
+      if (!sch) return;
+      detailBackTarget = 'schedules';
+      hideAllPages();
+      scheduleDetailPage.style.display = '';
+      document.querySelector('.app-subtitle').textContent = '定时任务详情';
+      renderScheduleDetail(sch);
+    }
+
+    function goBack() {
+      if (detailBackTarget === 'schedules') {
+        showSchedules();
+      } else {
+        showRuns();
+      }
+    }
+
+    /* ====== Run Detail Render (Workspace Style) ====== */
+    const mockPrompts = {
+      'auth-refactor-pipeline': '重构认证模块，将原有的 session-based 登录改为 JWT + OAuth2 PKCE 流程，确保向后兼容。',
+      'db-optimization': '分析并优化数据库查询性能，重点解决 N+1 查询问题，为热点表添加合适的索引。',
+      'dependency-update': '检查并更新项目依赖到最新稳定版本，确保没有安全漏洞，运行全量测试验证兼容性。',
+      'bug-fix-pipeline': '修复登录页面的内存泄漏问题，复现步骤：快速切换标签页后 GC 无法回收事件监听器。',
+      'documentation-sync': '收集最近的代码变更，自动生成 API 文档更新，并同步到 Confluence。',
+      'security-scan': '对全仓库进行安全扫描，检查依赖漏洞、硬编码密钥和 SQL 注入风险。',
+      'ci-cd-pipeline': '构建生产镜像，运行全量测试，部署到 staging 环境并执行健康检查。',
+      'maintenance-pipeline': '清理临时文件、归档过期日志、压缩历史备份，释放磁盘空间。',
+      'backup-pipeline': '执行全量数据库备份，验证备份完整性，上传到远程存储。',
+      'pr-management': '扫描超过 7 天未更新的 PR，自动添加提醒评论，关闭已合并但未删除分支的 PR。'
+    };
+
+    const mockArtifacts = {
+      'auth-refactor-pipeline': [
+        { path: 'src/auth/oauth.ts', type: 'code' },
+        { path: 'src/auth/jwt.ts', type: 'code' },
+        { path: 'src/auth/oauth.test.ts', type: 'test' },
+      ],
+      'db-optimization': [
+        { path: 'migrations/003_add_indexes.sql', type: 'code' },
+        { path: 'docs/query-optimization.md', type: 'design' },
+      ],
+      'dependency-update': [
+        { path: 'package.json', type: 'code' },
+        { path: 'package-lock.json', type: 'code' },
+      ],
+      'bug-fix-pipeline': [
+        { path: 'src/pages/login.tsx', type: 'code' },
+        { path: 'src/pages/login.test.tsx', type: 'test' },
+      ],
+      'documentation-sync': [
+        { path: 'docs/api/v2/endpoints.md', type: 'design' },
+      ],
+      'security-scan': [
+        { path: 'reports/security-audit.md', type: 'design' },
+      ],
+      'ci-cd-pipeline': [
+        { path: 'Dockerfile', type: 'code' },
+        { path: 'k8s/deployment.yaml', type: 'code' },
+      ],
+      'maintenance-pipeline': [],
+      'backup-pipeline': [],
+      'pr-management': []
+    };
+
+    const mockCodes = {
+      'auth-refactor-pipeline': `export async function initOAuthPKCE() {
+  const verifier = generateCodeVerifier();
+  const challenge = await generateCodeChallenge(verifier);
+
+  const params = new URLSearchParams({
+    response_type: 'code',
+    client_id: CLIENT_ID,
+    redirect_uri: REDIRECT_URI,
+    code_challenge: challenge,
+    code_challenge_method: 'S256',
+    scope: 'openid profile',
+  });
+
+  window.location.href = \`\${AUTH_ENDPOINT}?\${params}\`;
+}
+
+export async function exchangeCode(code: string, verifier: string) {
+  const res = await fetch(TOKEN_ENDPOINT, {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/x-www-form-urlencoded' },
+    body: new URLSearchParams({
+      grant_type: 'authorization_code',
+      client_id: CLIENT_ID,
+      code,
+      redirect_uri: REDIRECT_URI,
+      code_verifier: verifier,
+    }),
+  });
+  return res.json();
+}`,
+      'db-optimization': `-- Add composite index for hot query path
+CREATE INDEX CONCURRENTLY idx_orders_user_created
+  ON orders(user_id, created_at DESC);
+
+-- Analyze table after index creation
+ANALYZE orders;
+
+-- Check query plan improvement
+EXPLAIN ANALYZE
+SELECT * FROM orders
+WHERE user_id = 'uuid'
+ORDER BY created_at DESC
+LIMIT 20;`,
+      'dependency-update': `{
+  "dependencies": {
+    "react": "^18.3.1",
+    "typescript": "^5.5.0",
+    "eslint-plugin-react": "^7.34.0"
+  }
+}`,
+      'default': `// Generated code preview
+function example() {
+  console.log('Hello from Agent Studio');
+  return 42;
+}`
+    };
+
+    function generateTranscript(run) {
+      const prompt = mockPrompts[run.template] || '执行工作流任务。';
+      const steps = run.steps || (run.dag ? run.dag.nodes : []);
+      let html = '';
+
+      // User prompt
+      html += `
+        <div class="transcript-event">
+          <div class="transcript-event-meta">
+            <span class="transcript-event-role">user</span>
+            <span>·</span>
+            <span>2026-06-17 14:30</span>
+          </div>
+          <div class="transcript-msg transcript-msg-user">${prompt}</div>
+        </div>
+      `;
+
+      // Assistant response per done/running step
+      steps.forEach((step, idx) => {
+        if (step.status === 'pending') return;
+        const msgs = {
+          '分析': '我来分析一下现有的代码结构...\n\n经过扫描，发现当前认证模块存在以下问题：\n1. session 存储耦合严重\n2. 缺少 CSRF 保护\n3. 密码哈希算法过时',
+          '生成': '基于分析结果，我生成了以下重构方案：\n\n- 引入 jsonwebtoken 处理 JWT\n- 新增 oauth.ts 处理 PKCE 流程\n- 保持原有 API 接口不变，内部逻辑替换',
+          '重构': '正在执行重构...\n\n已替换 src/auth/middleware.ts\n已新增 src/auth/oauth.ts\n已更新 src/auth/jwt.ts\n所有现有测试用例仍然通过。',
+          '文档': '已自动生成 API 文档更新，包含新的认证流程说明和迁移指南。',
+          '审查': '代码审查完成。未发现安全问题，建议合并。',
+          '检查': '依赖检查完成。发现 3 个可更新依赖，0 个安全漏洞。',
+          '更新': '已更新所有过期依赖到最新稳定版本，测试全部通过。',
+          '测试': '全量测试运行完成：142/142 通过，覆盖率 89%。',
+          '提交': '已创建 PR #3842，分支 deps/weekly-update，等待审查。',
+          '复现': '问题已复现。确认是在标签页切换时事件监听器未正确移除导致的内存泄漏。',
+          '修复': '已修复内存泄漏问题，在组件卸载时添加了 cleanup 函数。',
+          '验证': '验证通过，内存占用稳定在 45MB 以内。',
+          '收集': '已收集 12 份文档变更需求。',
+          '扫描': '安全扫描完成。高危漏洞: 0，中危漏洞: 2，低危漏洞: 7。',
+          '设计': '数据库 schema 设计完成，新增索引策略文档。',
+          '实现': '实现完成，等待确认是否需要迁移旧数据。',
+          '构建': 'Build successful (18.3s)，Output: dist/ (4.2MB)',
+          '镜像': 'Docker 镜像构建完成，大小 142MB。',
+          '配置': 'Staging 配置已应用，等待部署。',
+          '部署': '部署完成，服务健康检查通过。',
+          '验证': '验证完成，所有指标正常。'
+        };
+        const content = msgs[step.name] || `步骤 "${step.name}" 执行中...`;
+
+        if (step.status === 'error') {
+          html += `
+            <div class="transcript-event">
+              <div class="transcript-event-meta">
+                <span class="transcript-event-role">assistant</span>
+                <span>·</span>
+                <span>Step ${idx + 1}: ${step.name}</span>
+              </div>
+              <div class="transcript-msg transcript-msg-ai" style="border-color:var(--semantic-error);">
+                <span style="color:var(--semantic-error);font-weight:600;">✗ 执行失败</span>\n\n${content}
+              </div>
+            </div>
+          `;
+        } else if (step.status === 'awaiting') {
+          html += `
+            <div class="transcript-event">
+              <div class="transcript-event-meta">
+                <span class="transcript-event-role">assistant</span>
+                <span>·</span>
+                <span>Step ${idx + 1}: ${step.name}</span>
+              </div>
+              <div class="transcript-msg transcript-msg-ai" style="border-color:var(--semantic-warning);">
+                <span style="color:var(--semantic-warning);font-weight:600;">⏸ 等待确认</span>\n\n${content}
+              </div>
+            </div>
+          `;
+        } else {
+          html += `
+            <div class="transcript-event">
+              <div class="transcript-event-meta">
+                <span class="transcript-event-role">assistant</span>
+                <span>·</span>
+                <span>Step ${idx + 1}: ${step.name}</span>
+              </div>
+              <div class="transcript-msg transcript-msg-ai">${content}</div>
+            </div>
+          `;
+        }
+
+        // Tool call for some steps
+        if (step.status !== 'pending' && (step.name === '重构' || step.name === '更新' || step.name === '修复')) {
+          html += `
+            <div class="transcript-event">
+              <div class="transcript-event-meta">
+                <span class="transcript-event-role">tool</span>
+                <span>·</span>
+                <span>fileWrite</span>
+              </div>
+              <div class="transcript-msg transcript-msg-tool">
+                <div class="transcript-tool-call"><strong>fileWrite</strong> src/auth/oauth.ts</div>
+                <div class="transcript-tool-result">✓ 文件已写入 (+142 / -38 lines)</div>
+              </div>
+            </div>
+          `;
+        }
+      });
+
+      return html;
+    }
+
+    function generateArtifacts(run) {
+      const arts = mockArtifacts[run.template] || [];
+      if (!arts.length) return '';
+      const typeIcon = { code: '<svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M14.5 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V7.5L14.5 2z"/><polyline points="14 2 14 8 20 8"/><polyline points="9 13 15 13"/><polyline points="9 17 11 15 9 13"/></svg>', test: '<svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M14.5 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V7.5L14.5 2z"/><polyline points="14 2 14 8 20 8"/><polyline points="9 11 12 14 15 11"/><line x1="12" y1="8" x2="12" y2="14"/></svg>', design: '<svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M14.5 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V7.5L14.5 2z"/><polyline points="14 2 14 8 20 8"/><line x1="16" y1="13" x2="8" y2="13"/><line x1="16" y1="17" x2="8" y2="17"/><line x1="10" y1="9" x2="8" y2="9"/></svg>' };
+      const rows = arts.map((a, i) => `
+        <div class="artifact-card-row ${i === 0 ? 'active' : ''}">
+          <div class="artifact-card-icon">${typeIcon[a.type] || typeIcon.code}</div>
+          <div class="artifact-card-info">
+            <div class="artifact-card-name">${a.path}</div>
+            <div class="artifact-card-meta">${a.type.toUpperCase()}</div>
+          </div>
+          <span class="artifact-card-open">Open ▾</span>
+        </div>
+      `).join('');
+      return `
+        <div class="artifact-cards">
+          <div class="artifact-cards-header">Created <span style="color:var(--brand-primary);margin-left:4px;">${arts.length}</span> files</div>
+          ${rows}
+        </div>
+      `;
+    }
+
+    function renderRunDetail(run) {
+      const s = statusMap[run.status] || statusMap['aborted'];
+      const steps = run.steps || (run.dag ? run.dag.nodes : []);
+
+      const stepChips = steps.map((step, idx) => {
+        const chipCls = step.status === 'done' ? 'done'
+          : step.status === 'running' ? 'running'
+          : step.status === 'error' ? 'error'
+          : 'pending';
+        const arrow = idx < steps.length - 1 ? '<span class="detail-step-chip-arrow"><svg width="10" height="10" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><line x1="5" y1="12" x2="19" y2="12"/><polyline points="12 5 19 12 12 19"/></svg></span>' : '';
+        return `
+          <button class="detail-step-chip ${chipCls}">
+            <span class="detail-step-chip-num">${idx + 1}</span>
+            <span>${step.name}</span>
+          </button>
+          ${arrow}
+        `;
+      }).join('');
+
+      const transcript = generateTranscript(run);
+      const artifacts = generateArtifacts(run);
+      const code = mockCodes[run.template] || mockCodes.default;
+      const prompt = mockPrompts[run.template] || '执行工作流任务。';
+
+      document.getElementById('runDetailContent').innerHTML = `
+        <div class="detail-workspace">
+          <div class="detail-main">
+            <div class="detail-run-header">
+              <div class="detail-run-title-wrap">
+                <h2>${run.name}</h2>
+                <span class="detail-run-status-badge detail-run-status-${s.cls}">${s.label}</span>
+                <span class="detail-run-meta">${run.duration} · ${run.template}</span>
+              </div>
+              <div class="detail-run-actions">
+                <button class="btn btn-secondary btn-sm" onclick="alert('重跑')">
+                  <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polyline points="23 4 23 10 17 10"/><path d="M20.49 15a9 9 0 1 1-2.12-9.36L23 10"/></svg>
+                  重跑
+                </button>
+                ${run.status === 'running' ? `
+                <button class="btn btn-ghost btn-sm" style="color:var(--semantic-error)" onclick="alert('停止')">
+                  <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="6" y="6" width="12" height="12" rx="2"/></svg>
+                  停止
+                </button>` : ''}
+              </div>
+            </div>
+
+            <div class="detail-step-nav">${stepChips}</div>
+
+            <div class="detail-prompt-section">
+              <div class="detail-prompt-box">
+                <span class="detail-prompt-label">任务描述</span>
+                <span class="detail-prompt-text">${prompt}</span>
+                <span class="detail-prompt-hint">点击编辑</span>
+              </div>
+            </div>
+
+            <div class="detail-transcript">
+              ${transcript}
+              ${artifacts}
+            </div>
+
+            <div class="detail-composer">
+              <div class="composer-input-wrap">
+                <textarea class="composer-textarea" rows="2" placeholder="向运行中的 agent 发送消息..."></textarea>
+              </div>
+              <button class="composer-send">
+                <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><line x1="22" y1="2" x2="11" y2="13"/><polygon points="22 2 15 22 11 13 2 9 22 2"/></svg>
+              </button>
+            </div>
+          </div>
+
+          <div class="detail-resize-handle"></div>
+
+          <div class="detail-side">
+            <div class="preview-pane">
+              <div class="preview-breadcrumb">
+                <span>src</span><span style="color:var(--glass-border);margin:0 2px;">›</span>
+                <span>auth</span><span style="color:var(--glass-border);margin:0 2px;">›</span>
+                <span style="font-weight:600;color:var(--neutral-text-primary);">oauth.ts</span>
+              </div>
+              <div class="preview-toolbar">
+                <span class="preview-filename">oauth.ts</span>
+                <button class="btn btn-ghost btn-sm" style="padding:2px 8px;font-size:11px;" onclick="alert('关闭预览')">关闭</button>
+              </div>
+              <div class="preview-body">
+                <pre class="preview-code">${code}</pre>
+              </div>
+            </div>
+          </div>
+        </div>
+      `;
+    }
+
+    /* ====== Schedule Detail Render (Card Layout) ====== */
+    const scheduleHistory = {
+      1: [
+        { id: 'R-1391', status: 'success', time: '2026-06-17 02:00', duration: '4m 12s' },
+        { id: 'R-1380', status: 'success', time: '2026-06-16 02:00', duration: '3m 55s' },
+        { id: 'R-1369', status: 'success', time: '2026-06-15 02:00', duration: '5m 01s' },
+        { id: 'R-1358', status: 'error',   time: '2026-06-14 02:00', duration: '1m 30s' },
+        { id: 'R-1347', status: 'success', time: '2026-06-13 02:00', duration: '4m 48s' },
+      ],
+      2: [
+        { id: 'R-1385', status: 'success', time: '2026-06-16 03:00', duration: '12m 30s' },
+        { id: 'R-1350', status: 'success', time: '2026-06-09 03:00', duration: '11m 45s' },
+        { id: 'R-1315', status: 'success', time: '2026-06-02 03:00', duration: '13m 10s' },
+      ],
+      3: [
+        { id: 'R-1280', status: 'error',   time: '2026-05-26 09:00', duration: '8m 22s' },
+        { id: 'R-1245', status: 'success', time: '2026-05-19 09:00', duration: '6m 15s' },
+      ],
+      4: [
+        { id: 'R-1390', status: 'success', time: '2026-06-17 00:00', duration: '2m 05s' },
+        { id: 'R-1379', status: 'success', time: '2026-06-16 00:00', duration: '1m 58s' },
+        { id: 'R-1368', status: 'success', time: '2026-06-15 00:00', duration: '2m 12s' },
+      ],
+      5: [
+        { id: 'R-1382', status: 'success', time: '2026-06-13 10:30', duration: '3m 40s' },
+        { id: 'R-1344', status: 'success', time: '2026-06-06 10:30', duration: '4m 05s' },
+      ]
+    };
+
+    function renderScheduleDetail(sch) {
+      const successPct = Math.round(sch.successRate * 100);
+      const barColor = sch.lastRun.status === 'success' ? 'var(--semantic-success)' : 'var(--semantic-error)';
+      const history = (scheduleHistory[sch.id] || []).map(h => {
+        const dotColor = h.status === 'success' ? 'var(--semantic-success)' : 'var(--semantic-error)';
+        return `
+          <div class="history-row">
+            <span style="font-family:'JetBrains Mono',monospace;">${h.id}</span>
+            <span style="text-align:center;"><span class="history-status-dot" style="background:${dotColor}"></span>${h.status === 'success' ? '成功' : '失败'}</span>
+            <span style="text-align:right;color:var(--neutral-text-muted);">${h.duration}</span>
+          </div>
+        `;
+      }).join('');
+
+      document.getElementById('scheduleDetailContent').innerHTML = `
+        <div class="detail-layout">
+          <div class="detail-panel" style="gap:20px;">
+            <h3 class="detail-section-title">基本信息</h3>
+            <div class="detail-field">
+              <span class="detail-field-label">状态</span>
+              <span>
+                <label class="switch" onclick="event.stopPropagation()">
+                  <input type="checkbox" ${sch.enabled ? 'checked' : ''} onchange="toggleSchedule(${sch.id}, this.checked); renderScheduleDetail(schedules.find(s=>s.id===${sch.id}))">
+                  <span class="slider"></span>
+                </label>
+                <span style="margin-left:8px;font-size:13px;color:var(--neutral-text-secondary);">${sch.enabled ? '已启用' : '已停用'}</span>
+              </span>
+            </div>
+            <div class="detail-field">
+              <span class="detail-field-label">任务 ID</span>
+              <span class="detail-field-value" style="font-family:'JetBrains Mono',monospace;">#${String(sch.id).padStart(3,'0')}</span>
+            </div>
+            <div class="detail-field">
+              <span class="detail-field-label">模板</span>
+              <span class="detail-field-value">${sch.template}</span>
+            </div>
+            <div class="detail-field">
+              <span class="detail-field-label">Cron 表达式</span>
+              <span class="detail-field-value" style="font-family:'JetBrains Mono',monospace;color:var(--brand-primary);">${sch.cron}</span>
+            </div>
+            <div class="detail-field">
+              <span class="detail-field-label">成功率</span>
+              <span class="detail-field-value">${successPct}%</span>
+            </div>
+            <div class="detail-field">
+              <span class="detail-field-label">总运行次数</span>
+              <span class="detail-field-value">${sch.totalRuns} 次</span>
+            </div>
+            <div class="detail-field">
+              <span class="detail-field-label">创建时间</span>
+              <span class="detail-field-value">2026-01-15</span>
+            </div>
+          </div>
+
+          <div class="detail-panel" style="gap:20px;">
+            <h3 class="detail-section-title">最近运行</h3>
+            ${history ? `<div class="history-list">${history}</div>` : '<p style="color:var(--neutral-text-muted);font-size:13px;">暂无运行记录</p>'}
+          </div>
+        </div>
+      `;
+    }
 
     function toggleTheme() {
       const html = document.documentElement;

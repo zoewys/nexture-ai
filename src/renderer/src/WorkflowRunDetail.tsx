@@ -8,7 +8,7 @@
 
 import { useCallback, useEffect, useRef, useState } from 'react'
 import type { AgentDefinition, HandoffArtifactItem, WorkflowRun, WorkflowRunStep } from '@shared/types'
-import { AlertTriangle, ArrowRight, Check, CheckCircle, Code2, FileQuestion, Lightbulb, MessageCircle, PanelRight, PenTool } from 'lucide-react'
+import { AlertTriangle, ArrowRight, Check, CheckCircle, ChevronLeft, Code2, FileQuestion, MessageCircle, PanelRight, PenTool } from 'lucide-react'
 import { TranscriptViewer } from './TranscriptViewer'
 import { MarkdownPreview } from './MarkdownPreview'
 import { MemoryReferences } from './MemoryReferences'
@@ -23,6 +23,7 @@ type WorkflowRunUiMeta = WorkflowRun & {
 export interface WorkflowRunDetailProps {
   agents: AgentDefinition[]
   run: WorkflowRun | null
+  onBack?: () => void
   selectedStepIndex: number
   onSelectStep: (stepIndex: number) => void
   selectedExecution: WorkflowRun['steps'][number]['executions'][number] | null
@@ -58,6 +59,7 @@ interface OpenFile {
 export function WorkflowRunDetail({
   agents,
   run,
+  onBack,
   selectedStepIndex,
   onSelectStep,
   selectedExecution,
@@ -172,29 +174,37 @@ export function WorkflowRunDetail({
       <div className="codex-left">
         {/* header */}
         <div className="workflow-run-detail-header">
-          <div className="workflow-detail-title">
-            <h2>{run.runName || run.templateName}</h2>
-            <span className={`workflow-run-status workflow-run-status-${run.status}`}>
-              {workflowRunStatusLabel(run.status)}
-            </span>
-            {(() => {
-              const currentTokens = selectedExecution?.status === 'running'
-                ? (selectedExecution.totalInputTokens ?? 0) + (selectedExecution.totalOutputTokens ?? 0)
-                : 0
-              const currentCost = selectedExecution?.status === 'running'
-                ? (selectedExecution.totalCostUsd ?? 0)
-                : 0
-              const totalTokens = run.totalInputTokens + run.totalOutputTokens + currentTokens
-              const totalCost = run.totalCostUsd + currentCost
-              if (totalTokens <= 0 && totalCost <= 0) return null
-              return (
-                <span className="workflow-run-cost">
-                  {formatTokens(totalTokens)} tokens
-                  {totalCost > 0 ? ` · $${totalCost.toFixed(2)}` : ''}
-                  {run.budgetUsd !== undefined ? ` / $${run.budgetUsd.toFixed(2)}` : ''}
-                </span>
-              )
-            })()}
+          <div className="workflow-run-detail-heading">
+            {onBack && (
+              <button type="button" className="btn btn-ghost btn-sm workflow-detail-back" onClick={onBack}>
+                <ChevronLeft size={16} />
+                返回
+              </button>
+            )}
+            <div className="workflow-detail-title">
+              <h2>{run.runName || run.templateName}</h2>
+              <span className={`workflow-run-status workflow-run-status-${run.status}`}>
+                {workflowRunStatusLabel(run.status)}
+              </span>
+              {(() => {
+                const currentTokens = selectedExecution?.status === 'running'
+                  ? (selectedExecution.totalInputTokens ?? 0) + (selectedExecution.totalOutputTokens ?? 0)
+                  : 0
+                const currentCost = selectedExecution?.status === 'running'
+                  ? (selectedExecution.totalCostUsd ?? 0)
+                  : 0
+                const totalTokens = run.totalInputTokens + run.totalOutputTokens + currentTokens
+                const totalCost = run.totalCostUsd + currentCost
+                if (totalTokens <= 0 && totalCost <= 0) return null
+                return (
+                  <span className="workflow-run-cost">
+                    {formatTokens(totalTokens)} tokens
+                    {totalCost > 0 ? ` · $${totalCost.toFixed(2)}` : ''}
+                    {run.budgetUsd !== undefined ? ` / $${run.budgetUsd.toFixed(2)}` : ''}
+                  </span>
+                )
+              })()}
+            </div>
           </div>
           <div className="workflow-run-detail-actions">
             {awaitingConfirm && (
@@ -283,29 +293,6 @@ export function WorkflowRunDetail({
             {selectedExecution.error.startsWith('Budget exceeded')
               ? <><AlertTriangle size={12} style={{ display: 'inline', verticalAlign: 'middle' }} /> 已达到预算上限，运行已自动停止。{selectedExecution.error.slice(15)}</>
               : selectedExecution.error}
-          </div>
-        )}
-
-        {/* route suggestion banner */}
-        {selectedExecution?.handoff?.routeSuggestion && onGotoStep && (
-          <div className="route-suggestion-inline">
-            <span className="route-suggestion-icon"><Lightbulb size={14} /></span>
-            <div className="route-suggestion-inline-text">
-              <strong>Agent 建议：</strong> {selectedExecution.handoff.routeSuggestion.reason || selectedExecution.handoff.routeSuggestion.action}
-            </div>
-            <button
-              type="button"
-              className="route-suggestion-adopt"
-              onClick={() => {
-                const rs = selectedExecution.handoff!.routeSuggestion!
-                if (rs.action === 'goto' && rs.target !== undefined) onGotoStep(rs.target)
-                else if (rs.action === 'retry-prev') onRerun(selectedStepIndex)
-                else if (rs.action === 'skip-next' && onSkipStep) onSkipStep()
-                else onConfirm(selectedStepIndex)
-              }}
-            >
-              采纳
-            </button>
           </div>
         )}
 

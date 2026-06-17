@@ -1,4 +1,4 @@
-export type UiReviewMockNavActive = 'workflow' | 'new-run' | 'templates' | 'agents' | 'single' | 'settings'
+export type UiReviewMockNavActive = 'workflow' | 'new-run' | 'schedules' | 'templates' | 'agents' | 'single' | 'settings'
 
 interface UiReviewMockNavProps {
   active: UiReviewMockNavActive
@@ -7,6 +7,7 @@ interface UiReviewMockNavProps {
 const items: { id: UiReviewMockNavActive; label: string }[] = [
   { id: 'workflow', label: 'Workflow' },
   { id: 'new-run', label: 'New Run Drawer' },
+  { id: 'schedules', label: 'Schedules' },
   { id: 'templates', label: 'Templates' },
   { id: 'agents', label: 'Agents' },
   { id: 'single', label: 'Single' },
