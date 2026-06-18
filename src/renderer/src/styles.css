@@ -249,10 +249,12 @@ body {
   opacity: 1;
 }
 
-.single-session-card-delete:hover {
-  border-color: rgba(219, 107, 107, 0.45);
-  background: rgba(219, 107, 107, 0.12);
-  color: #ffd0d0;
+.single-session-card-delete:hover,
+.single-session-card-delete:focus-visible {
+  border-color: rgba(201, 79, 79, 0.45);
+  background: rgba(201, 79, 79, 0.1);
+  color: var(--semantic-error, var(--red));
+  box-shadow: none;
 }
 
 .single-session-card-meta {
@@ -12978,6 +12980,7 @@ button:disabled,
 .transcript-chat-v2 .chat-row {
   width: 100% !important;
   display: flex !important;
+  flex: 0 0 auto !important;
   align-items: flex-end !important;
   min-height: auto !important;
   animation: chat-v2-appear 0.3s cubic-bezier(0.16, 1, 0.3, 1) both;
@@ -13119,6 +13122,7 @@ button:disabled,
 .chat-v2-system,
 .chat-v2-think {
   align-self: stretch;
+  flex: 0 0 auto;
   max-width: 100%;
   animation: chat-v2-appear 0.25s cubic-bezier(0.16, 1, 0.3, 1) both;
 }
@@ -13250,7 +13254,6 @@ button:disabled,
 .chat-v2-tool-target,
 .chat-v2-tool-result,
 .chat-v2-file-path,
-.chat-v2-system,
 .chat-v2-error-text {
   min-width: 0;
   overflow: hidden;
@@ -13384,6 +13387,12 @@ button:disabled,
 .chat-v2-system {
   padding: 3px 12px;
   margin: 1px 0;
+  min-width: 0;
+  overflow: visible;
+  text-overflow: clip;
+  white-space: pre-wrap;
+  overflow-wrap: anywhere;
+  word-break: break-word;
   color: var(--neutral-text-muted, var(--text-dim));
   font-family: 'SF Mono', Menlo, monospace;
   font-size: 11px;

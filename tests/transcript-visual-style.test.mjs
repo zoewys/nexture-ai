@@ -82,6 +82,21 @@ test('chat error messages wrap fully instead of truncating', () => {
   assert.doesNotMatch(text, /text-overflow:\s*ellipsis;/)
 })
 
+test('chat system messages keep height and wrap when transcript grows', () => {
+  const row = block('.transcript-chat-v2 .chat-row')
+  const sharedMeta = block('.chat-v2-tool,\n.chat-v2-file,\n.chat-v2-error,\n.chat-v2-system,\n.chat-v2-think')
+  const system = lastRootBlock('.chat-v2-system')
+
+  assert.match(row, /flex:\s*0 0 auto !important;/)
+  assert.match(sharedMeta, /flex:\s*0 0 auto;/)
+  assert.match(system, /overflow:\s*visible;/)
+  assert.match(system, /text-overflow:\s*clip;/)
+  assert.match(system, /white-space:\s*pre-wrap;/)
+  assert.match(system, /overflow-wrap:\s*anywhere;/)
+  assert.doesNotMatch(system, /white-space:\s*nowrap;/)
+  assert.doesNotMatch(system, /text-overflow:\s*ellipsis;/)
+})
+
 test('workflow card dashboard keeps runs, detail, and step chips readable', () => {
   const runTime = lastRootBlock('.workflow-run-card-time')
   const stepNav = block('.workflow-step-nav')

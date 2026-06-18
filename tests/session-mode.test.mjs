@@ -194,6 +194,8 @@ test('single renderer uses session hook, sidebar cards, route header, and route-
   assert.match(styles, /\.single-session-sidebar/)
   assert.match(styles, /\.single-session-card/)
   assert.match(styles, /\.single-session-card-delete/)
+  assert.match(styles, /\.single-session-card-delete:hover,\s*\n\.single-session-card-delete:focus-visible\s*\{[\s\S]*color:\s*var\(--semantic-error,\s*var\(--red\)\);/)
+  assert.doesNotMatch(styles, /\.single-session-card-delete:hover[^{]*\{[^}]*#ffd0d0/)
   assert.match(styles, /\.single-session-card-meta/)
   assert.match(styles, /\.transcript-chat/)
   assert.match(styles, /\.chat-bubble-user/)
