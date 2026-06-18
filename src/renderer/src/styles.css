@@ -5386,11 +5386,11 @@ button.icon-only {
 
 .settings-switch::after {
   content: ''; position: absolute; top: 3px; left: 3px;
-  width: 16px; height: 16px; border-radius: 50%; background: #fff;
+  width: 16px; height: 16px; border-radius: 50%; background: var(--brand-primary);
   transition: .2s;
 }
 
-.settings-switch.on::after { left: 23px; }
+.settings-switch.on::after { left: 23px; background: #fff; }
 
 .feishu-status-badge {
   display: inline-flex;
@@ -8387,7 +8387,7 @@ select:focus,
   width: 18px;
   height: 18px;
   border-radius: 50%;
-  background: #fff;
+  background: var(--brand-primary);
   box-shadow: var(--shadow-xs);
   transition: left 160ms ease;
 }
@@ -8404,6 +8404,7 @@ select:focus,
 
 .settings-switch.on::after {
   left: 21px;
+  background: #fff;
 }
 
 .cli-grid {
@@ -9577,11 +9578,11 @@ select:focus,
 
 .settings-switch::after {
   content: ''; position: absolute; top: 3px; left: 3px;
-  width: 16px; height: 16px; border-radius: 50%; background: #fff;
+  width: 16px; height: 16px; border-radius: 50%; background: var(--brand-primary);
   transition: .2s;
 }
 
-.settings-switch.on::after { left: 23px; }
+.settings-switch.on::after { left: 23px; background: #fff; }
 
 /* ═══════════════════════════════════════════════════════════════════════════
    Composer with file attachment

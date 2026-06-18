@@ -974,6 +974,27 @@ function NodePropertyPanel({
 
       <div style={{ height: 1, background: colors.border, margin: '4px 0' }} />
 
+      {/* Auto-confirm */}
+      <div>
+        <div style={{ fontSize: 10, textTransform: 'uppercase', letterSpacing: 0.5, color: colors.textDim, marginBottom: 8, fontWeight: 600 }}>
+          自动确认
+        </div>
+        <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: 8 }}>
+          <span style={{ fontSize: 12, color: colors.text }}>该节点完成后自动进入下一节点</span>
+          <button
+            type="button"
+            className={`settings-switch${data.autoConfirm ? ' on' : ''}`}
+            style={{ minHeight: 'auto', flexShrink: 0 }}
+            title="该节点完成后自动进入下一节点"
+            aria-label="该节点完成后自动进入下一节点"
+            onClick={() => updateNodeData(node.id, { autoConfirm: !data.autoConfirm })}
+          />
+        </div>
+        <div style={hintStyle}>开启后，该节点输出有效 handoff 后将不等待人工确认。</div>
+      </div>
+
+      <div style={{ height: 1, background: colors.border, margin: '4px 0' }} />
+
       {/* Interactive mode */}
       <div>
         <div style={{ fontSize: 10, textTransform: 'uppercase', letterSpacing: 0.5, color: colors.textDim, marginBottom: 8, fontWeight: 600 }}>

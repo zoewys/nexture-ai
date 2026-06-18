@@ -33,6 +33,7 @@ export interface AgentNodeData {
   model: string
   rules?: StepRule[]
   interactive?: boolean
+  autoConfirm?: boolean
   failureStrategy?: FailureStrategy
   [key: string]: unknown
 }
@@ -134,6 +135,7 @@ export function templateToCanvas(
           model: agent?.model ?? '',
           rules: member.rules,
           interactive: member.interactive,
+          autoConfirm: member.autoConfirm,
           failureStrategy: member.failureStrategy,
           index: nodeIndex++
         }
@@ -171,6 +173,7 @@ export function templateToCanvas(
         model: agent?.model ?? '',
         rules: single.rules,
         interactive: single.interactive,
+        autoConfirm: single.autoConfirm,
         failureStrategy: single.failureStrategy,
         index: nodeIndex++
       }
@@ -332,6 +335,7 @@ function nodeToStep(node: Node): WorkflowTemplateStep {
   if (d?.role) step.role = d.role
   if (d?.rules && d.rules.length > 0) step.rules = d.rules
   if (d?.interactive) step.interactive = true
+  if (d?.autoConfirm) step.autoConfirm = true
   if (d?.failureStrategy) step.failureStrategy = d.failureStrategy
   return step
 }

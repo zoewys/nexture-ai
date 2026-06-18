@@ -354,6 +354,8 @@ export interface WorkflowTemplateStep {
   rules?: StepRule[]
   /** Allows user/agent conversation inside this step. Defaults to false. */
   interactive?: boolean
+  /** When true, this step advances to the next node automatically after a valid handoff. */
+  autoConfirm?: boolean
   /** Fallback behavior after StepRule handling. Defaults to stop. */
   failureStrategy?: FailureStrategy
 }

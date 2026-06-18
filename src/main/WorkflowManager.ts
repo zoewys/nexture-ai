@@ -695,7 +695,7 @@ export class WorkflowManager {
     this.completeLiveStep(run.id, execution.id, templateStep?.interactive === true)
     this.aggregateStepCost(run, execution)
     execution.handoff = handoff
-    const shouldAutoAdvance = run.autoConfirm || templateStep?.interactive === true
+    const shouldAutoAdvance = run.autoConfirm || templateStep?.autoConfirm === true || templateStep?.interactive === true
     execution.status = shouldAutoAdvance ? 'done' : 'awaiting-confirm'
     execution.finishedAt = Date.now()
     run.steps[stepIndex].status = execution.status
