@@ -69,7 +69,7 @@ export class ApiAdapter implements CliAdapter {
       modelId = input.model ?? this.config.defaultModel ?? this.config.models[0] ?? ''
       if (!modelId) throw new Error(`No model configured for API provider: ${this.config.name}`)
 
-      const messages = buildMessages(input, modelId)
+      const messages = buildMessages(input, this.config, modelId)
       const system = buildSystemPrompt(this.config, input, modelId)
       const tools = buildToolSet(input.cwd, input.abortSignal, this.guard, (path, op) => {
         queue.push({ kind: 'file-changed', path, op })
@@ -391,9 +391,15 @@ async function runGenerateFallback(
   return usage
 }
 
-function buildMessages(input: RunTurnInput, modelId: string): ModelMessage[] {
+function buildMessages(input: RunTurnInput, config: ApiProviderConfig, modelId: string): ModelMessage[] {
   const attachments = input.attachments ?? []
-  if (input.messages?.length) return mergeAttachmentsIntoMessages(input.messages, attachments, modelId) as ModelMessage[]
+  if (input.messages?.length) {
+    return mergeAttachmentsIntoMessages(
+      withReplayRuntimeBoundary(input.messages, config, modelId),
+      attachments,
+      modelId
+    ) as ModelMessage[]
+  }
   return [buildUserMessage(input.prompt, attachments, modelId)]
 }
 
@@ -430,6 +436,43 @@ function mergeAttachmentsIntoMessages(
 
   next.push({ role: 'user', content: buildUserContent('', attachments, modelId) })
   return next
+}
+
+function withReplayRuntimeBoundary(
+  messages: ApiConversationMessage[],
+  config: ApiProviderConfig,
+  modelId: string
+): ApiConversationMessage[] {
+  const next = messages.map((message) => cloneApiMessage(message))
+  const boundary: ApiConversationMessage = {
+    role: 'user',
+    content: [
+      '# Current Runtime Boundary',
+      'The transcript above is historical context from earlier session segments.',
+      `Current provider: ${config.name}`,
+      `Current model id: ${modelId}`,
+      'Answer runtime, provider, and model identity questions using only the current provider/model above.',
+      'Ignore or correct older assistant self-identification in the historical transcript when it conflicts with this boundary.'
+    ].join('\n')
+  }
+
+  for (let index = next.length - 1; index >= 0; index -= 1) {
+    if (next[index].role !== 'user') continue
+    next.splice(index, 0, boundary)
+    return next
+  }
+
+  next.push(boundary)
+  return next
+}
+
+function cloneApiMessage(message: ApiConversationMessage): ApiConversationMessage {
+  return {
+    ...message,
+    content: Array.isArray(message.content)
+      ? message.content.map((part) => ({ ...part }))
+      : message.content
+  }
 }
 
 function appendAttachmentsToContent(

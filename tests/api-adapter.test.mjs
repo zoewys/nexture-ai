@@ -437,6 +437,40 @@ test('ApiAdapter system prompt pins runtime identity even when replay messages a
   assert.match(text, /Earlier transcript messages may come from a different session segment or model\./)
 })
 
+test('ApiAdapter adds a current runtime boundary before replayed API user turns', async () => {
+  const calls = []
+  const { ApiAdapter } = await importApiAdapter(mocksFor([{ type: 'finish' }], calls))
+  const adapter = new ApiAdapter({
+    id: 'company',
+    name: '公司的API',
+    format: 'openai-compatible',
+    apiKey: 'sk-test',
+    baseUrl: 'https://company.example/v1',
+    models: ['kimi-k2.6', 'deepseek-v4-flash'],
+    defaultModel: 'kimi-k2.6'
+  }, guard)
+
+  await collect(adapter.runTurn({
+    prompt: 'ignored when replay messages exist',
+    cwd: root,
+    model: 'deepseek-v4-flash',
+    messages: [
+      { role: 'user', content: '你是什么模型' },
+      { role: 'assistant', content: '我是 Nexture AI API mode，当前配置的模型是 kimi-k2.6。' },
+      { role: 'user', content: '你是什么模型' }
+    ],
+    abortSignal: new AbortController().signal
+  }))
+
+  const messages = calls[0].messages
+  assert.equal(messages.at(-2).role, 'user')
+  assert.match(userText(messages.at(-2)), /Current provider: 公司的API/)
+  assert.match(userText(messages.at(-2)), /Current model id: deepseek-v4-flash/)
+  assert.match(userText(messages.at(-2)), /older assistant self-identification/)
+  assert.equal(userText(messages.at(-1)), '你是什么模型')
+  assert.match(messages.at(-3).content, /kimi-k2\.6/)
+})
+
 test('ApiAdapter uses tunable generation settings, max output tokens, prompt caching, and structured output', async () => {
   const calls = []
   const { ApiAdapter } = await importApiAdapter(mocksFor([{ type: 'finish' }], calls))
