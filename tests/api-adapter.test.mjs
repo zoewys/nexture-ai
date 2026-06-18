@@ -7,6 +7,7 @@ import { pathToFileURL, fileURLToPath } from 'node:url'
 import ts from 'typescript'
 
 const root = dirname(dirname(fileURLToPath(import.meta.url)))
+const source = (relativePath) => readFileSync(join(root, relativePath), 'utf8')
 
 async function importApiAdapter(mocks) {
   globalThis.__apiAdapterMocks = mocks
@@ -541,6 +542,43 @@ test('ApiAdapter uses schema prompt fallback immediately for DeepSeek providers'
   assert.equal(logs[0].structuredOutput, 'fallback')
 })
 
+test('ApiAdapter uses schema prompt fallback immediately for GLM-compatible providers', async () => {
+  const calls = []
+  const logs = []
+  const { ApiAdapter } = await importApiAdapter(mocksFor([
+    { type: 'text-delta', textDelta: '{"summary":"ok","artifacts":[]}' },
+    { type: 'finish' }
+  ], calls))
+  const adapter = new ApiAdapter({
+    id: 'p1',
+    name: '火山 codeplan',
+    format: 'openai-compatible',
+    apiKey: 'sk-test',
+    baseUrl: 'https://ark.cn-beijing.volces.com/api/coding/v3',
+    models: ['glm-5.2']
+  }, guard, {
+    record: (entry) => {
+      logs.push(entry)
+      return { ...entry, id: 'log-1', timestamp: '2026-06-18T00:00:00.000Z' }
+    }
+  })
+
+  const events = await collect(adapter.runTurn({
+    prompt: 'Return handoff',
+    cwd: root,
+    outputSchema: { type: 'object', required: ['summary'], properties: { summary: { type: 'string' } } },
+    abortSignal: new AbortController().signal
+  }))
+
+  assert.equal(calls.length, 1)
+  assert.equal(calls[0].output, undefined)
+  assert.match(systemText(calls[0].system), /Structured Output Fallback/)
+  assert.match(systemText(calls[0].system), /higher priority than any earlier instruction/)
+  assert.match(systemText(calls[0].system), /final table or report/)
+  assert.deepEqual(events[1], { kind: 'message-delta', text: '{"summary":"ok","artifacts":[]}' })
+  assert.equal(logs[0].structuredOutput, 'fallback')
+})
+
 test('ApiAdapter reports max output truncation instead of completing without a handoff', async () => {
   const calls = []
   const logs = []
@@ -837,6 +875,19 @@ test('ApiAdapter records API call logs and emits a compact transcript event', as
   assert.deepEqual(logs[0].usage, { inputTokens: 11, outputTokens: 22 })
   assert.equal(JSON.stringify(logs).includes('sk-secret'), false)
   assert.equal(events.some((event) => event.kind === 'system' && /API call: DeepSeek\/deepseek-chat/.test(event.text)), true)
+})
+
+test('ApiAdapter formats API call durations as readable time units', () => {
+  const adapter = source('src/main/adapters/apiAdapter.ts')
+
+  assert.match(adapter, /function formatDuration\(durationMs: number\): string/)
+  assert.match(adapter, /formatDuration\(durationMs\)/)
+  assert.match(adapter, /if \(ms < 1000\) return `\$\{ms\}ms`/)
+  assert.match(adapter, /return `\$\{formatDurationNumber\(seconds\)\}s`/)
+  assert.match(adapter, /return `\$\{formatDurationNumber\(minutes\)\}min`/)
+  assert.match(adapter, /return `\$\{formatDurationNumber\(minutes \/ 60\)\}h`/)
+  assert.match(adapter, /Math\.round\(value \* 10\) \/ 10/)
+  assert.doesNotMatch(adapter, /`\$\{durationMs\}ms\$\{tokens\}`/)
 })
 
 test('ApiAdapter resolves Anthropic and OpenAI-compatible models with provider options', async () => {

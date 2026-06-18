@@ -200,7 +200,13 @@ function supportsNativeStructuredOutput(config: ApiProviderConfig, modelId: stri
 
 function isKnownJsonSchemaUnsupportedProvider(config: ApiProviderConfig, modelId: string): boolean {
   const marker = `${config.name} ${config.baseUrl ?? ''} ${modelId}`.toLowerCase()
-  return marker.includes('deepseek')
+  return (
+    marker.includes('deepseek') ||
+    marker.includes('bigmodel.cn') ||
+    marker.includes('zhipu') ||
+    marker.includes('z.ai') ||
+    /\bglm[-_.\w]*/.test(marker)
+  )
 }
 
 interface StreamState {
@@ -567,7 +573,9 @@ function withStructuredOutputFallbackHint(
 ): string | SystemModelMessage[] {
   const hint = [
     '# Structured Output Fallback',
-    'The provider did not accept native structured output for this request.',
+    'This provider is using prompt-enforced structured output for this request.',
+    'This output requirement has higher priority than any earlier instruction that asks for a table, prose summary, markdown, or another final format.',
+    'If another instruction asks for a final table or report, encode that result inside the JSON fields. The final assistant message itself must still be only the JSON object.',
     'Return ONLY a JSON object that conforms to this JSON Schema. Do not wrap it in markdown fences and do not add prose before or after the JSON.',
     '',
     safeSchemaText(schema)
@@ -676,11 +684,26 @@ function compactApiLogEvent(providerName: string, modelId: string, durationMs: n
   const tokens = usage && (usage.inputTokens > 0 || usage.outputTokens > 0)
     ? ` · ${formatTokens(usage.inputTokens + usage.outputTokens)} tokens`
     : ''
-  return `API call: ${providerName}/${modelId} · ${durationMs}ms${tokens}`
+  return `API call: ${providerName}/${modelId} · ${formatDuration(durationMs)}${tokens}`
 }
 
 function formatTokens(value: number): string {
   return value >= 1000 ? `${(value / 1000).toFixed(1)}k` : String(value)
+}
+
+function formatDuration(durationMs: number): string {
+  const ms = Math.max(0, Math.round(durationMs))
+  if (ms < 1000) return `${ms}ms`
+  const seconds = ms / 1000
+  if (seconds < 60) return `${formatDurationNumber(seconds)}s`
+  const minutes = seconds / 60
+  if (minutes < 60) return `${formatDurationNumber(minutes)}min`
+  return `${formatDurationNumber(minutes / 60)}h`
+}
+
+function formatDurationNumber(value: number): string {
+  const rounded = Math.round(value * 10) / 10
+  return Number.isInteger(rounded) ? String(rounded) : rounded.toFixed(1)
 }
 
 function inferAttachmentKind(path: string): 'image' | 'file' {

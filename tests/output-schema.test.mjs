@@ -39,6 +39,8 @@ test('workflow handoff hint describes the expected JSON structure in the prompt'
   assert.match(workflowManager, /"type":/)
   assert.match(workflowManager, /"nextStepGuidance":/)
   assert.match(workflowManager, /Output ONLY the JSON object/)
+  assert.match(workflowManager, /mandatory for workflow completion/)
+  assert.match(workflowManager, /overrides any other instruction that asks for a final table/)
 })
 
 test('claude adapter omits --json-schema to avoid StructuredOutput tool conflict with -p mode', () => {

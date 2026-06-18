@@ -62,6 +62,8 @@ const HANDOFF_HINT = [
   '}',
   '',
   'Output ONLY the JSON object. Do not wrap it in ``` fences. Do not add any other text before or after.',
+  'This handoff JSON is mandatory for workflow completion and overrides any other instruction that asks for a final table, markdown report, or prose-only final answer.',
+  'If another instruction asks for a table or report, summarize that result inside summary or nextStepGuidance; do not make the table the top-level final output.',
   'Do not output the sample object above. Replace every placeholder with facts from completed work.',
   'If the step is not complete yet, do not output JSON. Continue working or report the blocker instead.',
   'Always include all top-level keys. Use null for nextStepGuidance when there is no guidance.',
