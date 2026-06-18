@@ -32,6 +32,12 @@ function rootBlock(selector) {
   return css.match(pattern)?.[1] ?? ''
 }
 
+function lastRootBlock(selector) {
+  const pattern = new RegExp(`(?:^|\\n)${selector.replace(/[.*+?^${}()|[\]\\]/g, '\\$&')}\\s*\\{([^}]*)\\}`, 'g')
+  const matches = [...css.matchAll(pattern)]
+  return matches.at(-1)?.[1] ?? ''
+}
+
 test('workflow workspace uses card page with run detail route', () => {
   assert.match(css, /\.workflow-workspace\s*\{/)
   assert.match(workspace, /WorkflowRunsList/)
@@ -63,6 +69,28 @@ test('schedule workspace is a standalone card page with detail route', () => {
   assert.match(scheduleWorkspace, /onBack/)
   assert.match(css, /\.workflow-dashboard-page,\s*\n\.schedule-dashboard-page/)
   assert.match(css, /\.workflow-detail-page,\s*\n\.schedule-detail-page/)
+})
+
+test('schedule cards stay compact and left aligned', () => {
+  const scheduleGridBlock = lastRootBlock('.schedule-cards.cards-grid')
+  const scheduleCardBlock = lastRootBlock('.schedule-card')
+  const scheduleNameBlock = lastRootBlock('.schedule-card-name')
+  const scheduleTimingBlock = lastRootBlock('.schedule-countdown-wrap')
+  const scheduleFooterBlock = lastRootBlock('.schedule-card-footer')
+
+  assert.match(scheduleGridBlock, /grid-template-columns:\s*repeat\(auto-fill,\s*minmax\(min\(360px,\s*100%\),\s*420px\)\) !important;/)
+  assert.match(scheduleGridBlock, /justify-content:\s*start !important;/)
+  assert.match(scheduleGridBlock, /align-items:\s*start !important;/)
+  assert.match(css, /@media \(max-width: 900px\) \{[\s\S]*\.cards-grid,\s*\n\s*\.workflow-run-cards\.cards-grid\s*\{[\s\S]*grid-template-columns:\s*minmax\(0,\s*1fr\) !important;[\s\S]*\.schedule-cards\.cards-grid\s*\{[\s\S]*grid-template-columns:\s*repeat\(auto-fill,\s*minmax\(min\(360px,\s*100%\),\s*420px\)\) !important;/)
+  assert.doesNotMatch(css, /@media \(max-width: 900px\) \{[\s\S]*\.workflow-run-cards\.cards-grid,\s*\n\s*\.schedule-cards\.cards-grid/)
+  assert.match(scheduleCardBlock, /min-height:\s*0 !important;/)
+  assert.match(scheduleCardBlock, /align-items:\s*stretch !important;/)
+  assert.match(scheduleCardBlock, /justify-content:\s*flex-start !important;/)
+  assert.match(scheduleCardBlock, /text-align:\s*left !important;/)
+  assert.match(scheduleNameBlock, /text-align:\s*left !important;/)
+  assert.match(scheduleTimingBlock, /display:\s*flex !important;/)
+  assert.match(scheduleTimingBlock, /flex-wrap:\s*wrap !important;/)
+  assert.match(scheduleFooterBlock, /margin-top:\s*2px !important;/)
 })
 
 test('runs list uses design cards without realtime tail or confirm button', () => {

@@ -12373,6 +12373,13 @@ button:disabled,
   scroll-padding-top: 6px !important;
 }
 
+.schedule-cards.cards-grid {
+  grid-template-columns: repeat(auto-fill, minmax(min(360px, 100%), 420px)) !important;
+  align-items: start !important;
+  justify-content: start !important;
+  gap: 14px !important;
+}
+
 .workflow-dashboard-empty,
 .schedule-empty {
   min-height: 150px !important;
@@ -12667,7 +12674,12 @@ button:disabled,
 }
 
 .schedule-card {
-  min-height: 240px !important;
+  min-height: 0 !important;
+  align-items: stretch !important;
+  justify-content: flex-start !important;
+  gap: 10px !important;
+  padding: 16px !important;
+  text-align: left !important;
 }
 
 .schedule-card-disabled {
@@ -12675,7 +12687,12 @@ button:disabled,
 }
 
 .schedule-card-header {
-  align-items: center !important;
+  align-items: flex-start !important;
+}
+
+.schedule-card-name {
+  flex: 1 1 auto !important;
+  text-align: left !important;
 }
 
 .schedule-cron {
@@ -12695,8 +12712,11 @@ button:disabled,
 }
 
 .schedule-countdown-wrap {
-  display: grid !important;
-  gap: 4px !important;
+  min-width: 0 !important;
+  display: flex !important;
+  align-items: center !important;
+  gap: 6px 8px !important;
+  flex-wrap: wrap !important;
 }
 
 .schedule-countdown-label {
@@ -12710,19 +12730,24 @@ button:disabled,
 .schedule-countdown {
   color: var(--brand-primary) !important;
   font-family: "JetBrains Mono", monospace !important;
-  font-size: 24px !important;
+  font-size: 16px !important;
   font-weight: 800 !important;
   line-height: 1.2 !important;
 }
 
 .schedule-countdown.dim {
   color: var(--neutral-text-muted) !important;
-  font-size: 18px !important;
+  font-size: 15px !important;
 }
 
 .schedule-next-time {
+  min-width: 0 !important;
+  flex: 1 1 auto !important;
   color: var(--neutral-text-secondary) !important;
   font-size: 11px !important;
+  overflow: hidden !important;
+  text-overflow: ellipsis !important;
+  white-space: nowrap !important;
 }
 
 .schedule-stats-row {
@@ -12789,8 +12814,8 @@ button:disabled,
   align-items: center !important;
   justify-content: space-between !important;
   gap: 10px !important;
-  margin-top: auto !important;
-  padding-top: 10px !important;
+  margin-top: 2px !important;
+  padding-top: 8px !important;
   border-top: 1px solid var(--neutral-border-subtle) !important;
 }
 
@@ -12948,9 +12973,12 @@ button:disabled,
   }
 
   .cards-grid,
-  .workflow-run-cards.cards-grid,
-  .schedule-cards.cards-grid {
+  .workflow-run-cards.cards-grid {
     grid-template-columns: minmax(0, 1fr) !important;
+  }
+
+  .schedule-cards.cards-grid {
+    grid-template-columns: repeat(auto-fill, minmax(min(360px, 100%), 420px)) !important;
   }
 }
 
