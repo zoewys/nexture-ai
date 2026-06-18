@@ -51,7 +51,7 @@ export function workflowRunProgressSegments(
       case 'error':
         return 'error'
       case 'pending':
-        return 'idle'
+        return 'waiting'
     }
   })
 }

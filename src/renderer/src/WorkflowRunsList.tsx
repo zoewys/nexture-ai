@@ -30,6 +30,7 @@ interface WorkflowRunsListProps {
 
 type RunFilter = 'all' | 'running' | 'completed' | 'error' | 'awaiting'
 type SortMode = 'newest' | 'oldest' | 'name'
+type WorkflowRunCardModelTagStatus = 'done' | 'running' | 'waiting' | 'error'
 
 export function WorkflowRunsList({
   runs,
@@ -146,6 +147,7 @@ function WorkflowRunCard({
   const status = runStatusUi(run.status)
   const progressSegments = workflowRunProgressSegments(run)
   const currentStepCount = visibleStepCount(run)
+  const modelTags = workflowRunModelTags(run)
 
   return (
     <div
@@ -202,7 +204,21 @@ function WorkflowRunCard({
 
       <div className="workflow-run-card-steps">
         <div className="workflow-run-card-steps-header">
-          <span>步骤</span>
+          {modelTags.length > 0 ? (
+            <div className="workflow-run-card-model-tags" aria-label="Workflow model tags">
+              {modelTags.map((tag, tagIndex) => (
+                <span
+                  key={`${run.id}-model-tag-${tagIndex}`}
+                  className={`workflow-run-card-model-tag workflow-run-card-model-tag-${tag.status}`}
+                  title={tag.fullLabel}
+                >
+                  {tag.label}
+                </span>
+              ))}
+            </div>
+          ) : (
+            <span>步骤</span>
+          )}
           <span>{currentStepCount} / {Math.max(run.steps.length, 1)}</span>
         </div>
         <div className="workflow-run-card-progress" aria-label="Workflow step progress">
@@ -304,6 +320,43 @@ function workflowRunStepLabel(step: WorkflowRunStep, stepIndex: number): string 
   return step.displayName || step.role || step.agentId || `Step ${stepIndex + 1}`
 }
 
+function workflowRunModelTags(run: WorkflowRun): Array<{
+  label: string
+  fullLabel: string
+  status: WorkflowRunCardModelTagStatus
+}> {
+  return run.steps.slice(0, 3).map((step, index) => {
+    const fullLabel = workflowRunStepLabel(step, index)
+    return {
+      label: workflowRunModelTagLabel(fullLabel),
+      fullLabel,
+      status: workflowRunModelTagStatus(step)
+    }
+  })
+}
+
+function workflowRunModelTagLabel(label: string): string {
+  const trimmed = label.trim()
+  const withoutPrefix = trimmed.replace(/^(api-check-|agent-|check-|model-|api-)/i, '').trim()
+  return withoutPrefix || trimmed
+}
+
+function workflowRunModelTagStatus(step: WorkflowRunStep): WorkflowRunCardModelTagStatus {
+  switch (step.status) {
+    case 'done':
+    case 'stale':
+      return 'done'
+    case 'running':
+      return 'running'
+    case 'error':
+      return 'error'
+    case 'awaiting-confirm':
+    case 'awaiting-input':
+    case 'pending':
+      return 'waiting'
+  }
+}
+
 function stepPillStatus(step: WorkflowRunStep): WorkflowRunProgressSegment {
   switch (step.status) {
     case 'done':
@@ -317,7 +370,7 @@ function stepPillStatus(step: WorkflowRunStep): WorkflowRunProgressSegment {
     case 'error':
       return 'error'
     case 'pending':
-      return 'idle'
+      return 'waiting'
   }
 }
 

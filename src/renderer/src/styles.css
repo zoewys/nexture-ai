@@ -12425,6 +12425,7 @@ button:disabled,
 
 .workflow-run-card {
   align-self: start !important;
+  min-height: 180px !important;
   height: auto !important;
 }
 
@@ -12557,7 +12558,7 @@ button:disabled,
   gap: 9px !important;
   min-width: 0 !important;
   flex-shrink: 0 !important;
-  overflow: visible !important;
+  overflow: hidden !important;
 }
 
 .workflow-run-card-steps-header {
@@ -12570,6 +12571,58 @@ button:disabled,
   font-size: 10px !important;
   font-weight: 700 !important;
   text-transform: uppercase !important;
+}
+
+.workflow-run-card-model-tags {
+  min-width: 0 !important;
+  display: flex !important;
+  align-items: center !important;
+  gap: 6px !important;
+  flex-wrap: wrap !important;
+}
+
+.workflow-run-card-model-tag {
+  min-width: 0 !important;
+  max-width: 108px !important;
+  display: inline-flex !important;
+  align-items: center !important;
+  padding: 2px 8px !important;
+  border: 1px solid rgba(61, 142, 134, 0.15) !important;
+  border-radius: 6px !important;
+  background: rgba(61, 142, 134, 0.08) !important;
+  color: var(--brand-primary) !important;
+  overflow: hidden !important;
+  text-overflow: ellipsis !important;
+  white-space: nowrap !important;
+  font-family: "JetBrains Mono", monospace !important;
+  font-size: 10px !important;
+  font-weight: 700 !important;
+  line-height: 1.35 !important;
+  text-transform: none !important;
+}
+
+.workflow-run-card-model-tag-done {
+  border-color: rgba(106, 189, 121, 0.2) !important;
+  background: rgba(106, 189, 121, 0.08) !important;
+  color: var(--semantic-success) !important;
+}
+
+.workflow-run-card-model-tag-running {
+  border-color: rgba(61, 142, 134, 0.25) !important;
+  background: rgba(61, 142, 134, 0.12) !important;
+  color: var(--brand-primary) !important;
+}
+
+.workflow-run-card-model-tag-waiting {
+  border-color: rgba(201, 149, 44, 0.24) !important;
+  background: rgba(201, 149, 44, 0.08) !important;
+  color: var(--semantic-warning) !important;
+}
+
+.workflow-run-card-model-tag-error {
+  border-color: rgba(201, 79, 79, 0.2) !important;
+  background: rgba(201, 79, 79, 0.08) !important;
+  color: var(--semantic-error) !important;
 }
 
 .workflow-run-card-progress {
@@ -12607,15 +12660,28 @@ button:disabled,
 .workflow-run-card-step-pills {
   display: flex !important;
   flex-wrap: wrap !important;
-  gap: 10px 12px !important;
+  gap: 6px 8px !important;
   align-items: flex-start !important;
   align-content: flex-start !important;
-  overflow: visible !important;
-  scrollbar-width: none !important;
+  max-height: 72px !important;
+  overflow-y: auto !important;
+  overflow-x: hidden !important;
+  padding-right: 4px !important;
+  scrollbar-width: thin !important;
+  scrollbar-color: var(--neutral-border-subtle) transparent !important;
 }
 
 .workflow-run-card-step-pills::-webkit-scrollbar {
-  display: none !important;
+  width: 4px !important;
+}
+
+.workflow-run-card-step-pills::-webkit-scrollbar-track {
+  background: transparent !important;
+}
+
+.workflow-run-card-step-pills::-webkit-scrollbar-thumb {
+  border-radius: 999px !important;
+  background: var(--neutral-border-subtle) !important;
 }
 
 .workflow-run-card-step-pill {
@@ -12659,6 +12725,12 @@ button:disabled,
 }
 
 .workflow-run-card-step-pill-awaiting-input {
+  border-color: rgba(201, 149, 44, 0.32) !important;
+  background: rgba(201, 149, 44, 0.1) !important;
+  color: var(--semantic-warning) !important;
+}
+
+.workflow-run-card-step-pill-waiting {
   border-color: rgba(201, 149, 44, 0.32) !important;
   background: rgba(201, 149, 44, 0.1) !important;
   color: var(--semantic-warning) !important;
