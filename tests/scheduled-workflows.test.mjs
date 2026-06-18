@@ -116,7 +116,7 @@ test('workflow manager records scheduled metadata and auto-confirms successful h
   assert.match(manager, /autoConfirm: input\.autoConfirm/)
   assert.match(manager, /scheduledBy: input\.scheduledBy/)
   assert.match(manager, /setRunSettledHandler/)
-  assert.match(manager, /const shouldAutoAdvance = run\.autoConfirm \|\| templateStep\?\.interactive === true/)
+  assert.match(manager, /const shouldAutoAdvance = run\.autoConfirm \|\| templateStep\?\.autoConfirm === true \|\| templateStep\?\.interactive === true/)
   assert.match(manager, /execution\.status = shouldAutoAdvance \? 'done' : 'awaiting-confirm'/)
   assert.match(manager, /if \(shouldAutoAdvance\)/)
   assert.match(manager, /this\.startNextNode\(run\.id, nextIndex\)/)

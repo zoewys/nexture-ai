@@ -136,6 +136,34 @@ test('runs list uses design cards without realtime tail or confirm button', () =
   assert.doesNotMatch(runsList, /确认详情|Confirm/)
 })
 
+test('run cards wrap step pills by label width with stable spacing', () => {
+  const stepPillsBlock = lastRootBlock('.workflow-run-card-step-pills')
+  const stepPillBlock = lastRootBlock('.workflow-run-card-step-pill')
+
+  assert.match(runsList, /run\.steps\.map/)
+  assert.doesNotMatch(runsList, /MAX_WORKFLOW_RUN_CARD_STEP_PILLS/)
+  assert.doesNotMatch(runsList, /visibleStepPillCount/)
+  assert.doesNotMatch(runsList, /hiddenSteps/)
+  assert.doesNotMatch(runsList, /workflow-run-card-step-pill-more/)
+
+  assert.match(css, /\.workflow-run-cards\.cards-grid\s*\{[\s\S]*align-items:\s*start !important;/)
+  assert.match(css, /\.workflow-run-card\s*\{[\s\S]*align-self:\s*start !important;[\s\S]*height:\s*auto !important;/)
+  assert.match(css, /\.workflow-run-card-top\s*\{[\s\S]*flex-shrink:\s*0 !important;[\s\S]*overflow:\s*visible !important;/)
+  assert.match(css, /\.workflow-run-card-meta\s*\{[\s\S]*flex-shrink:\s*0 !important;/)
+  assert.match(css, /\.workflow-run-card-steps\s*\{[\s\S]*min-width:\s*0 !important;[\s\S]*overflow:\s*visible !important;/)
+  assert.match(css, /\.workflow-run-card-steps\s*\{[\s\S]*flex-shrink:\s*0 !important;/)
+  assert.match(stepPillsBlock, /display:\s*flex !important;/)
+  assert.match(stepPillsBlock, /flex-wrap:\s*wrap !important;/)
+  assert.match(stepPillsBlock, /gap:\s*10px 12px !important;/)
+  assert.match(stepPillsBlock, /overflow:\s*visible !important;/)
+  assert.doesNotMatch(stepPillsBlock, /grid-template-columns:/)
+  assert.match(stepPillBlock, /flex:\s*0 1 max-content !important;/)
+  assert.match(stepPillBlock, /width:\s*fit-content !important;/)
+  assert.match(stepPillBlock, /max-width:\s*100% !important;/)
+  assert.match(css, /\.workflow-run-card-footer\s*\{[\s\S]*overflow:\s*visible !important;/)
+  assert.match(css, /\.workflow-run-card-footer\s*\{[\s\S]*flex-shrink:\s*0 !important;/)
+})
+
 test('step navigation lives inside run detail with chip bar', () => {
   assert.match(detail, /workflow-step-nav/)
   assert.match(detail, /workflow-step-chip/)

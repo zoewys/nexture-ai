@@ -218,10 +218,10 @@ function WorkflowRunCard({
             <span
               key={`${run.id}-step-${stepIndex}`}
               className={`workflow-run-card-step-pill workflow-run-card-step-pill-${stepPillStatus(step)}`}
-              title={step.displayName || step.role || step.agentId}
+              title={workflowRunStepLabel(step, stepIndex)}
             >
               <span className="workflow-run-card-step-pill-label">
-                {step.displayName || step.role || `Step ${stepIndex + 1}`}
+                {workflowRunStepLabel(step, stepIndex)}
               </span>
             </span>
           ))}
@@ -298,6 +298,10 @@ function visibleStepCount(run: WorkflowRun): number {
   const done = run.steps.filter((step) => step.status === 'done' || step.status === 'stale').length
   if (run.status === 'completed') return total
   return Math.min(total, Math.max(done, run.currentStepIndex + 1))
+}
+
+function workflowRunStepLabel(step: WorkflowRunStep, stepIndex: number): string {
+  return step.displayName || step.role || step.agentId || `Step ${stepIndex + 1}`
 }
 
 function stepPillStatus(step: WorkflowRunStep): WorkflowRunProgressSegment {

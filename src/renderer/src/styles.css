@@ -12374,6 +12374,10 @@ button:disabled,
   scroll-padding-top: 6px !important;
 }
 
+.workflow-run-cards.cards-grid {
+  align-items: start !important;
+}
+
 .schedule-cards.cards-grid {
   grid-template-columns: repeat(auto-fill, minmax(min(360px, 100%), 420px)) !important;
   align-items: start !important;
@@ -12417,6 +12421,11 @@ button:disabled,
   -webkit-backdrop-filter: var(--glass-blur) !important;
   box-shadow: var(--shadow-xs) !important;
   transition: border-color 180ms ease, background 180ms ease, transform 180ms ease, box-shadow 180ms ease !important;
+}
+
+.workflow-run-card {
+  align-self: start !important;
+  height: auto !important;
 }
 
 @keyframes card-enter {
@@ -12471,6 +12480,8 @@ button:disabled,
   align-items: flex-start !important;
   justify-content: space-between !important;
   gap: 12px !important;
+  flex-shrink: 0 !important;
+  overflow: visible !important;
 }
 
 .workflow-run-card-title-wrap {
@@ -12510,6 +12521,7 @@ button:disabled,
 
 .workflow-run-card-meta {
   min-width: 0 !important;
+  flex-shrink: 0 !important;
   margin: -4px 0 0 !important;
   overflow: hidden !important;
   text-overflow: ellipsis !important;
@@ -12543,6 +12555,9 @@ button:disabled,
 .workflow-run-card-steps {
   display: grid !important;
   gap: 9px !important;
+  min-width: 0 !important;
+  flex-shrink: 0 !important;
+  overflow: visible !important;
 }
 
 .workflow-run-card-steps-header {
@@ -12591,8 +12606,10 @@ button:disabled,
 
 .workflow-run-card-step-pills {
   display: flex !important;
-  gap: 6px !important;
   flex-wrap: wrap !important;
+  gap: 10px 12px !important;
+  align-items: flex-start !important;
+  align-content: flex-start !important;
   overflow: visible !important;
   scrollbar-width: none !important;
 }
@@ -12602,12 +12619,14 @@ button:disabled,
 }
 
 .workflow-run-card-step-pill {
-  flex: 0 1 auto !important;
+  flex: 0 1 max-content !important;
   min-width: 0 !important;
+  width: fit-content !important;
   display: inline-flex !important;
   align-items: center !important;
   gap: 5px !important;
   max-width: 100% !important;
+  justify-content: flex-start !important;
   padding: 4px 10px !important;
   border: 1px solid var(--neutral-border-subtle) !important;
   border-radius: 999px !important;
@@ -12654,8 +12673,12 @@ button:disabled,
 .workflow-run-card-footer {
   display: flex !important;
   align-items: center !important;
+  justify-content: space-between !important;
   gap: 16px !important;
   margin-top: auto !important;
+  min-width: 0 !important;
+  flex-shrink: 0 !important;
+  overflow: visible !important;
   color: var(--neutral-text-secondary) !important;
 }
 

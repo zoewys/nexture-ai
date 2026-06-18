@@ -75,7 +75,15 @@ const templates: WorkflowTemplate[] = [
         join: true
       },
       { agentId: 'agent-developer', role: 'Refactor' },
-      { agentId: 'agent-qa-verifier', role: 'Review' }
+      { agentId: 'agent-qa-verifier', role: 'Review' },
+      ...devFlowStepAgents
+        .filter((item) => ![
+          'agent-pm-analyst',
+          'agent-test-agent',
+          'agent-developer',
+          'agent-qa-verifier'
+        ].includes(item.id))
+        .map((item) => ({ agentId: item.id }))
     ]
   },
   {
