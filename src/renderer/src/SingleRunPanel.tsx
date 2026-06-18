@@ -94,6 +94,7 @@ export function SingleRunPanel({
     () => providerState.providers.find((provider) => provider.id === selectedProviderId) ?? providerState.providers[0] ?? null,
     [providerState.providers, selectedProviderId]
   )
+  const projectFolderName = folderDisplayName(cwd)
   const apiModels = selectedProvider?.models ?? []
   const effectiveModel = vendor === 'api'
     ? (model || selectedProvider?.defaultModel || apiModels[0] || '')
@@ -241,18 +242,14 @@ export function SingleRunPanel({
       ? `模型已切换，会话保持不变：${lastRouteSwitch}`
       : null
   const hasAdvancedControls = vendor === 'api' || vendor === 'codex'
+  const showInlineCodexOptions = showAdvanced && vendor === 'codex'
   const advancedSummaryChips = vendor === 'api'
     ? [
         `${parseOptionalPositiveInt(apiMaxSteps) ?? 10} steps`,
         `T ${compactNumericLabel(apiTemperature, '0.2')}`,
         `P ${compactNumericLabel(apiTopP, '1')}`
       ]
-    : vendor === 'codex'
-      ? [
-          codexReasoningEffort ? `Reasoning ${reasoningSummaryLabel(codexReasoningEffort)}` : 'Reasoning auto',
-          codexServiceTier ? `Speed ${codexServiceTier}` : 'Speed auto'
-        ]
-      : []
+    : []
 
   return (
     <>
@@ -297,7 +294,7 @@ export function SingleRunPanel({
         )}
 
         <div className="single-session-route-panel">
-          <div className="single-session-toolbar-main">
+          <div className={`single-session-toolbar-main${showInlineCodexOptions ? ' single-session-toolbar-main-codex-advanced' : ''}`}>
             <section className="single-session-toolbar-cluster single-session-toolbar-runtime">
               <span className="single-session-toolbar-label">Runtime</span>
               <div className="single-session-toolbar-inline">
@@ -309,8 +306,14 @@ export function SingleRunPanel({
                     ))}
                   </Select>
                 </div>
-                <button className="single-session-toolbar-quiet" onClick={onModeAgents} type="button">
-                  <Bot size={13} /> Agents
+                <button
+                  className="single-session-toolbar-quiet single-session-agent-icon-button"
+                  onClick={onModeAgents}
+                  type="button"
+                  title="管理智能体"
+                  aria-label="打开智能体管理"
+                >
+                  <Bot size={14} />
                 </button>
               </div>
             </section>
@@ -350,58 +353,39 @@ export function SingleRunPanel({
               <span className="single-session-toolbar-label">Context</span>
               <div className="single-session-toolbar-inline single-session-toolbar-inline-context">
                 <div className="single-session-path-shell" title={cwd || 'No project selected'}>
-                  <FolderOpen size={14} />
-                  <input
-                    value={cwd}
-                    placeholder="/path/to/project"
-                    onChange={(e) => setCwd(e.target.value)}
-                    aria-label="Project Directory"
-                  />
-                </div>
-                <button className="single-session-toolbar-quiet" onClick={handlePickDir} type="button">
-                  Browse
-                </button>
-              </div>
-              <div className="single-session-toolbar-meta">
-                {advancedSummaryChips.map((chip) => (
-                  <span key={chip} className="single-session-toolbar-chip">{chip}</span>
-                ))}
-                {hasAdvancedControls ? (
+                  <span className="single-session-path-name">{projectFolderName}</span>
                   <button
                     type="button"
-                    className={`single-session-toolbar-advanced-toggle${showAdvanced ? ' active' : ''}`}
-                    aria-expanded={showAdvanced}
-                    onClick={() => setShowAdvanced((value) => !value)}
+                    className="single-session-path-picker"
+                    onClick={handlePickDir}
+                    title={cwd || '选择项目文件夹'}
+                    aria-label="重新选择项目文件夹"
                   >
-                    <Settings2 size={13} />
-                    Advanced
-                    <ChevronDown size={13} className="single-session-toolbar-advanced-icon" />
+                    <FolderOpen size={14} />
                   </button>
-                ) : null}
+                </div>
+                <div className="single-session-toolbar-meta">
+                  {advancedSummaryChips.map((chip) => (
+                    <span key={chip} className="single-session-toolbar-chip">{chip}</span>
+                  ))}
+                  {hasAdvancedControls ? (
+                    <button
+                      type="button"
+                      className={`single-session-toolbar-advanced-toggle${showAdvanced ? ' active' : ''}`}
+                      aria-expanded={showAdvanced}
+                      onClick={() => setShowAdvanced((value) => !value)}
+                    >
+                      <Settings2 size={13} />
+                      Advanced
+                      <ChevronDown size={13} className="single-session-toolbar-advanced-icon" />
+                    </button>
+                  ) : null}
+                </div>
               </div>
             </section>
-          </div>
 
-          {showAdvanced && hasAdvancedControls ? (
-            <div className="single-session-advanced-panel">
-              {vendor === 'api' ? (
-                <div className="api-advanced-controls">
-                  <label className="field compact-field">
-                    <span>Max steps</span>
-                    <input type="number" min="1" max="50" value={apiMaxSteps} onChange={(e) => setApiMaxSteps(e.target.value)} />
-                  </label>
-                  <label className="field compact-field">
-                    <span>Temperature</span>
-                    <input type="number" min="0" max="2" step="0.1" value={apiTemperature} onChange={(e) => setApiTemperature(e.target.value)} />
-                  </label>
-                  <label className="field compact-field">
-                    <span>Top P</span>
-                    <input type="number" min="0" max="1" step="0.05" value={apiTopP} onChange={(e) => setApiTopP(e.target.value)} />
-                  </label>
-                </div>
-              ) : null}
-
-              {vendor === 'codex' ? (
+            {showInlineCodexOptions ? (
+              <section className="single-session-inline-advanced-controls">
                 <CodexOptions
                   model={model}
                   modelInfo={modelInfo}
@@ -410,7 +394,26 @@ export function SingleRunPanel({
                   onReasoningEffortChange={setCodexReasoningEffort}
                   onServiceTierChange={setCodexServiceTier}
                 />
-              ) : null}
+              </section>
+            ) : null}
+          </div>
+
+          {showAdvanced && vendor === 'api' ? (
+            <div className="single-session-advanced-panel">
+              <div className="api-advanced-controls">
+                <label className="field compact-field">
+                  <span>Max steps</span>
+                  <input type="number" min="1" max="50" value={apiMaxSteps} onChange={(e) => setApiMaxSteps(e.target.value)} />
+                </label>
+                <label className="field compact-field">
+                  <span>Temperature</span>
+                  <input type="number" min="0" max="2" step="0.1" value={apiTemperature} onChange={(e) => setApiTemperature(e.target.value)} />
+                </label>
+                <label className="field compact-field">
+                  <span>Top P</span>
+                  <input type="number" min="0" max="1" step="0.05" value={apiTopP} onChange={(e) => setApiTopP(e.target.value)} />
+                </label>
+              </div>
             </div>
           ) : null}
         </div>
@@ -486,19 +489,6 @@ function compactNumericLabel(value: string, fallback: string): string {
   return clean.length > 0 ? clean : fallback
 }
 
-function reasoningSummaryLabel(value: NonNullable<RunConfig['codexReasoningEffort']>): string {
-  switch (value) {
-    case 'low':
-      return 'Low'
-    case 'medium':
-      return 'Medium'
-    case 'high':
-      return 'High'
-    case 'xhigh':
-      return 'XHigh'
-  }
-}
-
 function parseOptionalFloat(value: string): number | undefined {
   const parsed = Number.parseFloat(value.trim())
   return Number.isFinite(parsed) ? parsed : undefined
@@ -515,4 +505,11 @@ function inferAttachmentKind(path: string): RunAttachment['kind'] {
 
 function fileName(path: string): string {
   return path.split(/[\\/]/).filter(Boolean).at(-1) ?? path
+}
+
+function folderDisplayName(path: string): string {
+  const clean = path.trim()
+  if (!clean) return 'No project selected'
+  const withoutTrailingSlash = clean.replace(/[\\/]+$/, '')
+  return fileName(withoutTrailingSlash) || clean
 }

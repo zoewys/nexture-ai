@@ -15,6 +15,7 @@ interface SelectProps {
   onChange: (value: string) => void
   placeholder?: string
   disabled?: boolean
+  ariaLabel?: string
   children: React.ReactNode
 }
 
@@ -24,13 +25,13 @@ interface SelectItemProps {
   disabled?: boolean
 }
 
-export function Select({ value, onChange, placeholder, disabled, children }: SelectProps) {
+export function Select({ value, onChange, placeholder, disabled, ariaLabel, children }: SelectProps) {
   const internalValue = value === '' ? EMPTY_SENTINEL : value
   const handleChange = (v: string) => onChange(v === EMPTY_SENTINEL ? '' : v)
 
   return (
     <SelectPrimitive.Root value={internalValue} onValueChange={handleChange} disabled={disabled}>
-      <SelectPrimitive.Trigger className="select-trigger">
+      <SelectPrimitive.Trigger className="select-trigger" aria-label={ariaLabel}>
         <SelectPrimitive.Value placeholder={placeholder} />
         <SelectPrimitive.Icon className="select-icon">
           <ChevronDown size={12} />

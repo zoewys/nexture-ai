@@ -8,6 +8,7 @@ const root = dirname(dirname(fileURLToPath(import.meta.url)))
 const css = readFileSync(join(root, 'src/renderer/src/styles.css'), 'utf8')
 const workspace = readFileSync(join(root, 'src/renderer/src/WorkflowWorkspace.tsx'), 'utf8')
 const runsList = readFileSync(join(root, 'src/renderer/src/WorkflowRunsList.tsx'), 'utf8')
+const selectComponent = readFileSync(join(root, 'src/renderer/src/Select.tsx'), 'utf8')
 const scheduleList = readFileSync(join(root, 'src/renderer/src/ScheduleList.tsx'), 'utf8')
 const detail = readFileSync(join(root, 'src/renderer/src/WorkflowRunDetail.tsx'), 'utf8')
 const handoff = readFileSync(join(root, 'src/renderer/src/HandoffPanel.tsx'), 'utf8')
@@ -85,6 +86,10 @@ test('runs list uses design cards without realtime tail or confirm button', () =
   assert.match(css, /\.workflow-run-card-segment-waiting\s*\{[\s\S]*var\(--semantic-warning\)/)
   assert.match(css, /\.workflow-run-card-step-pills\s*\{[\s\S]*flex-wrap:\s*wrap !important;[\s\S]*overflow:\s*visible !important;/)
   assert.match(runsList, /workflow-run-card-step-pill-label/)
+  assert.doesNotMatch(runsList, /CircleDot/)
+  assert.doesNotMatch(runsList, /workflow-run-status-icon/)
+  assert.doesNotMatch(css, /workflow-run-status-icon/)
+  assert.doesNotMatch(css, /\.workflow-run-card-step-pill svg/)
   assert.match(css, /\.workflow-run-scheduled-badge\s*\{[\s\S]*var\(--semantic-warning\)/)
   assert.match(cardAnimationBlock, /animation:\s*card-enter 420ms/)
   assert.doesNotMatch(cardAnimationBlock, /opacity:\s*0 !important/)
@@ -313,6 +318,33 @@ test('templates save button uses the latest canvas steps snapshot', () => {
   assert.match(templatesView, /onStepsChange=\{\(steps\) => \{[\s\S]*pendingStepsRef\.current = steps/)
   assert.match(workflowCanvas, /onStepsChange\?: \(steps: import\('@shared\/types'\)\.WorkflowStepNode\[\]\) => void/)
   assert.match(workflowCanvas, /onStepsChangeRef\.current\?\.\(getSteps\(\)\)/)
+})
+
+test('template canvas selection and measurement changes do not mark templates dirty', () => {
+  assert.match(canvasState, /type NodeChange/)
+  assert.match(canvasState, /type EdgeChange/)
+  assert.match(canvasState, /function isMutatingNodeChange\(change: NodeChange\): boolean \{[\s\S]*change\.type === 'select' \|\| change\.type === 'dimensions'[\s\S]*return false/)
+  assert.match(canvasState, /if \(change\.type === 'position'\) return change\.position != null/)
+  assert.match(canvasState, /function isMutatingEdgeChange\(change: EdgeChange\): boolean \{[\s\S]*return change\.type !== 'select'/)
+  assert.match(canvasState, /if \(changes\.some\(isMutatingNodeChange\)\) pushHistory\(\)/)
+  assert.match(canvasState, /if \(changes\.some\(isMutatingEdgeChange\)\) pushHistory\(\)/)
+})
+
+test('workflow run sort control reuses the shared Select component', () => {
+  const dashboardToolbarBlock = [...css.matchAll(/\.workflow-dashboard-toolbar,\s*\n\.schedule-dashboard-toolbar\s*\{([^}]*)\}/g)].at(-1)?.[1] ?? ''
+
+  assert.match(runsList, /import \{ Select \} from '\.\/Select'/)
+  assert.match(runsList, /<div className="workflow-sort-select">[\s\S]*<Select[\s\S]*ariaLabel="运行排序"/)
+  assert.match(runsList, /<Select\.Item value="newest">按时间倒序<\/Select\.Item>/)
+  assert.match(runsList, /<Select\.Item value="oldest">按时间正序<\/Select\.Item>/)
+  assert.match(runsList, /<Select\.Item value="name">按名称<\/Select\.Item>/)
+  assert.doesNotMatch(runsList, /<select[\s\S]*workflow-sort-select/)
+  assert.match(selectComponent, /ariaLabel\?: string/)
+  assert.match(selectComponent, /aria-label=\{ariaLabel\}/)
+  assert.match(dashboardToolbarBlock, /justify-content:\s*space-between !important;/)
+  assert.match(css, /\.filter-chips\s*\{[\s\S]*flex:\s*1 1 auto !important;/)
+  assert.match(css, /\.workflow-sort-select\s*\{[\s\S]*width:\s*150px !important;[\s\S]*flex:\s*0 0 150px !important;/)
+  assert.match(css, /\.workflow-sort-select \.select-trigger\s*\{[\s\S]*min-height:\s*38px !important;/)
 })
 
 test('electron main window is visible for local UI review', () => {

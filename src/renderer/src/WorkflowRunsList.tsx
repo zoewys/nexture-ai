@@ -7,12 +7,13 @@
 
 import { useMemo, useState } from 'react'
 import type { WorkflowRun, WorkflowRunStep } from '@shared/types'
-import { Activity, CircleDot, Clock3, Plus, RefreshCw, Search, Trash2 } from 'lucide-react'
+import { Activity, Clock3, Plus, RefreshCw, Search, Trash2 } from 'lucide-react'
 import {
   workflowRunDisplayName,
   workflowRunProgressSegments,
   type WorkflowRunProgressSegment
 } from './workflowRunView'
+import { Select } from './Select'
 
 type WorkflowRunUiMeta = WorkflowRun & {
   listMeta?: string
@@ -93,16 +94,17 @@ export function WorkflowRunsList({
             </button>
           ))}
         </div>
-        <select
-          className="select workflow-sort-select"
-          value={sortMode}
-          onChange={(event) => setSortMode(event.target.value as SortMode)}
-          aria-label="运行排序"
-        >
-          <option value="newest">按时间倒序</option>
-          <option value="oldest">按时间正序</option>
-          <option value="name">按名称</option>
-        </select>
+        <div className="workflow-sort-select">
+          <Select
+            value={sortMode}
+            onChange={(value) => setSortMode(value as SortMode)}
+            ariaLabel="运行排序"
+          >
+            <Select.Item value="newest">按时间倒序</Select.Item>
+            <Select.Item value="oldest">按时间正序</Select.Item>
+            <Select.Item value="name">按名称</Select.Item>
+          </Select>
+        </div>
       </div>
 
       <div className="workflow-run-cards cards-grid">
@@ -175,7 +177,6 @@ function WorkflowRunCard({
         </div>
         <div className="workflow-run-card-actions">
           <span className={`workflow-run-card-status workflow-run-card-status-${run.status}`}>
-            <CircleDot size={10} className={`workflow-run-status-icon workflow-run-status-icon-${status.className}`} />
             {status.label}
           </span>
           <button
@@ -219,7 +220,6 @@ function WorkflowRunCard({
               className={`workflow-run-card-step-pill workflow-run-card-step-pill-${stepPillStatus(step)}`}
               title={step.displayName || step.role || step.agentId}
             >
-              <CircleDot size={8} />
               <span className="workflow-run-card-step-pill-label">
                 {step.displayName || step.role || `Step ${stepIndex + 1}`}
               </span>

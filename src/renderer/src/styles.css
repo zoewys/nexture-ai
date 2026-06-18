@@ -10598,30 +10598,33 @@ select:focus,
 .single-session-route-panel {
   display: flex !important;
   flex-direction: column !important;
-  gap: 8px !important;
-  padding: 10px 24px 8px !important;
+  gap: 6px !important;
+  padding: 8px 24px 7px !important;
 }
 
 .single-session-toolbar-main {
+  width: 100% !important;
   display: grid !important;
-  grid-template-columns:
-    minmax(260px, 1.5fr)
-    minmax(220px, 1.15fr)
-    minmax(320px, 1.7fr) !important;
-  gap: 10px !important;
+  grid-template-columns: minmax(260px, 320px) minmax(320px, 1fr) minmax(560px, 720px) !important;
+  gap: 12px !important;
   align-items: start !important;
 }
 
+.single-session-toolbar-main-codex-advanced {
+  grid-template-columns: minmax(220px, 300px) minmax(280px, 1fr) minmax(430px, 540px) minmax(360px, 440px) !important;
+}
+
 .single-session-toolbar-cluster {
+  width: 100% !important;
   min-width: 0 !important;
-  padding: 10px 12px !important;
-  border: 1px solid var(--glass-border) !important;
-  border-radius: 12px !important;
-  background: color-mix(in srgb, var(--neutral-surface-raised) 88%, transparent) !important;
-  display: flex !important;
-  flex-direction: column !important;
-  gap: 8px !important;
-  box-shadow: 0 1px 0 rgba(255, 255, 255, 0.06) inset !important;
+  padding: 0 !important;
+  border: 0 !important;
+  border-radius: 0 !important;
+  background: transparent !important;
+  display: grid !important;
+  grid-template-rows: auto 34px !important;
+  gap: 5px !important;
+  box-shadow: none !important;
 }
 
 .single-session-toolbar-label {
@@ -10635,8 +10638,8 @@ select:focus,
 .single-session-toolbar-inline {
   display: flex !important;
   align-items: center !important;
-  gap: 8px !important;
-  flex-wrap: wrap !important;
+  gap: 6px !important;
+  flex-wrap: nowrap !important;
   min-width: 0 !important;
 }
 
@@ -10646,22 +10649,47 @@ select:focus,
 }
 
 .single-session-toolbar-input {
-  flex: 1 1 150px !important;
+  flex: 1 1 auto !important;
+}
+
+.single-session-toolbar-runtime .single-session-toolbar-input {
+  flex: 0 1 240px !important;
+  max-width: 240px !important;
 }
 
 .single-session-toolbar-input-wide {
-  flex-basis: 220px !important;
+  flex-basis: auto !important;
+}
+
+.single-session-toolbar-input .select-trigger,
+.single-session-toolbar-input .runtime-model-cascade-trigger {
+  min-height: 34px !important;
+  height: 34px !important;
+  padding: 0 11px !important;
+  border-radius: 10px !important;
+  justify-content: space-between !important;
+  text-align: left !important;
+}
+
+.single-session-toolbar-input .select-trigger > span:first-child,
+.single-session-toolbar-input .runtime-model-cascade-trigger > span:first-child {
+  min-width: 0 !important;
+  flex: 1 1 auto !important;
+  overflow: hidden !important;
+  text-overflow: ellipsis !important;
+  white-space: nowrap !important;
+  text-align: left !important;
 }
 
 .single-session-toolbar-quiet,
 .single-session-toolbar-advanced-toggle {
   flex: 0 0 auto !important;
-  height: 38px !important;
+  height: 34px !important;
   display: inline-flex !important;
   align-items: center !important;
   justify-content: center !important;
   gap: 6px !important;
-  padding: 0 10px !important;
+  padding: 0 9px !important;
   border: 1px solid var(--glass-border) !important;
   border-radius: 10px !important;
   background: rgba(61, 142, 134, 0.04) !important;
@@ -10678,39 +10706,118 @@ select:focus,
   background: rgba(61, 142, 134, 0.08) !important;
 }
 
+.single-session-agent-icon-button {
+  width: 34px !important;
+  min-width: 34px !important;
+  padding: 0 !important;
+}
+
+.single-session-toolbar-inline-context {
+  align-items: center !important;
+}
+
+.single-session-toolbar-context .single-session-path-shell {
+  flex: 0 1 280px !important;
+  max-width: 300px !important;
+}
+
+.single-session-toolbar-main-codex-advanced .single-session-toolbar-context .single-session-path-shell {
+  flex-basis: 220px !important;
+  max-width: 240px !important;
+}
+
 .single-session-path-shell {
-  flex: 1 1 250px !important;
+  flex: 1 1 auto !important;
   min-width: 0 !important;
-  height: 38px !important;
+  height: 34px !important;
   display: flex !important;
   align-items: center !important;
   gap: 8px !important;
-  padding: 0 12px !important;
+  padding: 0 5px 0 12px !important;
   border: 1px solid var(--glass-border) !important;
   border-radius: 10px !important;
   background: rgba(61, 142, 134, 0.03) !important;
   color: var(--neutral-text-secondary) !important;
 }
 
-.single-session-path-shell input {
+.single-session-path-name {
   min-width: 0 !important;
   flex: 1 1 auto !important;
-  border: 0 !important;
-  background: transparent !important;
-  box-shadow: none !important;
-  padding: 0 !important;
   color: var(--neutral-text-primary) !important;
+  overflow: hidden !important;
+  text-overflow: ellipsis !important;
+  white-space: nowrap !important;
 }
 
-.single-session-path-shell input:focus {
-  outline: none !important;
+.single-session-path-picker {
+  flex: 0 0 24px !important;
+  width: 24px !important;
+  height: 24px !important;
+  min-height: 24px !important;
+  padding: 0 !important;
+  display: inline-flex !important;
+  align-items: center !important;
+  justify-content: center !important;
+  border: 0 !important;
+  border-radius: 7px !important;
+  background: transparent !important;
+  color: var(--neutral-text-secondary) !important;
+}
+
+.single-session-path-picker:hover {
+  background: rgba(61, 142, 134, 0.1) !important;
+  color: var(--brand-primary) !important;
 }
 
 .single-session-toolbar-meta {
   display: flex !important;
   align-items: center !important;
   gap: 6px !important;
-  flex-wrap: wrap !important;
+  flex-wrap: nowrap !important;
+  flex: 0 0 auto !important;
+  min-width: 0 !important;
+}
+
+.single-session-inline-advanced-controls {
+  min-width: 0 !important;
+  width: min(440px, 100%) !important;
+  justify-self: end !important;
+  align-self: start !important;
+}
+
+.single-session-inline-advanced-controls .codex-options {
+  width: 100% !important;
+  display: grid !important;
+  grid-template-columns: repeat(2, minmax(0, 1fr)) !important;
+  gap: 10px !important;
+  align-items: end !important;
+}
+
+.single-session-inline-advanced-controls .field {
+  min-width: 0 !important;
+  margin: 0 !important;
+  gap: 5px !important;
+}
+
+.single-session-inline-advanced-controls .field > span {
+  font-size: 10px !important;
+}
+
+.single-session-inline-advanced-controls .select-trigger {
+  height: 34px !important;
+  min-height: 34px !important;
+  border-radius: 10px !important;
+  padding: 0 11px !important;
+  text-align: left !important;
+}
+
+.single-session-inline-advanced-controls .select-trigger > span:first-child {
+  min-width: 0 !important;
+  flex: 1 1 auto !important;
+  overflow: hidden !important;
+  text-overflow: ellipsis !important;
+  white-space: nowrap !important;
+  text-align: left !important;
 }
 
 .single-session-toolbar-chip {
@@ -10729,7 +10836,7 @@ select:focus,
 
 .single-session-toolbar-advanced-toggle {
   margin-left: auto !important;
-  height: 26px !important;
+  height: 24px !important;
   padding: 0 9px !important;
   border-radius: 999px !important;
   background: transparent !important;
@@ -10913,10 +11020,15 @@ select:focus,
 @media (max-width: 1180px) {
   .single-session-toolbar-main {
     grid-template-columns: repeat(2, minmax(0, 1fr)) !important;
+    align-items: start !important;
   }
 
   .single-session-toolbar-context {
     grid-column: 1 / -1;
+  }
+
+  .single-session-toolbar-meta {
+    flex-wrap: wrap !important;
   }
 }
 
@@ -10927,6 +11039,11 @@ select:focus,
 
   .single-session-toolbar-context {
     grid-column: auto !important;
+  }
+
+  .single-session-toolbar-inline,
+  .single-session-toolbar-meta {
+    flex-wrap: wrap !important;
   }
 
   .single-session-advanced-panel .api-advanced-controls,
@@ -12226,6 +12343,12 @@ button:disabled,
   flex: 0 0 150px !important;
 }
 
+.workflow-sort-select .select-trigger {
+  min-height: 38px !important;
+  border-radius: 12px !important;
+  padding: 9px 12px !important;
+}
+
 .cards-grid,
 .workflow-run-cards.cards-grid,
 .schedule-cards.cards-grid {
@@ -12389,15 +12512,6 @@ button:disabled,
   padding: 4px 10px !important;
 }
 
-.workflow-run-status-icon-running {
-  animation: workflow-status-pulse 1.8s infinite ease-in-out;
-}
-
-@keyframes workflow-status-pulse {
-  0%, 100% { opacity: 1; transform: scale(1); }
-  50% { opacity: 0.52; transform: scale(0.9); }
-}
-
 .workflow-run-card-delete {
   opacity: 0 !important;
 }
@@ -12485,10 +12599,6 @@ button:disabled,
   white-space: nowrap !important;
   overflow: hidden !important;
   text-overflow: ellipsis !important;
-}
-
-.workflow-run-card-step-pill svg {
-  flex: 0 0 auto !important;
 }
 
 .workflow-run-card-step-pill-label {

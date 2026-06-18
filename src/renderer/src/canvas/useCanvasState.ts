@@ -4,6 +4,8 @@ import {
   useEdgesState,
   type Node,
   type Edge,
+  type NodeChange,
+  type EdgeChange,
   type OnNodesChange,
   type OnEdgesChange,
   type OnConnect,
@@ -52,6 +54,16 @@ interface UseCanvasStateReturn {
 // ── Constants ───────────────────────────────────────────────────────────────
 
 const MAX_HISTORY = 50
+
+function isMutatingNodeChange(change: NodeChange): boolean {
+  if (change.type === 'select' || change.type === 'dimensions') return false
+  if (change.type === 'position') return change.position != null
+  return true
+}
+
+function isMutatingEdgeChange(change: EdgeChange): boolean {
+  return change.type !== 'select'
+}
 
 // ── Hook ────────────────────────────────────────────────────────────────────
 
@@ -156,7 +168,7 @@ export function useCanvasState({
 
   const handleNodesChange: OnNodesChange = useCallback(
     (changes) => {
-      pushHistory()
+      if (changes.some(isMutatingNodeChange)) pushHistory()
       onNodesChange(changes)
     },
     [onNodesChange, pushHistory]
@@ -164,7 +176,7 @@ export function useCanvasState({
 
   const handleEdgesChange: OnEdgesChange = useCallback(
     (changes) => {
-      pushHistory()
+      if (changes.some(isMutatingEdgeChange)) pushHistory()
       onEdgesChange(changes)
     },
     [onEdgesChange, pushHistory]

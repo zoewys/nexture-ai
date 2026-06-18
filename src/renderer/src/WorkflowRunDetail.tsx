@@ -166,6 +166,7 @@ export function WorkflowRunDetail({
     selectedStep?.status === 'awaiting-confirm' ||
     (run.status === 'awaiting-confirm' && run.steps.some((s) => s.status === 'awaiting-confirm'))
   const awaitingInput = selectedStep?.status === 'awaiting-input'
+  const showStepConversationBar = awaitingInput && !!selectedExecution?.conversation
   const { displayPath, gitSafetyMessage } = run as WorkflowRunUiMeta
 
   return (
@@ -296,7 +297,7 @@ export function WorkflowRunDetail({
           </div>
         )}
 
-        {selectedExecution?.conversation && (
+        {showStepConversationBar && (
           <div className="workflow-step-conversation-bar workflow-awaiting-input-bar">
             <div className="workflow-step-conversation-meta">
               <span className="workflow-step-conversation-status">
