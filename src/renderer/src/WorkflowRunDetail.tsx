@@ -324,7 +324,7 @@ export function WorkflowRunDetail({
 
         {/* transcript */}
         <div className="codex-transcript-area">
-          <TranscriptViewer events={selectedExecution?.events ?? []} />
+          <TranscriptViewer events={selectedExecution?.events ?? []} variant="chat" />
 
           {/* inline artifact cards */}
           {handoff && handoff.artifacts.length > 0 && (

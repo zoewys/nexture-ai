@@ -248,10 +248,20 @@ type Block =
   | { kind: 'stderr'; text: string }
 
 type ChatBlock =
-  | { kind: 'message'; role: 'user' | 'assistant'; text: string }
+  | { kind: 'message'; role: 'user' | 'assistant'; text: string; streaming?: boolean }
   | { kind: 'system'; text: string }
   | { kind: 'thinking'; text: string }
-  | { kind: 'tool'; text: string }
+  | {
+      kind: 'tool'
+      id: string
+      name: string
+      category: ToolCategory
+      status: 'called' | 'running' | 'ok' | 'error'
+      label: string
+      target: string
+      summary?: string
+    }
+  | { kind: 'file'; op: Extract<AgentEvent, { kind: 'file-changed' }>['op']; path: string }
   | { kind: 'todo'; output: unknown; ok: boolean }
   | { kind: 'error'; message: string }
   | { kind: 'permission'; request: PermissionRequestPayload }
@@ -326,11 +336,16 @@ function groupEvents(events: AgentEvent[]): Block[] {
 function groupChatEvents(events: AgentEvent[]): ChatBlock[] {
   const blocks: ChatBlock[] = []
   let pendingAssistant = ''
-  const toolNames = new Map<string, string>()
+  const toolCalls = new Map<string, { name: string; category: ToolCategory; target: string; input: unknown }>()
+  const resolvedTools = new Set<string>()
 
-  const flushAssistant = () => {
+  for (const ev of events) {
+    if (ev.kind === 'tool-result') resolvedTools.add(ev.id)
+  }
+
+  const flushAssistant = (streaming = false) => {
     if (!pendingAssistant) return
-    blocks.push({ kind: 'message', role: 'assistant', text: pendingAssistant })
+    blocks.push({ kind: 'message', role: 'assistant', text: pendingAssistant, streaming })
     pendingAssistant = ''
   }
 
@@ -369,19 +384,39 @@ function groupChatEvents(events: AgentEvent[]): ChatBlock[] {
         break
       case 'tool-call': {
         flushAssistant()
-        toolNames.set(ev.id, ev.name)
+        const category = categorize(ev.name)
         const target = toolTarget(ev.input)
-        blocks.push({ kind: 'tool', text: target ? `${ev.name} · ${target}` : ev.name })
+        toolCalls.set(ev.id, { name: ev.name, category, target, input: ev.input })
+        blocks.push({
+          kind: 'tool',
+          id: ev.id,
+          name: ev.name,
+          category,
+          status: resolvedTools.has(ev.id) ? 'called' : 'running',
+          label: resolvedTools.has(ev.id) ? toolCalledLabel(category) : toolRunningLabel(category),
+          target
+        })
         break
       }
       case 'tool-result': {
         flushAssistant()
-        if (toolNames.get(ev.id) === 'todo_write') {
+        const call = toolCalls.get(ev.id)
+        if (call?.name === 'todo_write') {
           blocks.push({ kind: 'todo', output: ev.output, ok: ev.ok })
           break
         }
+        const category = call?.category ?? 'other'
         const summary = resultSummary(ev.output)
-        blocks.push({ kind: 'tool', text: ev.ok ? `Done${summary ? ` · ${summary}` : ''}` : `Failed${summary ? ` · ${summary}` : ''}` })
+        blocks.push({
+          kind: 'tool',
+          id: ev.id,
+          name: call?.name ?? 'tool',
+          category,
+          status: ev.ok ? 'ok' : 'error',
+          label: toolResultLabel(category, ev.ok),
+          target: call?.target ?? '',
+          summary
+        })
         break
       }
       case 'stderr':
@@ -394,7 +429,7 @@ function groupChatEvents(events: AgentEvent[]): ChatBlock[] {
         break
       case 'file-changed':
         flushAssistant()
-        blocks.push({ kind: 'system', text: `${ev.op}: ${ev.path}` })
+        blocks.push({ kind: 'file', op: ev.op, path: ev.path })
         break
       case 'session-started':
       case 'usage':
@@ -403,8 +438,75 @@ function groupChatEvents(events: AgentEvent[]): ChatBlock[] {
     }
   }
 
-  flushAssistant()
+  flushAssistant(true)
   return blocks
+}
+
+function toolRunningLabel(category: ToolCategory): string {
+  switch (category) {
+    case 'read':
+      return '文件读取中'
+    case 'write':
+      return '文件写入中'
+    case 'exec':
+      return '命令执行中'
+    case 'search':
+      return '搜索中'
+    case 'task':
+      return '任务执行中'
+    default:
+      return '工具调用中'
+  }
+}
+
+function toolCalledLabel(category: ToolCategory): string {
+  switch (category) {
+    case 'read':
+      return '文件读取'
+    case 'write':
+      return '文件写入'
+    case 'exec':
+      return '命令执行'
+    case 'search':
+      return '搜索'
+    case 'task':
+      return '任务执行'
+    default:
+      return '工具调用'
+  }
+}
+
+function toolResultLabel(category: ToolCategory, ok: boolean): string {
+  if (!ok) return '失败'
+  switch (category) {
+    case 'read':
+      return '已读取'
+    case 'write':
+      return '已写入'
+    case 'exec':
+      return '已执行'
+    case 'search':
+      return '已搜索'
+    default:
+      return '已完成'
+  }
+}
+
+function fileOpLabel(op: Extract<AgentEvent, { kind: 'file-changed' }>['op']): string {
+  switch (op) {
+    case 'create':
+      return '已创建'
+    case 'delete':
+      return '已删除'
+    default:
+      return '已修改'
+  }
+}
+
+function chatToolTone(block: Extract<ChatBlock, { kind: 'tool' }>): string {
+  if (block.status === 'ok') return 'ok'
+  if (block.status === 'error') return 'err'
+  return block.category
 }
 
 // ── status bar ───────────────────────────────────────────────────────────
@@ -699,6 +801,69 @@ function turnReason(reason: string): string {
   }
 }
 
+function ChatThinkingBlock({ text }: { text: string }): JSX.Element {
+  const [expanded, setExpanded] = useState(false)
+  return (
+    <div className="chat-v2-think">
+      <button
+        className="chat-v2-think-row"
+        type="button"
+        onClick={() => setExpanded((value) => !value)}
+        aria-expanded={expanded}
+      >
+        <span className="chat-v2-badge chat-v2-badge-think">
+          <span className="chat-v2-dot chat-v2-dot-dim" aria-hidden="true" />
+          思考中
+        </span>
+        {expanded
+          ? <ChevronUp size={12} className="chat-v2-chevron" aria-hidden="true" />
+          : <ChevronDown size={12} className="chat-v2-chevron" aria-hidden="true" />}
+      </button>
+      {expanded ? <pre className="chat-v2-think-body">{text}</pre> : null}
+    </div>
+  )
+}
+
+function ChatToolLine({ block }: { block: Extract<ChatBlock, { kind: 'tool' }> }): JSX.Element {
+  const tone = chatToolTone(block)
+  const dotClasses = [
+    'chat-v2-dot',
+    `chat-v2-dot-${tone}`,
+    block.status === 'running' ? 'chat-v2-dot-pulse' : ''
+  ].filter(Boolean).join(' ')
+
+  return (
+    <div className={`chat-v2-tool chat-v2-tool-${tone}`}>
+      <span className={dotClasses} aria-hidden="true" />
+      <span className={`chat-v2-badge chat-v2-badge-${tone}`}>{block.label}</span>
+      <span className="chat-v2-tool-name">{block.name}</span>
+      {block.target ? <span className="chat-v2-tool-target">{block.target}</span> : null}
+      {block.summary ? <span className="chat-v2-tool-result">{block.summary}</span> : null}
+    </div>
+  )
+}
+
+function ChatFileLine({ block }: { block: Extract<ChatBlock, { kind: 'file' }> }): JSX.Element {
+  return (
+    <div className="chat-v2-file">
+      <FileChangeIcon op={block.op} />
+      <span className="chat-v2-badge chat-v2-badge-file">文件变更</span>
+      <span className={`chat-v2-file-op chat-v2-file-op-${block.op}`}>{fileOpLabel(block.op)}</span>
+      <span className="chat-v2-file-path">{block.path}</span>
+    </div>
+  )
+}
+
+function ChatErrorLine({ message }: { message: string }): JSX.Element {
+  return (
+    <div className="chat-v2-error">
+      <CircleAlert size={14} className="chat-v2-error-icon" aria-hidden="true" />
+      <span className="chat-v2-badge chat-v2-badge-err">错误</span>
+      <span className="chat-v2-error-text">{message}</span>
+    </div>
+  )
+}
+
 function ChatTranscript({ events }: { events: AgentEvent[] }): JSX.Element {
   const scrollerRef = useRef<HTMLDivElement>(null)
   const endRef = useRef<HTMLDivElement>(null)
@@ -752,7 +917,7 @@ function ChatTranscript({ events }: { events: AgentEvent[] }): JSX.Element {
   }
 
   return (
-    <div className="transcript transcript-chat" ref={scrollerRef} onScroll={updateAutoFollow}>
+    <div className="transcript transcript-chat transcript-chat-v2" ref={scrollerRef} onScroll={updateAutoFollow}>
       {blocks.map((block, index) => {
         switch (block.kind) {
           case 'message': {
@@ -761,7 +926,10 @@ function ChatTranscript({ events }: { events: AgentEvent[] }): JSX.Element {
                 {block.role === 'user' ? (
                   <div className="chat-bubble chat-bubble-user">{block.text}</div>
                 ) : (
-                  <div className="chat-bubble chat-bubble-assistant" dangerouslySetInnerHTML={{ __html: parseMarkdown(block.text) }} />
+                  <div
+                    className={`chat-bubble chat-bubble-assistant${block.streaming ? ' streaming-cursor' : ''}`}
+                    dangerouslySetInnerHTML={{ __html: parseMarkdown(block.text) }}
+                  />
                 )}
               </div>
             )
@@ -778,14 +946,11 @@ function ChatTranscript({ events }: { events: AgentEvent[] }): JSX.Element {
               </div>
             )
           case 'thinking':
-            return (
-              <details key={index} className="chat-system chat-thinking">
-                <summary>Thinking</summary>
-                <pre>{block.text}</pre>
-              </details>
-            )
+            return <ChatThinkingBlock key={index} text={block.text} />
           case 'tool':
-            return <div key={index} className="chat-system chat-tool">{block.text}</div>
+            return <ChatToolLine key={index} block={block} />
+          case 'file':
+            return <ChatFileLine key={index} block={block} />
           case 'todo':
             return (
               <div key={index} className="chat-row chat-row-assistant">
@@ -793,13 +958,9 @@ function ChatTranscript({ events }: { events: AgentEvent[] }): JSX.Element {
               </div>
             )
           case 'error':
-            return (
-              <div key={index} className="chat-row chat-row-assistant">
-                <div className="chat-bubble chat-bubble-error">{block.message}</div>
-              </div>
-            )
+            return <ChatErrorLine key={index} message={block.message} />
           case 'system':
-            return <div key={index} className="chat-system">{block.text}</div>
+            return <div key={index} className="chat-v2-system">{block.text}</div>
           default:
             return null
         }
