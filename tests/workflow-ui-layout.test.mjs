@@ -95,6 +95,8 @@ test('runs list uses design cards without realtime tail or confirm button', () =
   assert.doesNotMatch(cardAnimationBlock, /opacity:\s*0 !important/)
   assert.doesNotMatch(cardAnimationBlock, /transform:\s*translateY\(16px\) !important/)
   assert.match(css, /\.workflow-run-card-status-completed\s*\{[\s\S]*var\(--semantic-success\)/)
+  assert.match(css, /\.cards-grid,\s*\n\.workflow-run-cards\.cards-grid,\s*\n\.schedule-cards\.cards-grid\s*\{[\s\S]*padding:\s*6px 2px 24px !important;[\s\S]*scroll-padding-top:\s*6px !important;/)
+  assert.match(css, /\.workflow-run-card:hover,\s*\n\.schedule-card:hover\s*\{[\s\S]*transform:\s*translateY\(-3px\) !important;/)
   assert.match(css, /\[data-theme="dark"\] \.workflow-run-card\s*\{[\s\S]*background:\s*rgba\(15, 25, 45, 0\.64\) !important;/)
   assert.match(css, /\[data-theme="dark"\] \.workflow-run-card:hover\s*\{[\s\S]*background:\s*rgba\(0, 212, 170, 0\.06\) !important;/)
   assert.match(css, /\[data-theme="dark"\] \.workflow-run-card\.workflow-run-card-active\s*\{[\s\S]*rgba\(15, 25, 45, 0\.88\) !important;[\s\S]*color:\s*var\(--neutral-text-primary\) !important;/)

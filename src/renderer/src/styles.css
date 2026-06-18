@@ -12359,7 +12359,8 @@ button:disabled,
   grid-template-columns: repeat(auto-fill, minmax(320px, 1fr)) !important;
   align-content: start !important;
   gap: 20px !important;
-  padding: 2px 2px 24px !important;
+  padding: 6px 2px 24px !important;
+  scroll-padding-top: 6px !important;
 }
 
 .workflow-dashboard-empty,
