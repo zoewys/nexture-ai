@@ -2862,15 +2862,11 @@ button.icon-only {
   display: flex;
   align-items: center;
   gap: 8px;
-  cursor: pointer;
+  cursor: default;
   padding: 4px 8px;
   border-radius: 6px;
   background: rgba(128, 128, 128, 0.04);
   transition: background 0.15s;
-}
-
-.workflow-prompt-display:hover {
-  background: rgba(128, 128, 128, 0.1);
 }
 
 .workflow-prompt-label {
@@ -2888,41 +2884,6 @@ button.icon-only {
   overflow: hidden;
   text-overflow: ellipsis;
   white-space: nowrap;
-}
-
-.workflow-prompt-edit-hint {
-  font-size: 10px;
-  color: var(--text-dim);
-  opacity: 0;
-  white-space: nowrap;
-}
-
-.workflow-prompt-display:hover .workflow-prompt-edit-hint {
-  opacity: 1;
-}
-
-.workflow-prompt-edit textarea {
-  width: 100%;
-  padding: 8px;
-  font-size: 12px;
-  background: var(--input-bg);
-  color: var(--text-strong);
-  border: 1px solid var(--border);
-  border-radius: 6px;
-  resize: vertical;
-  font-family: inherit;
-}
-
-.workflow-prompt-edit-actions {
-  display: flex;
-  gap: 6px;
-  margin-top: 6px;
-  justify-content: flex-end;
-}
-
-.workflow-prompt-edit-actions button {
-  font-size: 11px;
-  padding: 3px 12px;
 }
 
 /* ── detail body: transcript | handoff split ───────────────────────── */
@@ -6979,8 +6940,11 @@ body::before {
   z-index: 50;
   display: inline-flex;
   align-items: center;
-  gap: 6px;
-  padding: 8px 12px;
+  justify-content: center;
+  gap: 0;
+  width: 42px;
+  min-width: 42px;
+  padding: 8px;
   border-radius: 6px;
   border: 2px solid var(--brand-primary);
   background: rgba(61, 142, 134, 0.08);
@@ -7098,7 +7062,6 @@ body::before {
 button.primary,
 button.danger,
 .workflow-run-detail-actions button,
-.workflow-prompt-edit-actions button,
 .single-session-actions button,
 .single-session-route-panel button,
 .settings-btn-group button,
@@ -7783,8 +7746,7 @@ select:focus,
   background: rgba(61, 142, 134, 0.04);
 }
 
-.workflow-prompt-label,
-.workflow-prompt-edit-hint {
+.workflow-prompt-label {
   color: var(--neutral-text-muted);
   font-size: 11px;
   white-space: nowrap;
@@ -8042,10 +8004,6 @@ select:focus,
   border-bottom-color: var(--brand-primary);
 }
 
-.detail-tab svg {
-  flex: 0 0 auto;
-}
-
 .right-panel-body {
   flex: 1;
   min-height: 0;
@@ -8065,27 +8023,6 @@ select:focus,
   gap: 12px;
 }
 
-.workflow-side-task-edit {
-  display: inline-flex;
-  align-items: center;
-  gap: 5px;
-  border: 1px solid var(--glass-border);
-  border-radius: 999px;
-  background: var(--glass-bg);
-  color: var(--neutral-text-secondary);
-  padding: 4px 9px;
-  font: inherit;
-  font-size: 11px;
-  font-weight: 700;
-  cursor: pointer;
-}
-
-.workflow-side-task-edit:hover {
-  border-color: rgba(61, 142, 134, 0.28);
-  color: var(--brand-primary);
-  background: rgba(61, 142, 134, 0.06);
-}
-
 .workflow-side-task-display {
   width: 100%;
   grid-template-columns: minmax(0, 1fr) auto;
@@ -8098,16 +8035,6 @@ select:focus,
   white-space: pre-wrap;
   overflow-wrap: anywhere;
   line-height: 1.7;
-}
-
-.workflow-side-task-edit-form {
-  display: grid;
-  gap: 8px;
-}
-
-.workflow-side-task-edit-form textarea {
-  min-height: 180px;
-  line-height: 1.65;
 }
 
 .workflow-side-files {
@@ -12652,7 +12579,7 @@ button:disabled,
 
 .workflow-run-cards.cards-grid {
   align-items: start !important;
-  grid-auto-rows: 280px !important;
+  grid-auto-rows: 240px !important;
   row-gap: 24px !important;
 }
 
@@ -12703,8 +12630,8 @@ button:disabled,
 
 .workflow-run-card {
   align-self: stretch !important;
-  min-height: 280px !important;
-  height: 280px !important;
+  min-height: 240px !important;
+  height: 240px !important;
 }
 
 @keyframes card-enter {
@@ -13330,8 +13257,11 @@ button:disabled,
 
 .workflow-detail-back {
   flex: 0 0 auto !important;
+  width: 34px !important;
+  height: 34px !important;
+  min-width: 34px !important;
   min-height: 34px !important;
-  padding: 7px 12px !important;
+  padding: 0 !important;
   border-radius: 9px !important;
 }
 

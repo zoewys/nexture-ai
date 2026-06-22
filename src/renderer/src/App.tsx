@@ -153,7 +153,6 @@ export function App(): JSX.Element {
             aria-label={appearanceTheme === 'dark' ? '切换到亮色主题' : '切换到暗色主题'}
           >
             {appearanceTheme === 'dark' ? <Sun size={15} /> : <Moon size={15} />}
-            <span>{appearanceTheme === 'dark' ? '亮' : '暗'}</span>
           </button>
         </div>
       </header>
