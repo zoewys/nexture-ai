@@ -6283,6 +6283,28 @@ button.icon-only {
   position: relative;
 }
 
+/* ── Quick create agent drawer (overlays the canvas shell) ─────────────────── */
+.agent-quick-create-overlay {
+  position: absolute;
+  inset: 0;
+  z-index: 40;
+}
+.agent-quick-create-backdrop {
+  position: absolute;
+  inset: 0;
+  background: rgba(8, 12, 20, 0.34);
+  backdrop-filter: blur(1px);
+}
+.agent-quick-create-drawer .field > span {
+  font-size: 10px;
+  font-weight: 600;
+  letter-spacing: 0.4px;
+  color: var(--neutral-text-secondary);
+}
+.agent-quick-create-drawer .permission-grid {
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+}
+
 .workflow-canvas-flow,
 .workflow-canvas-flow .react-flow__renderer,
 .workflow-canvas-flow .react-flow__pane {

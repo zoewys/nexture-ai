@@ -178,35 +178,33 @@ export function AgentManager({ agents, clis, modelCatalog, onSave, onDelete, onC
               />
             </label>
 
-            <div className="field-row">
-              <label className="field field-grow">
-                <span>供应商</span>
-                <div className="vendor-tabs">
-                  {ALL_VENDORS.map((v) => (
-                    <button
-                      key={v}
-                      type="button"
-                      className={`vendor-tab${draft.vendor === v ? ' active' : ''}`}
-                      onClick={() => setVendor(v)}
-                    >
-                      {v === 'claude' ? 'Claude CLI' : v === 'codex' ? 'Codex CLI' : 'API'}
-                      {!cliAvailable(v) ? ' (not installed)' : ''}
-                    </button>
-                  ))}
-                </div>
-              </label>
+            <label className="field">
+              <span>供应商</span>
+              <div className="vendor-tabs">
+                {ALL_VENDORS.map((v) => (
+                  <button
+                    key={v}
+                    type="button"
+                    className={`vendor-tab${draft.vendor === v ? ' active' : ''}`}
+                    onClick={() => setVendor(v)}
+                  >
+                    {v === 'claude' ? 'Claude CLI' : v === 'codex' ? 'Codex CLI' : 'API'}
+                    {!cliAvailable(v) ? ' (not installed)' : ''}
+                  </button>
+                ))}
+              </div>
+            </label>
 
-              {draft.vendor !== 'api' && (
-                <label className="field field-grow">
-                  <span>模型</span>
-                  <ModelSelect
-                    value={draft.model ?? ''}
-                    modelInfo={modelInfo}
-                    onChange={(model) => setDraft((d) => ({ ...d, model }))}
-                  />
-                </label>
-              )}
-            </div>
+            {draft.vendor !== 'api' && (
+              <label className="field">
+                <span>模型</span>
+                <ModelSelect
+                  value={draft.model ?? ''}
+                  modelInfo={modelInfo}
+                  onChange={(model) => setDraft((d) => ({ ...d, model }))}
+                />
+              </label>
+            )}
 
             {draft.vendor === 'api' && (
               <>

@@ -26,10 +26,25 @@ import {
   Sparkles,
   GitFork,
   Info,
-  Shield
+  Shield,
+  Plus,
+  Pencil,
+  Check,
+  X
 } from 'lucide-react'
 
-import type { AgentDefinition, FailureStrategy, WorkflowTemplate, StepRule } from '@shared/types'
+import type {
+  AgentDefinition,
+  CliCheckResult,
+  FailureStrategy,
+  ModelCatalog,
+  WorkflowTemplate,
+  StepRule
+} from '@shared/types'
+import { isParallelGroup } from '@shared/types'
+import type { AgentDraft } from '../useAgents'
+import { AgentEditForm } from '../AgentEditForm'
+import { AgentQuickCreateDrawer } from '../AgentQuickCreateDrawer'
 import { AgentNode, type AgentNodeData } from './AgentNode'
 import { ConditionalEdge } from './ConditionalEdge'
 import { useCanvasState } from './useCanvasState'
@@ -67,6 +82,10 @@ function VendorIcon({ vendor, size = 13 }: { vendor: string; size?: number }) {
 interface WorkflowCanvasProps {
   agents: AgentDefinition[]
   template: WorkflowTemplate | null
+  templates: WorkflowTemplate[]
+  clis: CliCheckResult | null
+  modelCatalog: ModelCatalog | null
+  onSaveAgent: (draft: AgentDraft) => Promise<AgentDefinition | null>
   onMarkDirty: () => void
   onStepsChange?: (steps: import('@shared/types').WorkflowStepNode[]) => void
   onSave?: (steps: import('@shared/types').WorkflowStepNode[]) => void
@@ -87,7 +106,7 @@ const edgeTypes = { conditional: ConditionalEdge }
 
 // ── Inner Canvas (needs ReactFlowProvider ancestor) ───────────────────────────
 
-function CanvasInner({ agents, template, onMarkDirty, onStepsChange, onSave }: WorkflowCanvasProps) {
+function CanvasInner({ agents, template, templates, clis, modelCatalog, onSaveAgent, onMarkDirty, onStepsChange, onSave }: WorkflowCanvasProps) {
   const reactFlowInstance = useReactFlow()
 
   const {
@@ -119,19 +138,66 @@ function CanvasInner({ agents, template, onMarkDirty, onStepsChange, onSave }: W
 
   // ── Right panel state ───────────────────────────────────────────────────────
   const [rightPanelOpen, setRightPanelOpen] = useState(false)
-  const [rightPanelMode, setRightPanelMode] = useState<'properties' | 'agent-detail'>('properties')
+  const [rightPanelMode, setRightPanelMode] = useState<'properties' | 'agent-detail' | 'agent-edit'>('properties')
   const [detailAgentId, setDetailAgentId] = useState<string | null>(null)
+  const [agentEditSaving, setAgentEditSaving] = useState(false)
 
   const detailAgent = useMemo(
     () => agents.find((agent) => agent.id === detailAgentId) ?? null,
     [agents, detailAgentId]
   )
 
+  // Templates that reference the currently inspected agent (for edit-impact warning)
+  const referencingTemplateCount = useMemo(() => {
+    if (!detailAgentId) return 0
+    return templates.filter((t) =>
+      t.steps.some((step) =>
+        isParallelGroup(step)
+          ? step.parallel.some((s) => s.agentId === detailAgentId)
+          : step.agentId === detailAgentId
+      )
+    ).length
+  }, [templates, detailAgentId])
+
   const openAgentDetail = useCallback((agentId: string) => {
     setDetailAgentId(agentId)
     setRightPanelMode('agent-detail')
     setRightPanelOpen(true)
   }, [])
+
+  const handleEditAgentSave = useCallback(
+    async (draft: AgentDraft) => {
+      if (!detailAgent) return
+      const count = referencingTemplateCount
+      const message =
+        count > 0
+          ? `本操作将改变所有引用到这个 agent 的 workflow template（共 ${count} 个模板）。确认保存？`
+          : '本操作将改变所有引用到这个 agent 的 workflow template。确认保存？'
+      if (!window.confirm(message)) return
+      setAgentEditSaving(true)
+      try {
+        await onSaveAgent({ ...draft, id: detailAgent.id })
+        setRightPanelMode('agent-detail')
+      } finally {
+        setAgentEditSaving(false)
+      }
+    },
+    [detailAgent, referencingTemplateCount, onSaveAgent]
+  )
+
+  // Latest inline-edit draft (so the header Save icon can submit without lifting state)
+  const editDraftRef = useRef<AgentDraft | null>(null)
+  const handleEditDraftChange = useCallback((draft: AgentDraft) => {
+    editDraftRef.current = draft
+  }, [])
+  const handleHeaderSave = useCallback(() => {
+    if (!detailAgent || !editDraftRef.current) return
+    if (!editDraftRef.current.name.trim()) return
+    void handleEditAgentSave(editDraftRef.current)
+  }, [detailAgent, handleEditAgentSave])
+
+  // ── Quick create agent drawer ───────────────────────────────────────────────
+  const [quickCreateOpen, setQuickCreateOpen] = useState(false)
 
   // Auto-open when node selected, but allow manual close
   const prevSelectedRef = useRef(selectedNodeId)
@@ -321,22 +387,44 @@ function CanvasInner({ agents, template, onMarkDirty, onStepsChange, onSave }: W
           {sidebarExpanded && (
             <span className="workflow-canvas-agent-rail-title">Agents</span>
           )}
-          <button
-            className="workflow-canvas-icon-btn"
-            onClick={() => setSidebarExpanded((v) => !v)}
-            style={{
-              background: 'transparent',
-              border: 'none',
-              color: colors.textMuted,
-              cursor: 'pointer',
-              padding: 4,
-              display: 'flex',
-              alignItems: 'center'
-            }}
-            title={sidebarExpanded ? 'Collapse sidebar' : 'Expand sidebar'}
-          >
-            {sidebarExpanded ? <ChevronsLeft size={14} /> : <ChevronsRight size={14} />}
-          </button>
+          <div style={{ display: 'flex', alignItems: 'center', gap: 2 }}>
+            {sidebarExpanded && (
+              <button
+                className="workflow-canvas-icon-btn"
+                onClick={() => setQuickCreateOpen(true)}
+                style={{
+                  background: 'transparent',
+                  border: 'none',
+                  color: colors.textMuted,
+                  cursor: 'pointer',
+                  padding: 4,
+                  display: 'flex',
+                  alignItems: 'center',
+                  borderRadius: 5
+                }}
+                title="新建智能体"
+                aria-label="新建智能体"
+              >
+                <Plus size={14} />
+              </button>
+            )}
+            <button
+              className="workflow-canvas-icon-btn"
+              onClick={() => setSidebarExpanded((v) => !v)}
+              style={{
+                background: 'transparent',
+                border: 'none',
+                color: colors.textMuted,
+                cursor: 'pointer',
+                padding: 4,
+                display: 'flex',
+                alignItems: 'center'
+              }}
+              title={sidebarExpanded ? 'Collapse sidebar' : 'Expand sidebar'}
+            >
+              {sidebarExpanded ? <ChevronsLeft size={14} /> : <ChevronsRight size={14} />}
+            </button>
+          </div>
         </div>
 
         {/* Agent list */}
@@ -627,19 +715,72 @@ function CanvasInner({ agents, template, onMarkDirty, onStepsChange, onSave }: W
             borderBottom: `1px solid ${colors.border}`
           }}>
             <span style={{ fontSize: 11, color: colors.textMuted, textTransform: 'uppercase', letterSpacing: 0.5 }}>
-              {rightPanelMode === 'agent-detail' ? 'Agent Details' : selectedNode ? 'Properties' : 'Template'}
+              {rightPanelMode === 'agent-edit'
+                ? 'Edit Agent'
+                : rightPanelMode === 'agent-detail'
+                  ? 'Agent Details'
+                  : selectedNode
+                    ? 'Properties'
+                    : 'Template'}
             </span>
-            <button
-              className="workflow-canvas-icon-btn"
-              onClick={() => setRightPanelOpen(false)}
-              style={{ background: 'none', border: 'none', color: colors.textMuted, cursor: 'pointer', padding: 2, display: 'flex' }}
-              title="Close panel"
-            >
-              <ChevronsLeft size={14} />
-            </button>
+            <div style={{ display: 'flex', alignItems: 'center', gap: 2 }}>
+              {rightPanelMode === 'agent-edit' && detailAgent ? (
+                <>
+                  <button
+                    className="workflow-canvas-icon-btn"
+                    onClick={() => setRightPanelMode('agent-detail')}
+                    style={{ background: 'none', border: 'none', color: colors.textMuted, cursor: 'pointer', padding: 4, display: 'flex', borderRadius: 5 }}
+                    title="取消编辑"
+                    aria-label="取消编辑"
+                  >
+                    <X size={13} />
+                  </button>
+                  <button
+                    className="workflow-canvas-icon-btn"
+                    onClick={handleHeaderSave}
+                    disabled={agentEditSaving}
+                    style={{ background: 'none', border: 'none', color: agentEditSaving ? colors.textDim : colors.accent, cursor: agentEditSaving ? 'default' : 'pointer', padding: 4, display: 'flex', borderRadius: 5, opacity: agentEditSaving ? 0.5 : 1 }}
+                    title="保存"
+                    aria-label="保存"
+                  >
+                    <Check size={14} />
+                  </button>
+                </>
+              ) : rightPanelMode === 'agent-detail' && detailAgent ? (
+                <button
+                  className="workflow-canvas-icon-btn"
+                  onClick={() => setRightPanelMode('agent-edit')}
+                  style={{ background: 'none', border: 'none', color: colors.textMuted, cursor: 'pointer', padding: 4, display: 'flex', borderRadius: 5 }}
+                  title="编辑此智能体"
+                  aria-label="编辑此智能体"
+                >
+                  <Pencil size={13} />
+                </button>
+              ) : null}
+              <button
+                className="workflow-canvas-icon-btn"
+                onClick={() => setRightPanelOpen(false)}
+                style={{ background: 'none', border: 'none', color: colors.textMuted, cursor: 'pointer', padding: 2, display: 'flex' }}
+                title="Close panel"
+              >
+                <ChevronsLeft size={14} />
+              </button>
+            </div>
           </div>
           <div className="workflow-canvas-inspector-body" style={{ flex: 1, overflowY: 'auto', padding: 12, display: 'flex', flexDirection: 'column', gap: 12 }}>
-            {rightPanelMode === 'agent-detail' ? (
+            {rightPanelMode === 'agent-edit' && detailAgent ? (
+              <AgentEditForm
+                initialDraft={{ ...detailAgent }}
+                modelCatalog={modelCatalog}
+                clis={clis}
+                submitLabel="保存"
+                saving={agentEditSaving}
+                hideActions
+                onDraftChange={handleEditDraftChange}
+                onSave={handleEditAgentSave}
+                onCancel={() => setRightPanelMode('agent-detail')}
+              />
+            ) : rightPanelMode === 'agent-detail' ? (
               <AgentDetailPanel
                 agent={detailAgent}
                 selectedNode={selectedNode}
@@ -688,6 +829,22 @@ function CanvasInner({ agents, template, onMarkDirty, onStepsChange, onSave }: W
             <ChevronsRight size={14} />
           </button>
         </div>
+      )}
+
+      {/* ── Quick create agent drawer (Position 1) ─────────────────────────── */}
+      {quickCreateOpen && (
+        <AgentQuickCreateDrawer
+          modelCatalog={modelCatalog}
+          clis={clis}
+          onSave={async (draft) => {
+            try {
+              return await onSaveAgent(draft)
+            } catch {
+              return null
+            }
+          }}
+          onClose={() => setQuickCreateOpen(false)}
+        />
       )}
     </div>
   )

@@ -6,8 +6,9 @@
  */
 
 import { lazy, Suspense, useCallback, useEffect, useMemo, useRef, useState } from 'react'
-import { isParallelGroup, type AgentDefinition, type WorkflowTemplate, type WorkflowStepNode } from '@shared/types'
+import { isParallelGroup, type AgentDefinition, type CliCheckResult, type ModelCatalog, type WorkflowTemplate, type WorkflowStepNode } from '@shared/types'
 import type { WorkflowDraft } from './useWorkflows'
+import type { AgentDraft } from './useAgents'
 import { ChevronsLeft, ChevronsRight, Download, Copy, Plus, Save, Trash2 } from 'lucide-react'
 
 const WorkflowCanvas = lazy(() => import('./canvas/WorkflowCanvas'))
@@ -15,6 +16,9 @@ const WorkflowCanvas = lazy(() => import('./canvas/WorkflowCanvas'))
 interface TemplatesViewProps {
   agents: AgentDefinition[]
   templates: WorkflowTemplate[]
+  clis: CliCheckResult | null
+  modelCatalog: ModelCatalog | null
+  onSaveAgent: (draft: AgentDraft) => Promise<AgentDefinition | null>
   onSave: (draft: WorkflowDraft) => Promise<WorkflowTemplate>
   onDelete: (id: string) => Promise<void>
 }
@@ -31,6 +35,9 @@ function getTemplateVisualStepCount(template: WorkflowTemplate): number {
 export function TemplatesView({
   agents,
   templates,
+  clis,
+  modelCatalog,
+  onSaveAgent,
   onSave,
   onDelete
 }: TemplatesViewProps): JSX.Element {
@@ -294,6 +301,10 @@ export function TemplatesView({
                 <WorkflowCanvas
                   agents={agents}
                   template={selectedTemplate}
+                  templates={templates}
+                  clis={clis}
+                  modelCatalog={modelCatalog}
+                  onSaveAgent={onSaveAgent}
                   onMarkDirty={markDirty}
                   onStepsChange={(steps) => {
                     pendingStepsRef.current = steps
