@@ -2,6 +2,7 @@ import { useEffect, useMemo, useState } from 'react'
 import type { CronPreview, WorkflowRun, WorkflowSchedule, WorkflowTemplate } from '@shared/types'
 import { Edit3, Trash2 } from 'lucide-react'
 import { workflowRunDisplayName } from './workflowRunView'
+import { formatWorkflowRunActualDuration } from './workflowRunDuration'
 import { workflowRunStatusLabel } from './workflowLabels'
 
 interface ScheduleDetailProps {
@@ -113,7 +114,7 @@ export function ScheduleDetail({
                 <span>{formatDateTime(run.startedAt)}</span>
                 <strong>{workflowRunStatusLabel(run.status)}</strong>
                 <span>{run.steps.length} steps</span>
-                <span>{formatDuration(run)}</span>
+                <span>{formatWorkflowRunActualDuration(run)}</span>
                 <span>{formatCost(run.totalCostUsd)}</span>
                 <small>{workflowRunDisplayName(run)}</small>
               </button>
@@ -139,14 +140,6 @@ function formatDateTime(timestamp?: number): string {
     hour: '2-digit',
     minute: '2-digit'
   })
-}
-
-function formatDuration(run: WorkflowRun): string {
-  if (!run.finishedAt) return 'running'
-  const totalSeconds = Math.max(0, Math.round((run.finishedAt - run.startedAt) / 1000))
-  const minutes = Math.floor(totalSeconds / 60)
-  const seconds = totalSeconds % 60
-  return minutes > 0 ? `${minutes}m ${seconds}s` : `${seconds}s`
 }
 
 function formatCost(cost: number): string {

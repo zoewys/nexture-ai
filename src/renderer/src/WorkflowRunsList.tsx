@@ -6,13 +6,14 @@
  */
 
 import { useMemo, useState } from 'react'
-import type { WorkflowRun, WorkflowRunStep } from '@shared/types'
+import type { WorkflowRun, WorkflowRunStep, WorkflowStepExecution } from '@shared/types'
 import { Activity, Clock3, Plus, RefreshCw, Search, Trash2 } from 'lucide-react'
 import {
   workflowRunDisplayName,
   workflowRunProgressSegments,
   type WorkflowRunProgressSegment
 } from './workflowRunView'
+import { formatWorkflowRunActualDuration } from './workflowRunDuration'
 import { Select } from './Select'
 
 type WorkflowRunUiMeta = WorkflowRun & {
@@ -247,7 +248,7 @@ function WorkflowRunCard({
       <div className="workflow-run-card-footer">
         <div className="workflow-run-card-time" title={(run as WorkflowRunUiMeta).listMeta ?? run.projectPath}>
           <Clock3 size={14} />
-          <span className="workflow-run-card-duration">{formatRunDuration(run)}</span>
+          <span className="workflow-run-card-duration">{formatWorkflowRunActualDuration(run)}</span>
         </div>
         <div className="workflow-run-card-time">
           <Activity size={14} />
@@ -325,20 +326,52 @@ function workflowRunModelTags(run: WorkflowRun): Array<{
   fullLabel: string
   status: WorkflowRunCardModelTagStatus
 }> {
-  return run.steps.slice(0, 3).map((step, index) => {
-    const fullLabel = workflowRunStepLabel(step, index)
+  return run.steps.flatMap((step, index) => {
+    const modelLabel = workflowRunStepModelLabel(step)
+    if (!modelLabel) return []
     return {
-      label: workflowRunModelTagLabel(fullLabel),
-      fullLabel,
+      label: workflowRunModelTagLabel(modelLabel),
+      fullLabel: `${workflowRunStepLabel(step, index)} · ${modelLabel}`,
       status: workflowRunModelTagStatus(step)
     }
-  })
+  }).slice(0, 3)
 }
 
 function workflowRunModelTagLabel(label: string): string {
-  const trimmed = label.trim()
-  const withoutPrefix = trimmed.replace(/^(api-check-|agent-|check-|model-|api-)/i, '').trim()
-  return withoutPrefix || trimmed
+  return label.trim()
+}
+
+function workflowRunStepModelLabel(step: WorkflowRunStep): string {
+  for (let index = step.executions.length - 1; index >= 0; index -= 1) {
+    const label = workflowRunExecutionModelLabel(step.executions[index])
+    if (label) return label
+  }
+  return ''
+}
+
+function workflowRunExecutionModelLabel(execution: WorkflowStepExecution): string {
+  const direct = execution.model?.trim()
+  if (direct) return direct
+
+  const activeSegment = execution.conversation?.segments.find(
+    (segment) => segment.id === execution.conversation?.activeSegmentId
+  ) ?? execution.conversation?.segments.at(-1)
+  const routeModel = activeSegment?.route.model?.trim()
+  if (routeModel) return routeModel
+
+  for (let index = execution.events.length - 1; index >= 0; index -= 1) {
+    const event = execution.events[index]
+    if (event.kind !== 'system') continue
+    const model = parseApiCallModel(event.text)
+    if (model) return model
+  }
+
+  return ''
+}
+
+function parseApiCallModel(text: string): string {
+  const match = text.match(/\bAPI call:\s*.+?\/(.+?)(?:\s*·|$)/)
+  return match?.[1]?.trim() ?? ''
 }
 
 function workflowRunModelTagStatus(step: WorkflowRunStep): WorkflowRunCardModelTagStatus {
@@ -372,18 +405,6 @@ function stepPillStatus(step: WorkflowRunStep): WorkflowRunProgressSegment {
     case 'pending':
       return 'waiting'
   }
-}
-
-function formatRunDuration(run: WorkflowRun): string {
-  const end = run.finishedAt ?? Date.now()
-  const totalSeconds = Math.max(0, Math.round((end - run.startedAt) / 1000))
-  const minutes = Math.floor(totalSeconds / 60)
-  const seconds = totalSeconds % 60
-  if (minutes < 1) return `${seconds}s`
-  const hours = Math.floor(minutes / 60)
-  const restMinutes = minutes % 60
-  if (hours < 1) return `${minutes}m ${seconds}s`
-  return `${hours}h ${restMinutes}m`
 }
 
 function formatRunAge(startedAt: number): string {

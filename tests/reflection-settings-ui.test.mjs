@@ -31,7 +31,9 @@ test('useReflectionConfig loads and saves typed reflection config through preloa
 })
 
 test('reflection settings panel edits enabled state, vendor, and model', () => {
+  assert.match(panel, /import \{ ChevronRight \} from 'lucide-react'/)
   assert.match(panel, /useReflectionConfig\(\)/)
+  assert.match(panel, /className="reflection-settings-chevron"/)
   assert.match(panel, /type="checkbox"/)
   assert.match(panel, /checked=\{draft\.enabled\}/)
   assert.match(panel, /ALL_VENDORS\.map/)
@@ -42,6 +44,10 @@ test('reflection settings panel edits enabled state, vendor, and model', () => {
 })
 
 test('reflection settings styles keep the controls compact in agent manager', () => {
+  assert.match(styles, /Agent memory panel light-theme QA overrides/)
+  assert.match(styles, /\.agent-editor \.reflection-settings-panel,\s*\n\.agent-editor \.agent-memory-panel\s*\{[\s\S]*background:\s*rgba\(255, 255, 255, 0\.66\) !important;/)
+  assert.match(styles, /\.agent-editor \.reflection-settings-summary::before,\s*\n\.agent-editor \.agent-memory-summary::before\s*\{[\s\S]*content:\s*none !important;/)
+  assert.match(styles, /\.agent-editor \.reflection-settings-chevron,\s*\n\.agent-editor \.agent-memory-chevron\s*\{[\s\S]*color:\s*var\(--brand-primary\) !important;/)
   assert.match(styles, /\.reflection-settings-panel/)
   assert.match(styles, /\.reflection-settings-header/)
   assert.match(styles, /\.reflection-settings-toggle input/)

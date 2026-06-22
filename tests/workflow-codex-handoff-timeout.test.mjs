@@ -172,3 +172,37 @@ test('workflow advances when Codex emits a valid handoff before an error turn re
 
   assertPreviewStarted(savedRuns, started)
 })
+
+test('workflow synthesizes a step result when a non-interactive step completes without structured JSON', async () => {
+  const { savedRuns, started } = await createWorkflowHarness()
+
+  started[0].onEvent(started[0].id, {
+    kind: 'file-changed',
+    path: '/tmp/agent-studio-web/docs/requirements.md',
+    op: 'create'
+  })
+  started[0].onEvent(started[0].id, {
+    kind: 'message',
+    role: 'assistant',
+    text: '需求分析已经完成，已写入需求文档。'
+  })
+  started[0].onEvent(started[0].id, {
+    kind: 'turn-done',
+    sessionId: 'codex-product',
+    reason: 'complete'
+  })
+
+  const latestRun = savedRuns.at(-1)
+  assert.equal(started.length, 2)
+  assert.equal(latestRun.status, 'running')
+  assert.equal(latestRun.currentStepIndex, 1)
+  assert.equal(latestRun.steps[0].status, 'done')
+  assert.equal(latestRun.steps[0].executions.at(-1).handoff.summary, '需求分析已经完成，已写入需求文档。')
+  assert.deepEqual(latestRun.steps[0].executions.at(-1).handoff.artifacts, [
+    {
+      path: 'docs/requirements.md',
+      description: 'Created during this workflow step.',
+      type: 'requirement'
+    }
+  ])
+})

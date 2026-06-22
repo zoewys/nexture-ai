@@ -1,4 +1,5 @@
 import { useEffect, useMemo, useState } from 'react'
+import { ChevronRight } from 'lucide-react'
 import type { MemoryCategory, MemoryEntry } from '@shared/types'
 import { useAgentMemories } from './useAgentMemories'
 
@@ -36,6 +37,7 @@ export function AgentMemoryPanel({ agentId }: AgentMemoryPanelProps): JSX.Elemen
   return (
     <details className="agent-memory-panel">
       <summary className="agent-memory-summary">
+        <ChevronRight size={15} className="agent-memory-chevron" aria-hidden="true" />
         <span>记忆 ({globalCount} 条全局 + {projectCount} 条项目)</span>
         {meta ? <span className="agent-memory-meta">{meta.totalRuns} runs · {meta.totalMemories} total</span> : null}
       </summary>

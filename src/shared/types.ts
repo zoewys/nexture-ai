@@ -433,6 +433,9 @@ export interface WorkflowStepExecution {
   id: string
   stepIndex: number
   agentId: string
+  vendor?: AgentVendor
+  model?: string
+  apiProviderId?: string
   status: StepStatus
   sessionId?: string
   runId?: string

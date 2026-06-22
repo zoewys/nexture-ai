@@ -1,4 +1,5 @@
 import { randomUUID } from 'node:crypto'
+import path from 'node:path'
 import type {
   AgentDefinition,
   ConversationState,
@@ -359,6 +360,7 @@ export class WorkflowManager {
     const agent = this.agentStore.list().find((candidate) => candidate.id === step.agentId)
     if (!agent) throw new Error(`Agent not found: ${step.agentId}`)
 
+    const model = agent.model?.trim() || undefined
     const mainPrompt = [
       clean,
       '',
@@ -371,6 +373,9 @@ export class WorkflowManager {
       id: randomUUID(),
       stepIndex,
       agentId: agent.id,
+      vendor: agent.vendor,
+      model,
+      apiProviderId: agent.apiProviderId,
       status: 'running',
       startedAt: Date.now(),
       injectedMemoryIds,
@@ -404,7 +409,7 @@ export class WorkflowManager {
       vendor: agent.vendor,
       prompt,
       cwd: run.projectPath,
-      model: agent.model?.trim() || undefined,
+      model,
       codexReasoningEffort: agent.codexReasoningEffort,
       codexServiceTier: agent.codexServiceTier?.trim() || undefined,
       apiProviderId: agent.apiProviderId,
@@ -454,7 +459,7 @@ export class WorkflowManager {
 
     execution.handoff = fallbackHandoff
     execution.status = 'done'
-    execution.finishedAt = Date.now()
+    execution.finishedAt = execution.finishedAt ?? Date.now()
     step.status = 'done'
     this.completeLiveStep(run.id, execution.id, true)
     this.aggregateStepCost(run, execution)
@@ -529,10 +534,14 @@ export class WorkflowManager {
     }
 
     const { prompt, injectedMemoryIds } = this.buildPrompt(run, stepIndex, agent)
+    const model = agent.model?.trim() || undefined
     const execution: WorkflowStepExecution = {
       id: randomUUID(),
       stepIndex,
       agentId: agent.id,
+      vendor: agent.vendor,
+      model,
+      apiProviderId: agent.apiProviderId,
       status: 'running',
       startedAt: Date.now(),
       injectedMemoryIds,
@@ -564,7 +573,7 @@ export class WorkflowManager {
       vendor: agent.vendor,
       prompt,
       cwd,
-      model: agent.model?.trim() || undefined,
+      model,
       codexReasoningEffort: agent.codexReasoningEffort,
       codexServiceTier: agent.codexServiceTier?.trim() || undefined,
       apiProviderId: agent.apiProviderId,
@@ -674,7 +683,12 @@ export class WorkflowManager {
     execution: WorkflowStepExecution
   ): void {
     const templateStep = this.getTemplateStepForRunStep(run, stepIndex)
-    const handoff = parseHandoff(execution.events)
+    const parsedHandoff = parseHandoff(execution.events)
+    const handoff = parsedHandoff ?? (
+      templateStep?.interactive === true
+        ? null
+        : this.synthesizeStepHandoff(run, stepIndex, execution)
+    )
 
     if (!handoff) {
       if (templateStep?.interactive === true) {
@@ -787,6 +801,7 @@ export class WorkflowManager {
     const step = run.steps[stepIndex]
     const execution = step.executions.at(-1)
     if (!execution) return
+    execution.finishedAt = execution.finishedAt ?? Date.now()
     execution.status = 'awaiting-input'
     step.status = 'awaiting-input'
     run.currentStepIndex = stepIndex
@@ -891,17 +906,18 @@ export class WorkflowManager {
   }
 
   private failStep(run: WorkflowRun, stepIndex: number, message: string): void {
+    const agent = this.agentStore.list().find((candidate) => candidate.id === run.steps[stepIndex].agentId)
     const execution: WorkflowStepExecution = {
       id: randomUUID(),
       stepIndex,
       agentId: run.steps[stepIndex].agentId,
+      vendor: agent?.vendor,
+      model: agent?.model?.trim() || undefined,
+      apiProviderId: agent?.apiProviderId,
       status: 'error',
       startedAt: Date.now(),
       finishedAt: Date.now(),
-      conversation: createWorkflowConversation(
-        this.agentStore.list().find((agent) => agent.id === run.steps[stepIndex].agentId),
-        'new'
-      ),
+      conversation: createWorkflowConversation(agent, 'new'),
       events: [{ kind: 'error', recoverable: false, message }],
       error: message,
       totalInputTokens: 0,
@@ -1362,6 +1378,27 @@ export class WorkflowManager {
     return summary || 'Interactive conversation finished without a handoff JSON.'
   }
 
+  private synthesizeStepHandoff(
+    run: WorkflowRun,
+    stepIndex: number,
+    execution: WorkflowStepExecution
+  ): HandoffArtifact | null {
+    const summary = summarizeCompletedStep(execution.events)
+    const artifacts = changedArtifacts(execution.events, run.projectPath)
+    if (!summary && artifacts.length === 0) return null
+
+    const step = run.steps[stepIndex]
+    const label = step.displayName ?? step.role ?? `Step ${stepIndex + 1}`
+    return {
+      summary: summary || `${label} completed.`,
+      artifacts,
+      nextStepGuidance: stepIndex + 1 < run.steps.length
+        ? `Continue with ${run.steps[stepIndex + 1]?.displayName ?? run.steps[stepIndex + 1]?.role ?? `Step ${stepIndex + 2}`}.`
+        : undefined,
+      routeSuggestion: undefined
+    }
+  }
+
   private withMemoryContext(
     agent: AgentDefinition,
     projectPath: string,
@@ -1378,6 +1415,64 @@ export class WorkflowManager {
 
 function latestExecution(step: { executions: WorkflowStepExecution[] }): WorkflowStepExecution | null {
   return step.executions[step.executions.length - 1] ?? null
+}
+
+function summarizeCompletedStep(events: AgentEvent[]): string {
+  const messages = events
+    .filter((event): event is Extract<AgentEvent, { kind: 'message' }> => event.kind === 'message')
+    .map((event) => event.text.trim())
+    .filter(Boolean)
+  const latestMessage = messages.at(-1)
+  if (!latestMessage) return ''
+  return truncateSummary(latestMessage)
+}
+
+function truncateSummary(text: string): string {
+  const normalized = text
+    .replace(/\s+/g, ' ')
+    .trim()
+  if (normalized.length <= 360) return normalized
+  return `${normalized.slice(0, 357).trimEnd()}...`
+}
+
+function changedArtifacts(events: AgentEvent[], projectPath: string): HandoffArtifact['artifacts'] {
+  const byPath = new Map<string, Extract<AgentEvent, { kind: 'file-changed' }>>()
+  for (const event of events) {
+    if (event.kind !== 'file-changed') continue
+    byPath.set(event.path, event)
+  }
+  return [...byPath.values()].map((event) => ({
+    path: displayArtifactPath(event.path, projectPath),
+    description: `${fileChangeLabel(event.op)} during this workflow step.`,
+    type: inferArtifactType(event.path)
+  }))
+}
+
+function displayArtifactPath(filePath: string, projectPath: string): string {
+  if (!path.isAbsolute(filePath)) return filePath
+  const relative = path.relative(projectPath, filePath)
+  if (!relative.startsWith('..') && !path.isAbsolute(relative)) return relative
+  return filePath
+}
+
+function fileChangeLabel(op: Extract<AgentEvent, { kind: 'file-changed' }>['op']): string {
+  switch (op) {
+    case 'create':
+      return 'Created'
+    case 'modify':
+      return 'Updated'
+    case 'delete':
+      return 'Deleted'
+  }
+}
+
+function inferArtifactType(path: string): HandoffArtifact['artifacts'][number]['type'] {
+  const lower = path.toLowerCase()
+  if (lower.includes('requirement')) return 'requirement'
+  if (lower.includes('design')) return 'design'
+  if (lower.includes('test') || lower.includes('report')) return 'test'
+  if (/\.(tsx?|jsx?|html|css|json|mjs|cjs)$/.test(lower)) return 'code'
+  return 'other'
 }
 
 function createWorkflowConversation(

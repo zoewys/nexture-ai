@@ -14,6 +14,7 @@ import { buildToolSet } from './api-tools'
 import type { PermissionGuard } from './api-tools/PermissionGuard'
 
 const DEFAULT_MAX_OUTPUT_TOKENS = 8192
+const GLM_MAX_OUTPUT_TOKENS = 131_072
 const DEFAULT_TEMPERATURE = 0.2
 const DEFAULT_TOP_P = 1
 const MAX_OUTPUT_TOKENS_ERROR_MESSAGE =
@@ -80,7 +81,7 @@ export class ApiAdapter implements CliAdapter {
         system,
         temperature: input.apiTemperature ?? DEFAULT_TEMPERATURE,
         topP: input.apiTopP ?? DEFAULT_TOP_P,
-        maxOutputTokens: this.config.maxOutputTokens ?? DEFAULT_MAX_OUTPUT_TOKENS,
+        maxOutputTokens: resolveMaxOutputTokens(this.config, modelId),
         tools,
         stopWhen: stepCountIs(input.apiMaxSteps ?? 10),
         abortSignal: input.abortSignal,
@@ -196,6 +197,27 @@ export function shouldUseAnthropicBearerAuth(
 
 function supportsNativeStructuredOutput(config: ApiProviderConfig, modelId: string): boolean {
   return !isKnownJsonSchemaUnsupportedProvider(config, modelId)
+}
+
+function resolveMaxOutputTokens(config: ApiProviderConfig, modelId: string): number {
+  const configured = typeof config.maxOutputTokens === 'number' && Number.isFinite(config.maxOutputTokens)
+    ? Math.floor(config.maxOutputTokens)
+    : DEFAULT_MAX_OUTPUT_TOKENS
+  const positive = configured >= 1 ? configured : DEFAULT_MAX_OUTPUT_TOKENS
+  const limit = maxOutputTokensLimit(config, modelId)
+  return limit ? Math.min(positive, limit) : positive
+}
+
+function maxOutputTokensLimit(config: ApiProviderConfig, modelId: string): number | null {
+  const marker = `${config.name} ${config.baseUrl ?? ''} ${modelId}`.toLowerCase()
+  if (
+    marker.includes('bigmodel.cn') ||
+    marker.includes('zhipu') ||
+    /\bglm[-_.\w]*/.test(marker)
+  ) {
+    return GLM_MAX_OUTPUT_TOKENS
+  }
+  return null
 }
 
 function isKnownJsonSchemaUnsupportedProvider(config: ApiProviderConfig, modelId: string): boolean {

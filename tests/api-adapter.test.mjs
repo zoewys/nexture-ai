@@ -579,6 +579,32 @@ test('ApiAdapter uses schema prompt fallback immediately for GLM-compatible prov
   assert.equal(logs[0].structuredOutput, 'fallback')
 })
 
+test('ApiAdapter clamps GLM max output tokens to provider range', async () => {
+  const calls = []
+  const { ApiAdapter } = await importApiAdapter(mocksFor([
+    { type: 'text-delta', textDelta: 'ok' },
+    { type: 'finish' }
+  ], calls))
+  const adapter = new ApiAdapter({
+    id: 'p1',
+    name: 'glm',
+    format: 'anthropic',
+    apiKey: 'sk-test',
+    baseUrl: 'https://open.bigmodel.cn/api/anthropic',
+    models: ['glm-5.2'],
+    defaultModel: 'glm-5.2',
+    maxOutputTokens: 1131072
+  }, guard)
+
+  await collect(adapter.runTurn({
+    prompt: 'hello',
+    cwd: root,
+    abortSignal: new AbortController().signal
+  }))
+
+  assert.equal(calls[0].maxOutputTokens, 131072)
+})
+
 test('ApiAdapter reports max output truncation instead of completing without a handoff', async () => {
   const calls = []
   const logs = []

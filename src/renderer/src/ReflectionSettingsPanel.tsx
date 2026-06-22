@@ -1,4 +1,5 @@
 import { useEffect, useState } from 'react'
+import { ChevronRight } from 'lucide-react'
 import type { AgentVendor, ModelCatalog, ReflectionEngineConfig } from '@shared/types'
 import { ALL_VENDORS, DEFAULT_REFLECTION_CONFIG } from '@shared/types'
 import { ModelSelect } from './ModelSelect'
@@ -47,6 +48,7 @@ export function ReflectionSettingsPanel({ modelCatalog }: ReflectionSettingsPane
   return (
     <details className="reflection-settings-panel" aria-label="Memory reflection settings">
       <summary className="reflection-settings-summary">
+        <ChevronRight size={15} className="reflection-settings-chevron" aria-hidden="true" />
         <span>记忆 / 反思设置</span>
         <span className={`reflection-settings-pill ${draft.enabled ? 'is-on' : 'is-off'}`}>
           {draft.enabled ? '启用' : '关闭'}

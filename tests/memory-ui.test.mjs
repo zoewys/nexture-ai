@@ -26,7 +26,9 @@ test('useAgentMemories loads, groups, refreshes, and deletes memories', () => {
 })
 
 test('agent memory panel supports global and project tabs, strength, and deletion', () => {
+  assert.match(panel, /import \{ ChevronRight \} from 'lucide-react'/)
   assert.match(panel, /<details className="agent-memory-panel">/)
+  assert.match(panel, /className="agent-memory-chevron"/)
   assert.match(panel, /记忆 \(\{globalCount\} 条全局 \+ \{projectCount\} 条项目\)/)
   assert.match(panel, /项目: \{shortProjectName\(group\.path\)\}/)
   assert.match(panel, /computeStrength\(memory\)/)
@@ -37,6 +39,11 @@ test('agent memory panel supports global and project tabs, strength, and deletio
 
 test('agent memory styles keep the panel compact inside the editor', () => {
   assert.match(styles, /\.agent-editor\b/)
+  assert.match(styles, /Agent memory panel light-theme QA overrides/)
+  assert.match(styles, /\.agent-editor \.agent-memory-panel\s*\{[\s\S]*background:\s*rgba\(255, 255, 255, 0\.66\) !important;/)
+  assert.match(styles, /\.agent-editor \.agent-memory-summary::before\s*\{[\s\S]*content:\s*none !important;/)
+  assert.match(styles, /\.agent-editor \.agent-memory-chevron\s*\{[\s\S]*color:\s*var\(--brand-primary\) !important;/)
+  assert.match(styles, /\.agent-editor \.agent-memory-empty\s*\{[\s\S]*background:\s*rgba\(255, 255, 255, 0\.52\) !important;/)
   assert.match(styles, /\.agent-memory-panel/)
   assert.match(styles, /\.agent-memory-tabs/)
   assert.match(styles, /\.agent-memory-tab-active/)
