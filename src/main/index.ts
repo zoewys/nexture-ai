@@ -104,12 +104,32 @@ function setScheduleBadge(active: boolean): void {
   updateTrayMenu()
 }
 
+function stepDisplayName(run: WorkflowRun): string {
+  const step = run.steps[run.currentStepIndex]
+  return step?.displayName ?? step?.role ?? `步骤 ${run.currentStepIndex + 1}`
+}
+
+function lastExecutionError(run: WorkflowRun): string | undefined {
+  const step = run.steps[run.currentStepIndex]
+  if (!step) return undefined
+  for (let i = step.executions.length - 1; i >= 0; i--) {
+    const exec = step.executions[i]
+    if (exec.status === 'error' && exec.error) return exec.error
+  }
+  return undefined
+}
+
+function truncate(text: string, max = 200): string {
+  return text.length > max ? `${text.slice(0, max)}…` : text
+}
+
 function notifyScheduleResult(schedule: WorkflowSchedule, run: WorkflowRun): void {
   if (run.status === 'error') {
     setScheduleBadge(true)
+    const reason = lastExecutionError(run) ?? '执行过程中断，请打开应用查看详情'
     showNotification(
       `定时任务失败：${schedule.name}`,
-      `${run.steps[run.currentStepIndex]?.displayName ?? 'Step'} 执行出错`
+      `步骤「${stepDisplayName(run)}」执行失败：${truncate(reason)}`
     )
     return
   }
@@ -117,22 +137,23 @@ function notifyScheduleResult(schedule: WorkflowSchedule, run: WorkflowRun): voi
   if (run.status === 'completed') {
     showNotification(
       `定时任务完成：${schedule.name}`,
-      `${run.steps.length} 步全部完成`
+      `共 ${run.steps.length} 步，已全部执行完成`
     )
   }
 }
 
 function notifyScheduleError(schedule: WorkflowSchedule, error: unknown): void {
   setScheduleBadge(true)
+  const reason = error instanceof Error ? error.message : String(error)
   showNotification(
     `定时任务失败：${schedule.name}`,
-    error instanceof Error ? error.message : String(error)
+    `无法启动任务：${truncate(reason)}`
   )
 }
 
 function showNotification(title: string, body: string): void {
   if (!Notification.isSupported()) return
-  new Notification({ title, body }).show()
+  new Notification({ title, body, icon: appIconPath }).show()
 }
 
 app.commandLine.appendSwitch('remote-debugging-port', '9223')

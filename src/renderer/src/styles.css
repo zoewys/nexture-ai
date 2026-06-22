@@ -9340,9 +9340,9 @@ select:focus,
 }
 
 .vendor-tab.active {
-  background: rgba(108, 140, 255, 0.14);
-  border-color: rgba(108, 140, 255, 0.58);
-  color: #fff;
+  background: rgba(61, 142, 134, 0.1);
+  border-color: rgba(61, 142, 134, 0.34);
+  color: var(--brand-primary);
 }
 
 /* ── Permission Request ──────────────────────────────────────────────── */
