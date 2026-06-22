@@ -37,14 +37,16 @@ import { useCanvasState } from './useCanvasState'
 // ── Theme tokens ──────────────────────────────────────────────────────────────
 
 const colors = {
-  bg: '#edeae3',
-  bgPanel: 'rgba(255, 253, 248, 0.72)',
-  border: 'rgba(120, 140, 130, 0.18)',
-  accent: '#3d8e86',
-  text: '#1e2e28',
-  textMuted: '#5d746c',
-  textDim: '#8aa099',
-  hover: 'rgba(61, 142, 134, 0.06)'
+  bg: 'var(--neutral-canvas)',
+  bgPanel: 'var(--glass-bg)',
+  border: 'var(--glass-border)',
+  accent: 'var(--brand-primary)',
+  accentSoft: 'color-mix(in srgb, var(--brand-primary) 14%, transparent)',
+  accentBorder: 'color-mix(in srgb, var(--brand-primary) 35%, transparent)',
+  text: 'var(--neutral-text-primary)',
+  textMuted: 'var(--neutral-text-secondary)',
+  textDim: 'var(--neutral-text-muted)',
+  hover: 'color-mix(in srgb, var(--brand-primary) 8%, transparent)'
 }
 
 // ── Vendor helpers ────────────────────────────────────────────────────────────
@@ -733,14 +735,27 @@ function NodePropertyPanel({
     }
   }
 
+  const controlBackground = 'var(--workflow-canvas-control-bg, var(--neutral-surface-raised))'
+  const controlBorder = 'var(--workflow-canvas-control-border, var(--neutral-border))'
+  const controlText = 'var(--workflow-canvas-control-text, var(--neutral-text-primary))'
+  const ruleControlStyle: React.CSSProperties = {
+    display: 'flex',
+    alignItems: 'center',
+    gap: 8,
+    marginTop: 8,
+    padding: '6px 10px',
+    background: controlBackground,
+    border: `1px solid ${controlBorder}`,
+    borderRadius: 6
+  }
   const selectStyle: React.CSSProperties = {
     display: 'block',
     width: '100%',
     padding: '6px 10px',
     borderRadius: 6,
-    border: `1px solid ${colors.border}`,
-    background: colors.bg,
-    color: colors.text,
+    border: `1px solid ${controlBorder}`,
+    background: controlBackground,
+    color: controlText,
     fontSize: 12,
     fontFamily: 'inherit',
     appearance: 'auto' as const,
@@ -753,9 +768,9 @@ function NodePropertyPanel({
     width: 48,
     padding: '5px 8px',
     borderRadius: 5,
-    border: `1px solid ${colors.border}`,
-    background: colors.bg,
-    color: colors.text,
+    border: `1px solid ${controlBorder}`,
+    background: controlBackground,
+    color: controlText,
     fontSize: 12,
     fontFamily: 'inherit',
     textAlign: 'center',
@@ -806,6 +821,7 @@ function NodePropertyPanel({
       <label style={{ fontSize: 11, color: colors.textMuted }}>
         Agent
         <select
+          className="workflow-canvas-property-control"
           value={data.agentId}
           onChange={(e) => {
             const agent = agents.find((a) => a.id === e.target.value)
@@ -835,8 +851,8 @@ function NodePropertyPanel({
             width: '100%',
             padding: '7px 9px',
             borderRadius: 6,
-            border: `1px solid ${colors.border}`,
-            background: colors.bg,
+            border: `1px solid ${controlBorder}`,
+            background: controlBackground,
             color: colors.textMuted,
             fontSize: 11,
             cursor: 'pointer',
@@ -859,6 +875,7 @@ function NodePropertyPanel({
       <label style={{ fontSize: 11, color: colors.textMuted }}>
         Role
         <input
+          className="workflow-canvas-property-control"
           type="text"
           value={data.role}
           onChange={(e) => updateNodeData(node.id, { role: e.target.value })}
@@ -867,8 +884,8 @@ function NodePropertyPanel({
             width: '100%',
             marginTop: 4,
             padding: '6px 8px',
-            background: colors.bg,
-            border: `1px solid ${colors.border}`,
+            background: controlBackground,
+            border: `1px solid ${controlBorder}`,
             borderRadius: 6,
             color: colors.text,
             fontSize: 12,
@@ -885,6 +902,7 @@ function NodePropertyPanel({
           出错处理
         </div>
         <select
+          className="workflow-canvas-property-control"
           value={errorAction}
           onChange={(e) => setRuleForTrigger('error', e.target.value, e.target.value === 'retry' ? { maxRetries: 2 } : undefined)}
           style={selectStyle}
@@ -896,7 +914,7 @@ function NodePropertyPanel({
         </select>
 
         {errorAction === 'retry' && (
-          <div style={{ display: 'flex', alignItems: 'center', gap: 8, marginTop: 8, padding: '6px 10px', background: colors.bg, border: `1px solid ${colors.border}`, borderRadius: 6 }}>
+          <div className="workflow-canvas-rule-inline" style={ruleControlStyle}>
             <span style={{ fontSize: 11, color: colors.textDim }}>最多重试</span>
             <input
               type="number"
@@ -911,9 +929,10 @@ function NodePropertyPanel({
         )}
 
         {errorAction === 'goto' && (
-          <div style={{ display: 'flex', alignItems: 'center', gap: 8, marginTop: 8, padding: '6px 10px', background: colors.bg, border: `1px solid ${colors.border}`, borderRadius: 6 }}>
+          <div className="workflow-canvas-rule-inline" style={ruleControlStyle}>
             <span style={{ fontSize: 11, color: colors.textDim, whiteSpace: 'nowrap' }}>跳转到</span>
             <select
+              className="workflow-canvas-property-control"
               value={errorRule?.target ?? 0}
               onChange={(e) => setRuleForTrigger('error', 'goto', { target: Number(e.target.value) })}
               style={{ ...selectStyle, marginTop: 0, flex: 1 }}
@@ -941,6 +960,7 @@ function NodePropertyPanel({
           Handoff 解析失败
         </div>
         <select
+          className="workflow-canvas-property-control"
           value={handoffAction}
           onChange={(e) => setRuleForTrigger('handoff-failed', e.target.value, e.target.value === 'retry' ? { maxRetries: 1 } : undefined)}
           style={selectStyle}
@@ -951,7 +971,7 @@ function NodePropertyPanel({
         </select>
 
         {handoffAction === 'retry' && (
-          <div style={{ display: 'flex', alignItems: 'center', gap: 8, marginTop: 8, padding: '6px 10px', background: colors.bg, border: `1px solid ${colors.border}`, borderRadius: 6 }}>
+          <div className="workflow-canvas-rule-inline" style={ruleControlStyle}>
             <span style={{ fontSize: 11, color: colors.textDim }}>最多重试</span>
             <input
               type="number"
@@ -1022,6 +1042,7 @@ function NodePropertyPanel({
           失败策略
         </div>
         <select
+          className="workflow-canvas-property-control"
           value={failureStrategyType}
           onChange={(e) => setFailureStrategyType(e.target.value as FailureStrategy['type'])}
           style={selectStyle}
@@ -1032,7 +1053,7 @@ function NodePropertyPanel({
         </select>
 
         {failureStrategyType !== 'stop' && (
-          <div style={{ display: 'flex', alignItems: 'center', gap: 8, marginTop: 8, padding: '6px 10px', background: colors.bg, border: `1px solid ${colors.border}`, borderRadius: 6 }}>
+          <div className="workflow-canvas-rule-inline" style={ruleControlStyle}>
             <span style={{ fontSize: 11, color: colors.textDim }}>最大重试次数</span>
             <input
               type="number"
@@ -1046,9 +1067,10 @@ function NodePropertyPanel({
         )}
 
         {failureStrategyType === 'retry-then-goto' && (
-          <div style={{ display: 'flex', alignItems: 'center', gap: 8, marginTop: 8, padding: '6px 10px', background: colors.bg, border: `1px solid ${colors.border}`, borderRadius: 6 }}>
+          <div className="workflow-canvas-rule-inline" style={ruleControlStyle}>
             <span style={{ fontSize: 11, color: colors.textDim, whiteSpace: 'nowrap' }}>跳转目标</span>
             <select
+              className="workflow-canvas-property-control"
               value={failureStrategy.gotoTarget ?? Math.max(0, defaultGotoTarget)}
               onChange={(e) => updateFailureStrategyPatch({ gotoTarget: Number(e.target.value) })}
               style={{ ...selectStyle, marginTop: 0, flex: 1 }}
@@ -1083,8 +1105,8 @@ function NodePropertyPanel({
         style={{
           marginTop: 8,
           padding: '6px 12px',
-          background: colors.accent + '22',
-          border: `1px solid ${colors.accent}55`,
+          background: colors.accentSoft,
+          border: `1px solid ${colors.accentBorder}`,
           borderRadius: 6,
           color: colors.accent,
           fontSize: 11,
@@ -1121,7 +1143,7 @@ function AgentDetailPanel({
     )
   }
 
-  const meta = vendorMeta[agent.vendor] ?? { icon: Bot, color: colors.textMuted }
+  const meta = vendorMeta[agent.vendor] ?? { icon: Bot, color: '#7a9db0' }
   const selectedNodeData = selectedNode?.data as AgentNodeData | undefined
 
   return (
@@ -1186,7 +1208,7 @@ function AgentDetailPanel({
           padding: 10,
           borderRadius: 8,
           border: `1px solid ${colors.border}`,
-          background: colors.bg,
+          background: 'var(--workflow-canvas-control-bg, var(--neutral-surface-raised))',
           color: colors.textMuted,
           fontSize: 11,
           lineHeight: 1.55,
@@ -1205,8 +1227,8 @@ function AgentDetailPanel({
             width: '100%',
             padding: '8px 10px',
             borderRadius: 6,
-            border: `1px solid ${colors.accent}66`,
-            background: `${colors.accent}22`,
+            border: `1px solid ${colors.accentBorder}`,
+            background: colors.accentSoft,
             color: colors.text,
             fontSize: 12,
             fontWeight: 700,

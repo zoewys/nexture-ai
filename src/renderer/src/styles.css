@@ -10584,10 +10584,27 @@ select:focus,
   overflow: hidden !important;
   border-radius: 10px !important;
   color: var(--neutral-text-primary) !important;
+  --workflow-canvas-control-bg: rgba(255, 255, 255, 0.72);
+  --workflow-canvas-control-border: var(--neutral-border);
+  --workflow-canvas-control-text: var(--neutral-text-primary);
 }
 
 .workflow-canvas-inspector-head {
   border-bottom: 1px solid var(--glass-border) !important;
+}
+
+.workflow-canvas-property-control {
+  color-scheme: light !important;
+}
+
+.workflow-canvas-property-control:focus {
+  border-color: color-mix(in srgb, var(--brand-primary) 44%, transparent) !important;
+  box-shadow: var(--shadow-focus) !important;
+}
+
+.workflow-canvas-property-control option {
+  background: var(--neutral-surface-raised) !important;
+  color: var(--neutral-text-primary) !important;
 }
 
 .workflow-canvas-inspector-toggle {
@@ -10678,6 +10695,21 @@ select:focus,
   border-color: rgba(0, 212, 170, 0.12) !important;
   background: rgba(15, 25, 45, 0.6) !important;
   box-shadow: 0 2px 8px rgba(0, 0, 0, 0.3) !important;
+}
+
+[data-theme="dark"] .workflow-canvas-inspector {
+  --workflow-canvas-control-bg: rgba(10, 15, 26, 0.72);
+  --workflow-canvas-control-border: rgba(0, 212, 170, 0.18);
+  --workflow-canvas-control-text: var(--neutral-text-primary);
+}
+
+[data-theme="dark"] .workflow-canvas-property-control {
+  color-scheme: dark !important;
+}
+
+[data-theme="dark"] .workflow-canvas-property-control option {
+  background: #0a0f1a !important;
+  color: var(--neutral-text-primary) !important;
 }
 
 [data-theme="dark"] .workflow-agent-node {
