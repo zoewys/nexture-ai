@@ -384,6 +384,8 @@ export interface WorkflowTemplate {
   steps: WorkflowStepNode[]
   /** Optional per-run budget cap in USD applied to runs started from this template. */
   budgetUsd?: number
+  /** Epoch ms of creation; newest sorts first in the template list. */
+  createdAt?: number
 }
 
 export interface WorkflowSchedule {

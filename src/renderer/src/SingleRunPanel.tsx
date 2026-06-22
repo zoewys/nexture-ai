@@ -79,8 +79,6 @@ export function SingleRunPanel({
   const [selectedAgentId, setSelectedAgentId] = useState<string | null>(null)
   const [selectedProviderId, setSelectedProviderId] = useState('')
   const [apiMaxSteps, setApiMaxSteps] = useState('10')
-  const [apiTemperature, setApiTemperature] = useState('0.2')
-  const [apiTopP, setApiTopP] = useState('1')
   const [attachedFiles, setAttachedFiles] = useState<string[]>([])
   const [lastRouteSwitch, setLastRouteSwitch] = useState<string | null>(null)
   const [showAdvanced, setShowAdvanced] = useState(false)
@@ -106,8 +104,6 @@ export function SingleRunPanel({
     agentId: selectedAgent?.id,
     model: effectiveModel.trim() || undefined,
     apiProviderId: vendor === 'api' ? selectedProviderId || selectedProvider?.id : undefined,
-    apiTemperature: vendor === 'api' ? parseOptionalFloat(apiTemperature) : undefined,
-    apiTopP: vendor === 'api' ? parseOptionalFloat(apiTopP) : undefined,
     codexReasoningEffort: vendor === 'codex' ? codexReasoningEffort : undefined,
     codexServiceTier: vendor === 'codex' ? codexServiceTier : undefined,
     permissionMode: selectedAgent?.permissionMode
@@ -124,8 +120,6 @@ export function SingleRunPanel({
     setModel(selectedSession.route.model ?? '')
     setSelectedAgentId(selectedSession.route.agentId ?? null)
     setSelectedProviderId(selectedSession.route.apiProviderId ?? '')
-    setApiTemperature(selectedSession.route.apiTemperature !== undefined ? String(selectedSession.route.apiTemperature) : '0.2')
-    setApiTopP(selectedSession.route.apiTopP !== undefined ? String(selectedSession.route.apiTopP) : '1')
     setCodexReasoningEffort(selectedSession.route.codexReasoningEffort)
     setCodexServiceTier(selectedSession.route.codexServiceTier)
   }, [selectedSession?.id])
@@ -137,8 +131,6 @@ export function SingleRunPanel({
       setVendor(agent.vendor)
       setModel(agent.model ?? '')
       setSelectedProviderId(agent.apiProviderId ?? '')
-      setApiTemperature(agent.apiTemperature !== undefined ? String(agent.apiTemperature) : '0.2')
-      setApiTopP(agent.apiTopP !== undefined ? String(agent.apiTopP) : '1')
       setCodexReasoningEffort(agent.codexReasoningEffort)
       setCodexServiceTier(agent.codexServiceTier)
     }
@@ -231,8 +223,6 @@ export function SingleRunPanel({
         cwd: cwd.trim(),
         appendSystemPrompt: selectedAgent?.systemPrompt,
         apiMaxSteps: vendor === 'api' ? parseOptionalPositiveInt(apiMaxSteps) ?? 10 : undefined,
-        apiTemperature: vendor === 'api' ? parseOptionalFloat(apiTemperature) : undefined,
-        apiTopP: vendor === 'api' ? parseOptionalFloat(apiTopP) : undefined,
         attachments: attachedFiles.map((path) => ({
           path,
           kind: inferAttachmentKind(path),
@@ -260,9 +250,7 @@ export function SingleRunPanel({
   const showInlineCodexOptions = showAdvanced && vendor === 'codex'
   const advancedSummaryChips = vendor === 'api'
     ? [
-        `${parseOptionalPositiveInt(apiMaxSteps) ?? 10} steps`,
-        `T ${compactNumericLabel(apiTemperature, '0.2')}`,
-        `P ${compactNumericLabel(apiTopP, '1')}`
+        `${parseOptionalPositiveInt(apiMaxSteps) ?? 10} steps`
       ]
     : []
 
@@ -420,14 +408,6 @@ export function SingleRunPanel({
                   <span>Max steps</span>
                   <input type="number" min="1" max="50" value={apiMaxSteps} onChange={(e) => setApiMaxSteps(e.target.value)} />
                 </label>
-                <label className="field compact-field">
-                  <span>Temperature</span>
-                  <input type="number" min="0" max="2" step="0.1" value={apiTemperature} onChange={(e) => setApiTemperature(e.target.value)} />
-                </label>
-                <label className="field compact-field">
-                  <span>Top P</span>
-                  <input type="number" min="0" max="1" step="0.05" value={apiTopP} onChange={(e) => setApiTopP(e.target.value)} />
-                </label>
               </div>
             </div>
           ) : null}
@@ -484,8 +464,6 @@ function routesEqual(a: SessionRoute, b: SessionRoute): boolean {
     empty(a.model) === empty(b.model) &&
     empty(a.agentId) === empty(b.agentId) &&
     empty(a.apiProviderId) === empty(b.apiProviderId) &&
-    numberEmpty(a.apiTemperature) === numberEmpty(b.apiTemperature) &&
-    numberEmpty(a.apiTopP) === numberEmpty(b.apiTopP) &&
     empty(a.codexReasoningEffort) === empty(b.codexReasoningEffort) &&
     empty(a.codexServiceTier) === empty(b.codexServiceTier) &&
     empty(a.permissionMode) === empty(b.permissionMode)
@@ -498,20 +476,6 @@ function empty(value: string | undefined): string {
 
 function routeLabel(route: SessionRoute): string {
   return [route.vendor, route.model].filter(Boolean).join(' · ') || route.vendor
-}
-
-function numberEmpty(value: number | undefined): string {
-  return value === undefined ? '' : String(value)
-}
-
-function compactNumericLabel(value: string, fallback: string): string {
-  const clean = value.trim()
-  return clean.length > 0 ? clean : fallback
-}
-
-function parseOptionalFloat(value: string): number | undefined {
-  const parsed = Number.parseFloat(value.trim())
-  return Number.isFinite(parsed) ? parsed : undefined
 }
 
 function parseOptionalPositiveInt(value: string): number | undefined {

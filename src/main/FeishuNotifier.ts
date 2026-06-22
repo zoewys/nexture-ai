@@ -59,6 +59,7 @@ export class FeishuNotifier {
   private onCardAction: CardActionCallback = () => {}
   private notifiedKeys = new Set<string>()
   private messageIds = new Map<string, string>()
+  private latestCardByRun = new Map<string, string>()
 
   constructor(private readonly larkSdk: LarkSdkLike = lark as unknown as LarkSdkLike) {}
 
@@ -129,6 +130,9 @@ export class FeishuNotifier {
 
   async handleRunUpdate(run: WorkflowRun): Promise<void> {
     if (!this.config?.enabled || !this.client) return
+    if (run.status === 'running') {
+      this.resetTerminalNotifications(run.id)
+    }
     if (run.status === 'awaiting-confirm') {
       await this.notifyAwaitingConfirm(run)
     } else if (run.status === 'completed') {
@@ -145,17 +149,27 @@ export class FeishuNotifier {
     if (!step || !execution) return
 
     const dedupKey = `${run.id}:awaiting:${stepIndex}:${execution.id}`
-    await this.sendDedupedCard(dedupKey, this.buildAwaitingConfirmCard(run, step, execution, stepIndex))
+    const messageId = await this.sendDedupedCard(
+      dedupKey,
+      this.buildAwaitingConfirmCard(run, step, execution, stepIndex)
+    )
+    if (messageId) this.setLatestCard(run.id, messageId)
   }
 
   async notifyCompleted(run: WorkflowRun): Promise<void> {
     const dedupKey = `${run.id}:completed`
-    await this.sendDedupedCard(dedupKey, this.buildCompletedCard(run))
+    if (this.notifiedKeys.has(dedupKey)) return
+    this.notifiedKeys.add(dedupKey)
+    const messageId = await this.patchLatestOrSend(run.id, dedupKey, this.buildCompletedCard(run))
+    if (messageId) this.setLatestCard(run.id, messageId)
   }
 
   async notifyError(run: WorkflowRun): Promise<void> {
     const dedupKey = `${run.id}:error`
-    await this.sendDedupedCard(dedupKey, this.buildErrorCard(run))
+    if (this.notifiedKeys.has(dedupKey)) return
+    this.notifiedKeys.add(dedupKey)
+    const messageId = await this.patchLatestOrSend(run.id, dedupKey, this.buildErrorCard(run))
+    if (messageId) this.setLatestCard(run.id, messageId)
   }
 
   async sendTestNotification(): Promise<{ ok: boolean; error?: string }> {
@@ -188,26 +202,34 @@ export class FeishuNotifier {
     const value = parseActionValue(data)
     if (!value) return this.buildPostActionCard('approve', false, '无效的审批操作')
 
+    const messageId = extractMessageId(data)
+    // Pin the latest card for this run to the one the user just clicked, so a
+    // subsequent terminal notification (completed/error) patches THIS card
+    // in place rather than spawning a new message.
+    if (messageId) this.setLatestCard(value.runId, messageId)
+
+    // Optimistic ack first: the user gets immediate feedback, and the workflow's
+    // next state overwrites it via patchLatestOrSend (so "已批准" → "已完成").
+    if (messageId) {
+      await this.patchCard(messageId, this.buildPostActionCard(value.action, true))
+    }
+
     try {
       this.onCardAction(value.runId, value.action, value.stepIndex)
-      const card = this.buildPostActionCard(value.action, true)
-      const messageId = extractMessageId(data)
-      if (messageId) await this.patchCard(messageId, card)
-      return card
+      return this.buildPostActionCard(value.action, true)
     } catch (err) {
       const card = this.buildPostActionCard(
         value.action,
         false,
         err instanceof Error ? err.message : String(err)
       )
-      const messageId = extractMessageId(data)
       if (messageId) await this.patchCard(messageId, card)
       return card
     }
   }
 
-  private async sendDedupedCard(dedupKey: string, card: object): Promise<void> {
-    if (this.notifiedKeys.has(dedupKey)) return
+  private async sendDedupedCard(dedupKey: string, card: object): Promise<string | null> {
+    if (this.notifiedKeys.has(dedupKey)) return this.messageIds.get(dedupKey) ?? null
     this.notifiedKeys.add(dedupKey)
     while (this.notifiedKeys.size > 1000) {
       const first = this.notifiedKeys.values().next().value
@@ -215,7 +237,45 @@ export class FeishuNotifier {
       this.notifiedKeys.delete(first)
       this.messageIds.delete(first)
     }
-    await this.sendCard(dedupKey, card)
+    return this.sendCard(dedupKey, card)
+  }
+
+  /** A run that is executing again invalidates any prior terminal notification:
+   *  clear the completed/error dedup keys so the next completion/error actually
+   *  notifies. Also drop the pinned card so we don't patch a stale message. */
+  private resetTerminalNotifications(runId: string): void {
+    for (const key of [`${runId}:completed`, `${runId}:error`]) {
+      this.notifiedKeys.delete(key)
+      this.messageIds.delete(key)
+    }
+    this.latestCardByRun.delete(runId)
+  }
+
+  /** Patch the run's current card in place; fall back to sending a fresh card
+   *  if there is no pinned message or the patch fails. */
+  private async patchLatestOrSend(
+    runId: string,
+    dedupKey: string,
+    card: object
+  ): Promise<string | null> {
+    const existingMessageId = this.latestCardByRun.get(runId)
+    if (existingMessageId) {
+      const ok = await this.patchCard(existingMessageId, card)
+      if (ok) {
+        this.messageIds.set(dedupKey, existingMessageId)
+        return existingMessageId
+      }
+    }
+    return this.sendCard(dedupKey, card)
+  }
+
+  private setLatestCard(runId: string, messageId: string): void {
+    this.latestCardByRun.set(runId, messageId)
+    while (this.latestCardByRun.size > 200) {
+      const first = this.latestCardByRun.keys().next().value
+      if (!first) break
+      this.latestCardByRun.delete(first)
+    }
   }
 
   private async sendCard(dedupKey: string, card: object, throwOnError = false): Promise<string | null> {
@@ -259,8 +319,8 @@ export class FeishuNotifier {
     }
   }
 
-  private async patchCard(messageId: string, card: object): Promise<void> {
-    if (!this.client) return
+  private async patchCard(messageId: string, card: object): Promise<boolean> {
+    if (!this.client) return false
     try {
       const content = JSON.stringify(card)
       if (this.client.im?.v1?.message?.patch) {
@@ -270,9 +330,13 @@ export class FeishuNotifier {
         })
       } else if (this.client.im?.message?.patch) {
         await this.client.im.message.patch(messageId, { content: card })
+      } else {
+        return false
       }
+      return true
     } catch (err) {
       console.error('[FeishuNotifier] card patch failed:', err)
+      return false
     }
   }
 
@@ -309,12 +373,28 @@ export class FeishuNotifier {
   }
 
   private buildCompletedCard(run: WorkflowRun): object {
-    return this.buildBaseCard('green', 'Workflow 已完成', [
+    const elements: object[] = [
       infoLine('工作流', run.runName || run.templateName),
       infoLine('步骤数', String(run.steps.length)),
       infoLine('耗时', formatDuration(run.startedAt, run.finishedAt)),
       infoLine('费用', `$${run.totalCostUsd.toFixed(4)}`)
-    ])
+    ]
+
+    const lastStep = run.steps[run.steps.length - 1]
+    const handoff = latestExecution(lastStep)?.handoff
+    const artifacts = handoff ? formatArtifacts(handoff.artifacts ?? []) : ''
+    if (handoff && (handoff.summary || artifacts)) {
+      elements.push({ tag: 'hr' })
+      elements.push({ tag: 'div', text: markdown('**最终输出**') })
+      if (handoff.summary) {
+        elements.push({ tag: 'div', text: markdown(truncate(handoff.summary, 500)) })
+      }
+      if (artifacts) {
+        elements.push({ tag: 'div', text: markdown(artifacts) })
+      }
+    }
+
+    return this.buildBaseCard('green', 'Workflow 已完成', elements)
   }
 
   private buildErrorCard(run: WorkflowRun): object {

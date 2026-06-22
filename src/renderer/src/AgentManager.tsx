@@ -9,7 +9,7 @@
  * Agent 定义被 workflow 模板的步骤引用，也可在 SingleRunPanel 中手动选择使用。
  */
 
-import { useState } from 'react'
+import { useRef, useState } from 'react'
 import type {
   AgentDefinition,
   AgentVendor,
@@ -25,7 +25,7 @@ import { ModelSelect } from './ModelSelect'
 import { ReflectionSettingsPanel } from './ReflectionSettingsPanel'
 import { Select } from './Select'
 import { useProviders } from './useProviders'
-import { Plus, RotateCcw, Save, ShieldAlert, ShieldCheck, ShieldQuestion, Trash2 } from 'lucide-react'
+import { Plus, RotateCcw, Save, Trash2, Upload } from 'lucide-react'
 
 export interface AgentManagerProps {
   agents: AgentDefinition[]
@@ -40,17 +40,23 @@ function emptyDraft(): AgentDraft {
   return { name: '', role: '', vendor: 'claude' as AgentVendor, model: '', systemPrompt: '', permissionMode: 'bypassPermissions' as PermissionMode }
 }
 
-const permissionIcons: Record<PermissionMode, typeof ShieldQuestion> = {
-  default: ShieldQuestion,
-  acceptEdits: ShieldCheck,
-  bypassPermissions: ShieldAlert,
-  plan: ShieldQuestion
-}
-
 export function AgentManager({ agents, clis, modelCatalog, onSave, onDelete, onClose }: AgentManagerProps): JSX.Element {
   const [editingId, setEditingId] = useState<string | null>(null)
   const [draft, setDraft] = useState<AgentDraft>(emptyDraft)
+  const promptFileRef = useRef<HTMLInputElement>(null)
   const providerState = useProviders()
+
+  const importPromptFile = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0]
+    e.target.value = ''
+    if (!file) return
+    const reader = new FileReader()
+    reader.onload = () => {
+      const text = typeof reader.result === 'string' ? reader.result : ''
+      setDraft((d) => ({ ...d, systemPrompt: text }))
+    }
+    reader.readAsText(file)
+  }
 
   const isNew = editingId === null
   const cliAvailable = (v: AgentVendor) => (clis ? clis[v] : true)
@@ -233,32 +239,6 @@ export function AgentManager({ agents, clis, modelCatalog, onSave, onDelete, onC
                     </Select>
                   </label>
                 </div>
-                <div className="field-row">
-                  <label className="field field-grow">
-                    <span>Temperature</span>
-                    <input
-                      type="number"
-                      min="0"
-                      max="2"
-                      step="0.1"
-                      value={draft.apiTemperature ?? ''}
-                      placeholder="0.2"
-                      onChange={(e) => setDraft((d) => ({ ...d, apiTemperature: parseOptionalFloat(e.target.value) }))}
-                    />
-                  </label>
-                  <label className="field field-grow">
-                    <span>Top P</span>
-                    <input
-                      type="number"
-                      min="0"
-                      max="1"
-                      step="0.05"
-                      value={draft.apiTopP ?? ''}
-                      placeholder="1"
-                      onChange={(e) => setDraft((d) => ({ ...d, apiTopP: parseOptionalFloat(e.target.value) }))}
-                    />
-                  </label>
-                </div>
               </>
             )}
 
@@ -277,33 +257,56 @@ export function AgentManager({ agents, clis, modelCatalog, onSave, onDelete, onC
               />
             )}
 
-            <div className="field">
+            <label className="field">
               <span>权限模式</span>
-              <div className="permission-grid">
-                {PERMISSION_MODES.map((mode) => {
-                  const Icon = permissionIcons[mode]
-                  return (
-                    <button
-                      key={mode}
-                      type="button"
-                      className={`permission-card ${(draft.permissionMode ?? 'bypassPermissions') === mode ? 'active' : ''}`}
-                      onClick={() => setDraft((d) => ({ ...d, permissionMode: mode }))}
-                    >
-                      <Icon size={16} />
-                      <span className="permission-card-title">{permissionModeLabel(mode)}</span>
-                      <span className="permission-card-desc">{permissionModeDescription(mode)}</span>
-                    </button>
-                  )
-                })}
-              </div>
-            </div>
+              <Select
+                value={draft.permissionMode ?? 'bypassPermissions'}
+                onChange={(mode) => setDraft((d) => ({ ...d, permissionMode: mode as PermissionMode }))}
+              >
+                {PERMISSION_MODES.map((mode) => (
+                  <Select.Item key={mode} value={mode}>{permissionModeLabel(mode)}</Select.Item>
+                ))}
+              </Select>
+            </label>
 
             <label className="field field-grow">
-              <span>System Prompt</span>
+              <span style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: 8 }}>
+                System Prompt
+                <button
+                  type="button"
+                  className="agent-prompt-import-btn"
+                  onMouseDown={(e) => e.preventDefault()}
+                  onClick={() => promptFileRef.current?.click()}
+                  title="从 .md 文件导入到 System Prompt"
+                  style={{
+                    display: 'inline-flex',
+                    alignItems: 'center',
+                    gap: 4,
+                    padding: '3px 8px',
+                    fontSize: 11,
+                    fontWeight: 600,
+                    color: 'var(--neutral-text-secondary)',
+                    background: 'rgba(255,255,255,0.04)',
+                    border: '1px solid var(--neutral-border)',
+                    borderRadius: 6,
+                    cursor: 'pointer'
+                  }}
+                >
+                  <Upload size={12} />
+                  导入 .md
+                </button>
+              </span>
               <textarea
                 value={draft.systemPrompt}
                 placeholder="You are a senior product manager. Your job is to..."
                 onChange={(e) => setDraft((d) => ({ ...d, systemPrompt: e.target.value }))}
+              />
+              <input
+                ref={promptFileRef}
+                type="file"
+                accept=".md,.markdown,text/markdown,text/plain"
+                onChange={importPromptFile}
+                style={{ display: 'none' }}
               />
             </label>
 
@@ -323,11 +326,6 @@ export function AgentManager({ agents, clis, modelCatalog, onSave, onDelete, onC
   )
 }
 
-function parseOptionalFloat(value: string): number | undefined {
-  const parsed = Number.parseFloat(value.trim())
-  return Number.isFinite(parsed) ? parsed : undefined
-}
-
 function permissionModeLabel(mode: PermissionMode): string {
   switch (mode) {
     case 'default':
@@ -338,18 +336,5 @@ function permissionModeLabel(mode: PermissionMode): string {
       return 'Bypass Permissions'
     case 'plan':
       return 'Plan Mode'
-  }
-}
-
-function permissionModeDescription(mode: PermissionMode): string {
-  switch (mode) {
-    case 'default':
-      return '按 CLI 默认策略请求确认'
-    case 'acceptEdits':
-      return '自动接受编辑，命令仍询问'
-    case 'bypassPermissions':
-      return '自动执行，适合受信任务'
-    case 'plan':
-      return '仅规划，不写入文件'
   }
 }

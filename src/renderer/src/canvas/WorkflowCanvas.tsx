@@ -494,6 +494,7 @@ function CanvasInner({ agents, template, onMarkDirty, onStepsChange, onSave }: W
           </Panel>
 
           {/* ── MiniMap ───────────────────────────────────────────────────── */}
+          {/* 小窗预览，暂时隐藏
           <MiniMap
             className="workflow-canvas-minimap"
             position="bottom-right"
@@ -501,6 +502,7 @@ function CanvasInner({ agents, template, onMarkDirty, onStepsChange, onSave }: W
             nodeColor={() => colors.accent}
             maskColor="rgba(237, 234, 227, 0.72)"
           />
+          */}
 
           <Controls
             showInteractive={false}

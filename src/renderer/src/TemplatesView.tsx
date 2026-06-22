@@ -48,7 +48,11 @@ export function TemplatesView({
   )
 
   const sortedTemplates = useMemo(
-    () => [...templates].sort((a, b) => a.name.localeCompare(b.name)),
+    () =>
+      [...templates]
+        .map((t, i) => ({ t, i }))
+        .sort((a, b) => (b.t.createdAt ?? 0) - (a.t.createdAt ?? 0) || a.i - b.i)
+        .map((entry) => entry.t),
     [templates]
   )
 

@@ -26,12 +26,14 @@ export class WorkflowStore {
 
   saveTemplate(input: SaveTemplateInput): WorkflowTemplate {
     const list = this.listTemplates()
+    const existing = list.find((item) => item.id === input.id)
     const template: WorkflowTemplate = {
       id: input.id ?? randomUUID(),
       name: input.name,
       description: input.description,
       steps: input.steps,
-      budgetUsd: input.budgetUsd
+      budgetUsd: input.budgetUsd,
+      createdAt: existing?.createdAt ?? input.createdAt ?? Date.now()
     }
     const idx = list.findIndex((item) => item.id === template.id)
     if (idx >= 0) list[idx] = template

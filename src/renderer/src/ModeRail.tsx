@@ -27,8 +27,7 @@ const modes: { key: WorkspaceMode; label: string }[] = [
   { key: 'schedules', label: 'Schedules' },
   { key: 'templates', label: 'Templates' },
   { key: 'agents', label: 'Agents' },
-  { key: 'single', label: 'Single' },
-  { key: 'settings', label: 'Settings' }
+  { key: 'single', label: 'Single' }
 ]
 
 export function ModeRail({ mode, onModeChange }: ModeRailProps): JSX.Element {
@@ -46,6 +45,16 @@ export function ModeRail({ mode, onModeChange }: ModeRailProps): JSX.Element {
           {railIcon(item.key)}
         </button>
       ))}
+      <span className="mode-rail-spacer" />
+      <button
+        type="button"
+        className={`mode-rail-btn ${mode === 'settings' ? 'active' : ''}`}
+        onClick={() => onModeChange('settings')}
+        title="Settings"
+        aria-label="Settings"
+      >
+        {railIcon('settings')}
+      </button>
     </nav>
   )
 }
