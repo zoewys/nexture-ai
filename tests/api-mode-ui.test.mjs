@@ -73,7 +73,7 @@ test('single run panel supports runtime cascade, provider selection, and API run
   assert.match(panel, /handleProviderChange\(nextProviderId\)/)
   assert.match(panel, /selectedProviderId/)
   assert.match(panel, /providerState\.providers/)
-  assert.match(panel, /apiProviderId: vendor === 'api' \? selectedProviderId/)
+  assert.match(panel, /apiProviderId: vendor === 'api' \? effectiveProviderId/)
   assert.match(panel, /vendor === 'codex' \?/)
   assert.match(panel, /vendor === 'api'/)
   assert.match(panel, /single-session-toolbar-main/)
@@ -123,6 +123,19 @@ test('agent manager supports API vendor tabs and persists apiProviderId', () => 
   assert.match(manager, /apiTopP/)
   assert.match(manager, /Temperature/)
   assert.match(manager, /Top P/)
+})
+
+test('API provider selections normalize stale provider ids before save or run config', () => {
+  const manager = source('src/renderer/src/AgentManager.tsx')
+  const panel = source('src/renderer/src/SingleRunPanel.tsx')
+
+  assert.match(manager, /const effectiveApiProviderId = selectedProvider\?\.id/)
+  assert.match(manager, /apiProviderId: effectiveApiProviderId/)
+  assert.doesNotMatch(manager, /apiProviderId: vendor === 'api' \? d\.apiProviderId \|\| providerState\.providers\[0\]\?\.id/)
+
+  assert.match(panel, /const effectiveProviderId = selectedProvider\?\.id \?\? ''/)
+  assert.match(panel, /apiProviderId: vendor === 'api' \? effectiveProviderId/)
+  assert.doesNotMatch(panel, /apiProviderId: vendor === 'api' \? selectedProviderId \|\| selectedProvider\?\.id/)
 })
 
 test('transcript viewer renders permission request cards and responds through preload', () => {

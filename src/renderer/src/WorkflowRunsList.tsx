@@ -6,7 +6,7 @@
  */
 
 import { useMemo, useState } from 'react'
-import type { WorkflowRun, WorkflowRunStep, WorkflowStepExecution } from '@shared/types'
+import type { AgentDefinition, WorkflowRun, WorkflowRunStep, WorkflowStepExecution } from '@shared/types'
 import { Activity, Clock3, Plus, RefreshCw, Search, Trash2 } from 'lucide-react'
 import {
   workflowRunDisplayName,
@@ -21,6 +21,7 @@ type WorkflowRunUiMeta = WorkflowRun & {
 }
 
 interface WorkflowRunsListProps {
+  agents: AgentDefinition[]
   runs: WorkflowRun[]
   selectedRunId: string | null
   onSelectRun: (runId: string) => void
@@ -34,6 +35,7 @@ type SortMode = 'newest' | 'oldest' | 'name'
 type WorkflowRunCardModelTagStatus = 'done' | 'running' | 'waiting' | 'error'
 
 export function WorkflowRunsList({
+  agents,
   runs,
   selectedRunId,
   onSelectRun,
@@ -44,6 +46,10 @@ export function WorkflowRunsList({
   const [query, setQuery] = useState('')
   const [filter, setFilter] = useState<RunFilter>('all')
   const [sortMode, setSortMode] = useState<SortMode>('newest')
+  const agentById = useMemo(
+    () => new Map(agents.map((agent) => [agent.id, agent])),
+    [agents]
+  )
   const filteredRuns = useMemo(
     () => filterRuns(runs, query, filter, sortMode),
     [filter, query, runs, sortMode]
@@ -55,7 +61,6 @@ export function WorkflowRunsList({
       <div className="page-header workflow-runs-header">
         <div className="page-title-block">
           <h2 className="page-title">全部运行记录</h2>
-          <p>点击 workflow run 卡片进入详情。</p>
         </div>
         <div className="page-actions workflow-runs-actions">
           {onRefresh && (
@@ -122,6 +127,7 @@ export function WorkflowRunsList({
             run={run}
             selected={selectedRunId === run.id}
             index={index}
+            agentById={agentById}
             onSelectRun={onSelectRun}
             onDeleteRun={onDeleteRun}
           />
@@ -135,12 +141,14 @@ function WorkflowRunCard({
   run,
   selected,
   index,
+  agentById,
   onSelectRun,
   onDeleteRun
 }: {
   run: WorkflowRun
   selected: boolean
   index: number
+  agentById: ReadonlyMap<string, AgentDefinition>
   onSelectRun: (runId: string) => void
   onDeleteRun: (runId: string) => void
 }): JSX.Element {
@@ -148,7 +156,7 @@ function WorkflowRunCard({
   const status = runStatusUi(run.status)
   const progressSegments = workflowRunProgressSegments(run)
   const currentStepCount = visibleStepCount(run)
-  const modelTags = workflowRunModelTags(run)
+  const modelTags = workflowRunModelTags(run, agentById)
 
   return (
     <div
@@ -321,57 +329,30 @@ function workflowRunStepLabel(step: WorkflowRunStep, stepIndex: number): string 
   return step.displayName || step.role || step.agentId || `Step ${stepIndex + 1}`
 }
 
-function workflowRunModelTags(run: WorkflowRun): Array<{
+function workflowRunModelTags(
+  run: WorkflowRun,
+  agentById: ReadonlyMap<string, AgentDefinition>
+): Array<{
   label: string
   fullLabel: string
   status: WorkflowRunCardModelTagStatus
 }> {
-  return run.steps.flatMap((step, index) => {
-    const modelLabel = workflowRunStepModelLabel(step)
-    if (!modelLabel) return []
+  return run.steps.slice(0, 3).map((step) => {
+    const agent = agentById.get(step.agentId)
+    const modelLabel = step.model?.trim() || agent?.model?.trim()
+    if (!modelLabel) return null
+    const vendor = step.vendor ?? agent?.vendor
+    const fullLabel = vendor ? `${vendor} · ${modelLabel}` : modelLabel
     return {
-      label: workflowRunModelTagLabel(modelLabel),
-      fullLabel: `${workflowRunStepLabel(step, index)} · ${modelLabel}`,
+      label: modelLabel,
+      fullLabel,
       status: workflowRunModelTagStatus(step)
     }
-  }).slice(0, 3)
-}
-
-function workflowRunModelTagLabel(label: string): string {
-  return label.trim()
-}
-
-function workflowRunStepModelLabel(step: WorkflowRunStep): string {
-  for (let index = step.executions.length - 1; index >= 0; index -= 1) {
-    const label = workflowRunExecutionModelLabel(step.executions[index])
-    if (label) return label
-  }
-  return ''
-}
-
-function workflowRunExecutionModelLabel(execution: WorkflowStepExecution): string {
-  const direct = execution.model?.trim()
-  if (direct) return direct
-
-  const activeSegment = execution.conversation?.segments.find(
-    (segment) => segment.id === execution.conversation?.activeSegmentId
-  ) ?? execution.conversation?.segments.at(-1)
-  const routeModel = activeSegment?.route.model?.trim()
-  if (routeModel) return routeModel
-
-  for (let index = execution.events.length - 1; index >= 0; index -= 1) {
-    const event = execution.events[index]
-    if (event.kind !== 'system') continue
-    const model = parseApiCallModel(event.text)
-    if (model) return model
-  }
-
-  return ''
-}
-
-function parseApiCallModel(text: string): string {
-  const match = text.match(/\bAPI call:\s*.+?\/(.+?)(?:\s*·|$)/)
-  return match?.[1]?.trim() ?? ''
+  }).filter((tag): tag is {
+    label: string
+    fullLabel: string
+    status: WorkflowRunCardModelTagStatus
+  } => tag != null)
 }
 
 function workflowRunModelTagStatus(step: WorkflowRunStep): WorkflowRunCardModelTagStatus {

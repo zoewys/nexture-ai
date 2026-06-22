@@ -186,6 +186,7 @@ export function WorkflowWorkspace({
     <section className="workflow-workspace">
       {workflowView === 'runs' ? (
         <WorkflowRunsList
+          agents={agents}
           runs={workflows.runs}
           selectedRunId={workflows.selectedRunId}
           onSelectRun={selectRun}

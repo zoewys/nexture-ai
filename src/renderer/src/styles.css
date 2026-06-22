@@ -6009,6 +6009,83 @@ button.icon-only {
   color: var(--neutral-muted);
 }
 
+.agent-memory-panel {
+  border: 1px solid var(--neutral-border) !important;
+  border-radius: 10px !important;
+  background: rgba(255, 255, 255, 0.62) !important;
+  color: var(--neutral-text) !important;
+  box-shadow: none !important;
+  outline: none !important;
+  overflow: hidden !important;
+}
+
+.agent-memory-panel:focus,
+.agent-memory-panel:focus-visible {
+  outline: none !important;
+}
+
+.agent-memory-summary {
+  min-height: 48px !important;
+  padding: 0 16px !important;
+  color: var(--neutral-ink) !important;
+  background: transparent !important;
+  line-height: 1.3 !important;
+}
+
+.agent-memory-summary:focus-visible {
+  outline: 2px solid rgba(61, 142, 134, 0.45) !important;
+  outline-offset: -2px !important;
+}
+
+.agent-memory-summary::before {
+  color: var(--neutral-muted) !important;
+}
+
+.agent-memory-meta {
+  color: var(--neutral-muted) !important;
+}
+
+.agent-memory-tabs {
+  border-color: var(--neutral-border) !important;
+  background: rgba(255, 255, 255, 0.36) !important;
+}
+
+.agent-memory-tab {
+  color: var(--neutral-muted) !important;
+  border-color: var(--neutral-border) !important;
+  background: rgba(255, 255, 255, 0.54) !important;
+}
+
+.agent-memory-tab:hover,
+.agent-memory-tab-active {
+  color: var(--brand-primary) !important;
+  border-color: rgba(61, 142, 134, 0.34) !important;
+  background: rgba(61, 142, 134, 0.1) !important;
+}
+
+.agent-memory-list {
+  background: transparent !important;
+}
+
+.agent-memory-empty {
+  color: var(--neutral-muted) !important;
+}
+
+.agent-memory-item {
+  border-color: var(--neutral-border) !important;
+  background: rgba(255, 255, 255, 0.52) !important;
+}
+
+.agent-memory-item-head,
+.agent-memory-item-foot {
+  color: var(--neutral-muted) !important;
+}
+
+.agent-memory-item-head span:first-child,
+.agent-memory-item p {
+  color: var(--neutral-ink) !important;
+}
+
 .cli-card,
 .provider-card,
 .settings-toggle-row {
@@ -6078,10 +6155,18 @@ button.icon-only {
 [data-theme="dark"] .cli-card,
 [data-theme="dark"] .provider-card,
 [data-theme="dark"] .agent-memory-card,
+[data-theme="dark"] .agent-memory-panel,
 [data-theme="dark"] .reflection-settings-panel {
   background: var(--neutral-surface);
   color: var(--neutral-text);
   border-color: var(--neutral-border);
+}
+
+[data-theme="dark"] .agent-memory-tabs,
+[data-theme="dark"] .agent-memory-tab,
+[data-theme="dark"] .agent-memory-item {
+  background: rgba(12, 32, 30, 0.66) !important;
+  border-color: var(--neutral-border) !important;
 }
 
 [data-theme="dark"] .agent-editor input,
@@ -8221,13 +8306,24 @@ select:focus,
   width: 280px;
   display: flex;
   flex-direction: column;
+  align-items: stretch;
 }
 
 .agent-item {
+  display: flex !important;
+  flex: 0 0 auto !important;
+  flex-direction: column !important;
+  align-items: stretch !important;
+  justify-content: flex-start !important;
+  gap: 7px !important;
+  min-height: 78px !important;
+  margin: 0 !important;
+  overflow: hidden !important;
   border-radius: 0;
   border-width: 0 0 1px;
   box-shadow: none;
-  padding: 12px 14px;
+  padding: 14px 16px !important;
+  line-height: 1.3 !important;
 }
 
 .agent-item-title-row {
@@ -8235,6 +8331,27 @@ select:focus,
   align-items: center;
   justify-content: space-between;
   gap: 8px;
+  min-width: 0;
+  min-height: 24px !important;
+  line-height: 1.25 !important;
+  flex: 0 0 auto;
+}
+
+.agent-item-title-row .tag-green,
+.agent-item-title-row .tag-red {
+  flex: 0 0 auto;
+  line-height: 1.2;
+}
+
+.agent-item-name {
+  line-height: 1.3 !important;
+}
+
+.agent-item-meta {
+  display: block !important;
+  max-width: 100%;
+  line-height: 1.45 !important;
+  flex: 0 0 auto;
 }
 
 .agent-editor {
@@ -12371,7 +12488,7 @@ button:disabled,
   display: flex !important;
   flex-direction: column !important;
   overflow: hidden !important;
-  padding: 24px !important;
+  padding: 10px 24px !important;
 }
 
 .workflow-dashboard-page .workflow-runs-header,
@@ -12535,6 +12652,8 @@ button:disabled,
 
 .workflow-run-cards.cards-grid {
   align-items: start !important;
+  grid-auto-rows: 280px !important;
+  row-gap: 24px !important;
 }
 
 .schedule-cards.cards-grid {
@@ -12583,9 +12702,9 @@ button:disabled,
 }
 
 .workflow-run-card {
-  align-self: start !important;
-  min-height: 180px !important;
-  height: auto !important;
+  align-self: stretch !important;
+  min-height: 280px !important;
+  height: 280px !important;
 }
 
 @keyframes card-enter {
@@ -12910,11 +13029,13 @@ button:disabled,
   justify-content: flex-start !important;
   padding: 2px 8px !important;
   border: 1px solid var(--neutral-border-subtle) !important;
-  border-radius: 999px !important;
-  background: transparent !important;
+  border-radius: 6px !important;
+  background: var(--glass-bg) !important;
   color: var(--neutral-text-secondary) !important;
   font-family: "JetBrains Mono", monospace !important;
   font-size: 10px !important;
+  font-weight: 700 !important;
+  line-height: 1.35 !important;
   white-space: nowrap !important;
   overflow: hidden !important;
   text-overflow: ellipsis !important;

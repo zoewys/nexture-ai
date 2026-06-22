@@ -459,6 +459,9 @@ export interface WorkflowRunStep {
   agentId: string
   displayName?: string
   role?: string
+  vendor?: AgentVendor
+  model?: string
+  apiProviderId?: string
   status: StepStatus
   executions: WorkflowStepExecution[]
   parallelGroupId?: string

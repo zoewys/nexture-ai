@@ -503,9 +503,15 @@ function createRun({
     steps: template.steps.map((step, index) => {
       const stepStatus = stepStatuses[index] ?? 'pending'
       const stepAgentId = isParallelGroup(step) ? 'parallel-group' : step.agentId
+      const agent = isParallelGroup(step)
+        ? agents.find((item) => item.id === step.parallel[0]?.agentId)
+        : agents.find((item) => item.id === step.agentId)
       return {
         agentId: stepAgentId,
         displayName: stepDisplayNames[index],
+        vendor: agent?.vendor,
+        model: agent?.model?.trim() || undefined,
+        apiProviderId: agent?.apiProviderId,
         status: stepStatus,
         executions:
           stepStatus === 'pending'

@@ -62,6 +62,7 @@ export function AgentManager({ agents, clis, modelCatalog, onSave, onDelete, onC
   const cliAvailable = (v: AgentVendor) => (clis ? clis[v] : true)
   const modelInfo = modelCatalog?.[draft.vendor] ?? null
   const selectedProvider = providerState.providers.find((provider) => provider.id === draft.apiProviderId) ?? providerState.providers[0] ?? null
+  const effectiveApiProviderId = selectedProvider?.id
   const apiModels = selectedProvider?.models ?? []
 
   const setVendor = (vendor: AgentVendor): void => {
@@ -69,7 +70,7 @@ export function AgentManager({ agents, clis, modelCatalog, onSave, onDelete, onC
       ...d,
       vendor,
       model: '',
-      apiProviderId: vendor === 'api' ? d.apiProviderId || providerState.providers[0]?.id : undefined
+      apiProviderId: vendor === 'api' ? resolveApiProviderId(d.apiProviderId, providerState.providers) : undefined
     }))
   }
 
@@ -85,7 +86,10 @@ export function AgentManager({ agents, clis, modelCatalog, onSave, onDelete, onC
 
   const handleSave = () => {
     if (!draft.name.trim()) return
-    onSave(isNew ? draft : { ...draft, id: editingId! })
+    const nextDraft: AgentDraft = draft.vendor === 'api'
+      ? { ...draft, apiProviderId: effectiveApiProviderId }
+      : { ...draft, apiProviderId: undefined }
+    onSave(isNew ? nextDraft : { ...nextDraft, id: editingId! })
     setEditingId(null)
     setDraft(emptyDraft())
   }
@@ -212,7 +216,7 @@ export function AgentManager({ agents, clis, modelCatalog, onSave, onDelete, onC
                   <label className="field field-grow">
                     <span>API 供应商</span>
                     <Select
-                      value={selectedProvider?.id ?? ''}
+                      value={effectiveApiProviderId ?? ''}
                       onChange={(apiProviderId) => {
                         const provider = providerState.providers.find((item) => item.id === apiProviderId)
                         setDraft((d) => ({ ...d, apiProviderId, model: provider?.defaultModel ?? provider?.models[0] ?? '' }))
@@ -322,6 +326,18 @@ export function AgentManager({ agents, clis, modelCatalog, onSave, onDelete, onC
       </div>
     </div>
   )
+}
+
+function parseOptionalFloat(value: string): number | undefined {
+  const parsed = Number.parseFloat(value.trim())
+  return Number.isFinite(parsed) ? parsed : undefined
+}
+
+function resolveApiProviderId(
+  id: string | undefined,
+  providers: Array<{ id: string }>
+): string | undefined {
+  return providers.find((provider) => provider.id === id)?.id ?? providers[0]?.id
 }
 
 function permissionModeLabel(mode: PermissionMode): string {

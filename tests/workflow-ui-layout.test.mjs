@@ -20,6 +20,7 @@ const canvasState = readFileSync(join(root, 'src/renderer/src/canvas/useCanvasSt
 const agentNode = readFileSync(join(root, 'src/renderer/src/canvas/AgentNode.tsx'), 'utf8')
 const app = readFileSync(join(root, 'src/renderer/src/App.tsx'), 'utf8')
 const mainIndex = readFileSync(join(root, 'src/main/index.ts'), 'utf8')
+const workflowManager = readFileSync(join(root, 'src/main/WorkflowManager.ts'), 'utf8')
 const fixture = readFileSync(join(root, 'src/renderer/src/uiReviewFixture.ts'), 'utf8')
 const mockNav = readFileSync(join(root, 'src/renderer/src/UiReviewMockNav.tsx'), 'utf8')
 const sharedTypes = readFileSync(join(root, 'src/shared/types.ts'), 'utf8')
@@ -58,6 +59,8 @@ test('workflow workspace uses card page with run detail route', () => {
 })
 
 test('schedule workspace is a standalone card page with detail route', () => {
+  const cardPageBlock = css.match(/\.workflow-dashboard-page,\s*\n\.schedule-dashboard-page,\s*\n\.workflow-detail-page,\s*\n\.schedule-detail-page\s*\{([\s\S]*?)\n\}/)?.[1] ?? ''
+
   assert.match(scheduleWorkspace, /ScheduleList/)
   assert.match(scheduleWorkspace, /ScheduleDetail/)
   assert.match(scheduleWorkspace, /ScheduleDrawer/)
@@ -70,6 +73,7 @@ test('schedule workspace is a standalone card page with detail route', () => {
   assert.match(scheduleWorkspace, /onBack/)
   assert.match(css, /\.workflow-dashboard-page,\s*\n\.schedule-dashboard-page/)
   assert.match(css, /\.workflow-detail-page,\s*\n\.schedule-detail-page/)
+  assert.match(cardPageBlock, /padding:\s*10px 24px !important;/)
 })
 
 test('schedule cards stay compact and left aligned', () => {
@@ -94,6 +98,26 @@ test('schedule cards stay compact and left aligned', () => {
   assert.match(scheduleFooterBlock, /margin-top:\s*2px !important;/)
 })
 
+test('agent manager list items keep a stable two-line rhythm', () => {
+  const agentItemBlock = lastRootBlock('.agent-item')
+  const agentTitleRowBlock = lastRootBlock('.agent-item-title-row')
+  const agentNameBlock = lastRootBlock('.agent-item-name')
+  const agentMetaBlock = lastRootBlock('.agent-item-meta')
+
+  assert.match(agentItemBlock, /display:\s*flex !important;/)
+  assert.match(agentItemBlock, /flex-direction:\s*column !important;/)
+  assert.match(agentItemBlock, /flex:\s*0 0 auto !important;/)
+  assert.match(agentItemBlock, /min-height:\s*78px !important;/)
+  assert.match(agentItemBlock, /gap:\s*7px !important;/)
+  assert.match(agentItemBlock, /margin:\s*0 !important;/)
+  assert.match(agentItemBlock, /overflow:\s*hidden !important;/)
+  assert.match(agentTitleRowBlock, /min-height:\s*24px !important;/)
+  assert.match(agentTitleRowBlock, /line-height:\s*1\.25 !important;/)
+  assert.match(agentNameBlock, /line-height:\s*1\.3 !important;/)
+  assert.match(agentMetaBlock, /display:\s*block !important;/)
+  assert.match(agentMetaBlock, /line-height:\s*1\.45 !important;/)
+})
+
 test('runs list uses design cards without realtime tail or confirm button', () => {
   const cardAnimationBlock = css.match(/\.workflow-run-card,\s*\n\.schedule-card\s*\{([\s\S]*?)\n\}/)?.[1] ?? ''
 
@@ -106,18 +130,13 @@ test('runs list uses design cards without realtime tail or confirm button', () =
   assert.match(runsList, /workflowRunProgressSegments/)
   assert.match(runsList, /workflow-run-card-progress/)
   assert.match(runsList, /workflowRunCardTitle/)
-  assert.match(runsList, /workflowRunModelTags\(run\)/)
-  assert.match(runsList, /workflowRunStepModelLabel/)
-  assert.match(runsList, /workflowRunExecutionModelLabel/)
-  assert.match(runsList, /execution\.model/)
-  assert.match(runsList, /route\.model/)
-  assert.match(runsList, /parseApiCallModel/)
-  assert.match(sharedTypes, /vendor\?: AgentVendor/)
-  assert.match(sharedTypes, /model\?: string/)
-  assert.match(sharedTypes, /apiProviderId\?: string/)
-  assert.match(workflowManager, /vendor: agent\.vendor/)
-  assert.match(workflowManager, /model,/)
-  assert.match(workflowManager, /apiProviderId: agent\.apiProviderId/)
+  assert.doesNotMatch(runsList, /点击 workflow run 卡片进入详情。/)
+  assert.match(runsList, /workflowRunModelTags\(run, agentById\)/)
+  assert.match(workspace, /<WorkflowRunsList[\s\S]*agents=\{agents\}/)
+  assert.match(runsList, /agents: AgentDefinition\[\]/)
+  assert.match(runsList, /agentById\.get\(step\.agentId\)/)
+  assert.match(runsList, /step\.model\?\.trim\(\)/)
+  assert.doesNotMatch(runsList, /const fullLabel = workflowRunStepLabel\(step, index\)/)
   assert.match(runsList, /workflow-run-card-model-tags/)
   assert.match(runsList, /workflow-run-card-model-tag-/)
   assert.ok(runsList.includes("replace(/^\\s*\\[scheduled\\]\\s*/i, '')"))
@@ -169,20 +188,26 @@ test('runs list uses design cards without realtime tail or confirm button', () =
   assert.doesNotMatch(runsList, /确认详情|Confirm/)
 })
 
-test('run cards use horizontal scrolling for long step pill lists', () => {
+test('run cards use option B internal scrolling for long step pill lists', () => {
+  const workflowRunGridBlock = lastRootBlock('.workflow-run-cards.cards-grid')
+  const workflowRunCardBlock = lastRootBlock('.workflow-run-card')
   const stepPillsBlock = lastRootBlock('.workflow-run-card-step-pills')
   const stepPillBlock = lastRootBlock('.workflow-run-card-step-pill')
 
   assert.match(runsList, /run\.steps\.map/)
-  assert.match(runsList, /workflowRunModelTagLabel/)
+  assert.match(runsList, /const modelLabel = step\.model\?\.trim\(\) \|\| agent\?\.model\?\.trim\(\)/)
   assert.match(runsList, /\.slice\(0, 3\)/)
   assert.doesNotMatch(runsList, /MAX_WORKFLOW_RUN_CARD_STEP_PILLS/)
   assert.doesNotMatch(runsList, /visibleStepPillCount/)
   assert.doesNotMatch(runsList, /hiddenSteps/)
   assert.doesNotMatch(runsList, /workflow-run-card-step-pill-more/)
 
-  assert.match(css, /\.workflow-run-cards\.cards-grid\s*\{[\s\S]*align-items:\s*start !important;/)
-  assert.match(css, /\.workflow-run-card\s*\{[\s\S]*align-self:\s*start !important;[\s\S]*min-height:\s*180px !important;[\s\S]*height:\s*auto !important;/)
+  assert.match(workflowRunGridBlock, /align-items:\s*start !important;/)
+  assert.match(workflowRunGridBlock, /grid-auto-rows:\s*280px !important;/)
+  assert.match(workflowRunGridBlock, /row-gap:\s*24px !important;/)
+  assert.match(workflowRunCardBlock, /align-self:\s*stretch !important;/)
+  assert.match(workflowRunCardBlock, /min-height:\s*280px !important;/)
+  assert.match(workflowRunCardBlock, /height:\s*280px !important;/)
   assert.match(css, /\.workflow-run-card-top\s*\{[\s\S]*flex-shrink:\s*0 !important;[\s\S]*overflow:\s*visible !important;/)
   assert.match(css, /\.workflow-run-card-meta\s*\{[\s\S]*flex-shrink:\s*0 !important;/)
   assert.match(css, /\.workflow-run-card-steps\s*\{[\s\S]*min-width:\s*0 !important;[\s\S]*overflow:\s*hidden !important;/)
@@ -199,12 +224,25 @@ test('run cards use horizontal scrolling for long step pill lists', () => {
   assert.match(stepPillBlock, /width:\s*fit-content !important;/)
   assert.match(stepPillBlock, /max-width:\s*100% !important;/)
   assert.match(stepPillBlock, /padding:\s*2px 8px !important;/)
-  assert.match(stepPillBlock, /background:\s*transparent !important;/)
+  assert.match(stepPillBlock, /border-radius:\s*6px !important;/)
   assert.match(stepPillBlock, /font-size:\s*10px !important;/)
-  assert.match(css, /\.workflow-run-card-step-pill-done\s*\{[\s\S]*background:\s*transparent !important;/)
-  assert.match(css, /\[data-theme="dark"\] \.workflow-run-card-step-pill\s*\{[\s\S]*background:\s*transparent !important;/)
+  assert.match(stepPillBlock, /font-weight:\s*700 !important;/)
+  assert.match(stepPillBlock, /line-height:\s*1\.35 !important;/)
   assert.match(css, /\.workflow-run-card-footer\s*\{[\s\S]*overflow:\s*visible !important;/)
   assert.match(css, /\.workflow-run-card-footer\s*\{[\s\S]*flex-shrink:\s*0 !important;/)
+})
+
+test('workflow run cards persist and display agent model tags', () => {
+  assert.match(sharedTypes, /export interface WorkflowRunStep\s*\{[\s\S]*vendor\?: AgentVendor[\s\S]*model\?: string[\s\S]*apiProviderId\?: string/)
+  assert.match(workflowManager, /vendor: agent\?\.vendor/)
+  assert.match(workflowManager, /model: agent\?\.model\?\.trim\(\) \|\| undefined/)
+  assert.match(workflowManager, /apiProviderId: agent\?\.apiProviderId/)
+  assert.match(fixture, /vendor: agent\?\.vendor/)
+  assert.match(fixture, /model: agent\?\.model\?\.trim\(\) \|\| undefined/)
+  assert.match(runsList, /const modelLabel = step\.model\?\.trim\(\) \|\| agent\?\.model\?\.trim\(\)/)
+  assert.match(runsList, /agent\?\.model\?\.trim\(\)/)
+  assert.match(runsList, /return run\.steps[\s\S]*\.map\(\(step\) => \{/)
+  assert.doesNotMatch(runsList, /workflowRunModelTagLabel\(fullLabel\)/)
 })
 
 test('step navigation lives inside run detail with chip bar', () => {

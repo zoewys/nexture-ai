@@ -534,7 +534,10 @@ export class WorkflowManager {
     }
 
     const { prompt, injectedMemoryIds } = this.buildPrompt(run, stepIndex, agent)
-    const model = agent.model?.trim() || undefined
+    step.vendor = agent.vendor
+    step.model = agent.model?.trim() || undefined
+    step.apiProviderId = agent.apiProviderId
+    const model = step.model
     const execution: WorkflowStepExecution = {
       id: randomUUID(),
       stepIndex,
@@ -1120,6 +1123,9 @@ export class WorkflowManager {
             agentId: step.agentId,
             displayName: agent?.name,
             role: step.role,
+            vendor: agent?.vendor,
+            model: agent?.model?.trim() || undefined,
+            apiProviderId: agent?.apiProviderId,
             status: 'pending',
             executions: [],
             parallelGroupId: groupId,
@@ -1132,6 +1138,9 @@ export class WorkflowManager {
           agentId: node.agentId,
           displayName: agent?.name,
           role: node.role,
+          vendor: agent?.vendor,
+          model: agent?.model?.trim() || undefined,
+          apiProviderId: agent?.apiProviderId,
           status: 'pending',
           executions: []
         })

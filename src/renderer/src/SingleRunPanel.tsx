@@ -79,6 +79,8 @@ export function SingleRunPanel({
   const [selectedAgentId, setSelectedAgentId] = useState<string | null>(null)
   const [selectedProviderId, setSelectedProviderId] = useState('')
   const [apiMaxSteps, setApiMaxSteps] = useState('10')
+  const [apiTemperature, setApiTemperature] = useState('')
+  const [apiTopP, setApiTopP] = useState('')
   const [attachedFiles, setAttachedFiles] = useState<string[]>([])
   const [lastRouteSwitch, setLastRouteSwitch] = useState<string | null>(null)
   const [showAdvanced, setShowAdvanced] = useState(false)
@@ -96,6 +98,7 @@ export function SingleRunPanel({
   )
   const projectFolderName = folderDisplayName(cwd)
   const apiModels = selectedProvider?.models ?? []
+  const effectiveProviderId = selectedProvider?.id ?? ''
   const effectiveModel = vendor === 'api'
     ? (model || selectedProvider?.defaultModel || apiModels[0] || '')
     : model
@@ -103,7 +106,9 @@ export function SingleRunPanel({
     vendor,
     agentId: selectedAgent?.id,
     model: effectiveModel.trim() || undefined,
-    apiProviderId: vendor === 'api' ? selectedProviderId || selectedProvider?.id : undefined,
+    apiProviderId: vendor === 'api' ? effectiveProviderId : undefined,
+    apiTemperature: vendor === 'api' ? parseOptionalFloat(apiTemperature) : undefined,
+    apiTopP: vendor === 'api' ? parseOptionalFloat(apiTopP) : undefined,
     codexReasoningEffort: vendor === 'codex' ? codexReasoningEffort : undefined,
     codexServiceTier: vendor === 'codex' ? codexServiceTier : undefined,
     permissionMode: selectedAgent?.permissionMode
@@ -122,6 +127,8 @@ export function SingleRunPanel({
     setSelectedProviderId(selectedSession.route.apiProviderId ?? '')
     setCodexReasoningEffort(selectedSession.route.codexReasoningEffort)
     setCodexServiceTier(selectedSession.route.codexServiceTier)
+    setApiTemperature(selectedSession.route.apiTemperature != null ? String(selectedSession.route.apiTemperature) : '')
+    setApiTopP(selectedSession.route.apiTopP != null ? String(selectedSession.route.apiTopP) : '')
   }, [selectedSession?.id])
 
   const handleSelectAgent = (id: string) => {
@@ -133,6 +140,8 @@ export function SingleRunPanel({
       setSelectedProviderId(agent.apiProviderId ?? '')
       setCodexReasoningEffort(agent.codexReasoningEffort)
       setCodexServiceTier(agent.codexServiceTier)
+      setApiTemperature(agent.apiTemperature != null ? String(agent.apiTemperature) : '')
+      setApiTopP(agent.apiTopP != null ? String(agent.apiTopP) : '')
     }
   }
 
@@ -327,7 +336,7 @@ export function SingleRunPanel({
                 <div className="single-session-toolbar-input single-session-toolbar-input-wide">
                   <RuntimeModelCascade
                     vendor={vendor}
-                    apiProviderId={selectedProvider?.id ?? ''}
+                    apiProviderId={effectiveProviderId}
                     model={effectiveModel}
                     apiProviders={providerState.providers}
                     claudeCatalog={modelCatalog?.claude ?? null}
@@ -408,6 +417,14 @@ export function SingleRunPanel({
                   <span>Max steps</span>
                   <input type="number" min="1" max="50" value={apiMaxSteps} onChange={(e) => setApiMaxSteps(e.target.value)} />
                 </label>
+                <label className="field compact-field">
+                  <span>Temperature</span>
+                  <input type="number" min="0" max="2" step="0.1" value={apiTemperature} onChange={(e) => setApiTemperature(e.target.value)} placeholder="Default" />
+                </label>
+                <label className="field compact-field">
+                  <span>Top P</span>
+                  <input type="number" min="0" max="1" step="0.05" value={apiTopP} onChange={(e) => setApiTopP(e.target.value)} placeholder="Default" />
+                </label>
               </div>
             </div>
           ) : null}
@@ -481,6 +498,11 @@ function routeLabel(route: SessionRoute): string {
 function parseOptionalPositiveInt(value: string): number | undefined {
   const parsed = Number.parseInt(value.trim(), 10)
   return Number.isFinite(parsed) && parsed > 0 ? parsed : undefined
+}
+
+function parseOptionalFloat(value: string): number | undefined {
+  const parsed = Number.parseFloat(value.trim())
+  return Number.isFinite(parsed) ? parsed : undefined
 }
 
 function inferAttachmentKind(path: string): RunAttachment['kind'] {

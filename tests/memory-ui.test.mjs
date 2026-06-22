@@ -11,6 +11,12 @@ const hook = readFileSync(join(root, 'src/renderer/src/useAgentMemories.ts'), 'u
 const styles = readFileSync(join(root, 'src/renderer/src/styles.css'), 'utf8')
 const memoryStore = readFileSync(join(root, 'src/main/memory/MemoryStore.ts'), 'utf8')
 
+function lastRootBlock(selector) {
+  const pattern = new RegExp(`(?:^|\\n)${selector.replace(/[.*+?^${}()|[\]\\]/g, '\\$&')}\\s*\\{([^}]*)\\}`, 'g')
+  const matches = [...styles.matchAll(pattern)]
+  return matches.at(-1)?.[1] ?? ''
+}
+
 test('agent editor renders memory panel for the selected agent', () => {
   assert.match(agentManager, /import \{ AgentMemoryPanel \}/)
   assert.match(agentManager, /<AgentMemoryPanel agentId=\{editingId\} \/>/)
@@ -49,6 +55,26 @@ test('agent memory styles keep the panel compact inside the editor', () => {
   assert.match(styles, /\.agent-memory-tab-active/)
   assert.match(styles, /\.agent-memory-item/)
   assert.match(styles, /\.agent-memory-empty/)
+})
+
+test('agent memory panel matches the green light card treatment', () => {
+  const panelBlock = lastRootBlock('.agent-memory-panel')
+  const summaryBlock = lastRootBlock('.agent-memory-summary')
+  const metaBlock = lastRootBlock('.agent-memory-meta')
+  const tabsBlock = lastRootBlock('.agent-memory-tabs')
+  const emptyBlock = lastRootBlock('.agent-memory-empty')
+
+  assert.match(panelBlock, /background:\s*rgba\(255, 255, 255, 0\.62\) !important;/)
+  assert.match(panelBlock, /border:\s*1px solid var\(--neutral-border\) !important;/)
+  assert.match(panelBlock, /box-shadow:\s*none !important;/)
+  assert.match(panelBlock, /outline:\s*none !important;/)
+  assert.match(summaryBlock, /color:\s*var\(--neutral-ink\) !important;/)
+  assert.match(summaryBlock, /min-height:\s*48px !important;/)
+  assert.match(metaBlock, /color:\s*var\(--neutral-muted\) !important;/)
+  assert.match(tabsBlock, /background:\s*rgba\(255, 255, 255, 0\.36\) !important;/)
+  assert.match(emptyBlock, /color:\s*var\(--neutral-muted\) !important;/)
+  assert.match(styles, /\.agent-memory-panel:focus,\s*\n\.agent-memory-panel:focus-visible\s*\{[\s\S]*outline:\s*none !important;/)
+  assert.match(styles, /\.agent-memory-summary:focus-visible\s*\{[\s\S]*outline:\s*2px solid rgba\(61, 142, 134, 0\.45\) !important;/)
 })
 
 test('memory list without project path returns all memories for the agent', () => {
