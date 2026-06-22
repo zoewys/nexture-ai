@@ -7370,6 +7370,7 @@ select:focus,
 
 .workflow-run-status-awaiting-confirm,
 .workflow-run-status-awaiting-input,
+.workflow-run-card-status-awaiting-input,
 .workflow-run-card-status-awaiting-confirm {
   color: var(--semantic-warning);
   background: rgba(201, 149, 44, 0.08);
