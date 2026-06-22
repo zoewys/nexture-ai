@@ -1,6 +1,8 @@
-import { readFileSync, existsSync } from 'node:fs'
+import { randomUUID } from 'node:crypto'
+import { readFileSync, existsSync, mkdirSync, writeFileSync } from 'node:fs'
 import { request as httpRequest } from 'node:http'
 import { request as httpsRequest } from 'node:https'
+import { join } from 'node:path'
 import { app, ipcMain, dialog, type BrowserWindow } from 'electron'
 import { generateText } from 'ai'
 import {
@@ -33,7 +35,8 @@ import {
   type ApiCallLogEntry,
   type ApiCallLogStatus,
   type ExportOptions,
-  type ImportOptions
+  type ImportOptions,
+  type PastedImageInput
 } from '@shared/types'
 import { RunManager } from './RunManager'
 import { TranscriptStore } from './TranscriptStore'
@@ -109,6 +112,26 @@ function fetchJson(url: string, headers: Record<string, string>): Promise<string
 
 function toErrorMessage(err: unknown): string {
   return err instanceof Error ? err.message : String(err)
+}
+
+function pastedImageExtension(mediaType: string): string {
+  const normalized = mediaType.toLowerCase().split(';', 1)[0].trim()
+  switch (normalized) {
+    case 'image/jpeg':
+    case 'image/jpg':
+      return 'jpg'
+    case 'image/gif':
+      return 'gif'
+    case 'image/webp':
+      return 'webp'
+    case 'image/bmp':
+      return 'bmp'
+    case 'image/svg+xml':
+      return 'svg'
+    case 'image/png':
+    default:
+      return 'png'
+  }
 }
 
 export interface AppManagers {
@@ -541,6 +564,26 @@ export function registerIpc(
     })
     if (result.canceled || result.filePaths.length === 0) return null
     return result.filePaths
+  })
+
+  ipcMain.handle(IPC.savePastedImage, (_e, input: PastedImageInput): string => {
+    const mediaType = input.mediaType || 'image/png'
+    if (!mediaType.toLowerCase().startsWith('image/')) {
+      throw new Error(`Unsupported pasted image type: ${mediaType}`)
+    }
+    const buffer = Buffer.from(input.data)
+    if (buffer.length === 0) {
+      throw new Error('Pasted image is empty')
+    }
+    const attachmentsDir = join(app.getPath('userData'), 'pasted-attachments')
+    mkdirSync(attachmentsDir, { recursive: true })
+    const ext = pastedImageExtension(mediaType)
+    const filePath = join(
+      attachmentsDir,
+      `pasted-image-${Date.now()}-${randomUUID().slice(0, 8)}.${ext}`
+    )
+    writeFileSync(filePath, buffer)
+    return filePath
   })
 
   // ── File utilities ────────────────────────────────────────────────────

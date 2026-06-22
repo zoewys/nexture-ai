@@ -23,6 +23,9 @@ const app = source('src/renderer/src/App.tsx')
 const singlePanel = source('src/renderer/src/SingleRunPanel.tsx')
 const singleSidebar = source('src/renderer/src/SingleSessionSidebar.tsx')
 const singleHook = source('src/renderer/src/useSingleSessions.ts')
+const composerBar = source('src/renderer/src/ComposerBar.tsx')
+const pastedImages = source('src/renderer/src/pastedImages.ts')
+const workflowWorkspace = source('src/renderer/src/WorkflowWorkspace.tsx')
 const workflowManager = source('src/main/WorkflowManager.ts')
 const workflowDetail = source('src/renderer/src/WorkflowRunDetail.tsx')
 const styles = source('src/renderer/src/styles.css')
@@ -56,6 +59,24 @@ test('shared session contract exposes session types, workflow conversation, nati
   ]) {
     assert.match(shared, new RegExp(`${channel}: 'single:sessions:`))
   }
+})
+
+test('composer can save pasted clipboard images as attachments', () => {
+  assert.match(shared, /export interface PastedImageInput/)
+  assert.match(shared, /savePastedImage: 'clipboard:image:save'/)
+  assert.match(ipc, /ipcMain\.handle\(IPC\.savePastedImage/)
+  assert.match(ipc, /app\.getPath\('userData'\)[\s\S]*'pasted-attachments'/)
+  assert.match(ipc, /mediaType\.toLowerCase\(\)\.startsWith\('image\/'\)/)
+  assert.match(preload, /savePastedImage: \(input: PastedImageInput\): Promise<string>/)
+  assert.match(pastedImages, /file\.arrayBuffer\(\)/)
+  assert.match(pastedImages, /window\.api\.savePastedImage/)
+  assert.match(composerBar, /onPasteImages\?: \(files: File\[\]\) => Promise<void>/)
+  assert.match(composerBar, /event\.clipboardData\.items/)
+  assert.match(composerBar, /item\.type\.startsWith\('image\/'\)/)
+  assert.match(composerBar, /onPaste=\{handlePaste\}/)
+  assert.match(singlePanel, /onPasteImages=\{handlePasteImages\}/)
+  assert.match(workflowWorkspace, /onPasteImages=\{handlePasteImages\}/)
+  assert.match(workflowDetail, /onPasteImages: \(files: File\[\]\) => Promise<void>/)
 })
 
 test('single session store persists one active JSON file per session', () => {

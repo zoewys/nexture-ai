@@ -8,7 +8,7 @@
 
 import { useCallback, useEffect, useRef, useState } from 'react'
 import type { AgentDefinition, HandoffArtifactItem, WorkflowRun, WorkflowRunStep } from '@shared/types'
-import { AlertTriangle, ArrowRight, Check, CheckCircle, ChevronLeft, Code2, FileQuestion, MessageCircle, PanelRight, PenTool } from 'lucide-react'
+import { AlertTriangle, ArrowRight, Check, CheckCircle, ChevronLeft, ClipboardList, Code2, FileQuestion, MessageCircle, PanelRight, Pencil, PenTool } from 'lucide-react'
 import { TranscriptViewer } from './TranscriptViewer'
 import { MarkdownPreview } from './MarkdownPreview'
 import { MemoryReferences } from './MemoryReferences'
@@ -35,6 +35,7 @@ export interface WorkflowRunDetailProps {
   onAbort: () => Promise<void>
   onUpdatePrompt: (runId: string, newPrompt: string) => Promise<void>
   onPickFiles: () => Promise<void>
+  onPasteImages: (files: File[]) => Promise<void>
   onRemoveFile: (file: string) => void
   attachedFiles: string[]
   composerValue: string
@@ -77,6 +78,7 @@ export function WorkflowRunDetail({
   onComposerChange,
   onComposerSend,
   onPickFiles,
+  onPasteImages,
   onRemoveFile,
   attachedFiles = [],
   showMemoryReferences = false,
@@ -88,7 +90,7 @@ export function WorkflowRunDetail({
   const [editingPrompt, setEditingPrompt] = useState(false)
   const [promptDraft, setPromptDraft] = useState('')
   const [rightWidth, setRightWidth] = useState(400)
-  const [rightTab, setRightTab] = useState<'files' | 'output'>('files')
+  const [rightTab, setRightTab] = useState<'task' | 'files' | 'output'>('task')
   const resizing = useRef(false)
   const bodyRef = useRef<HTMLDivElement>(null)
 
@@ -230,7 +232,7 @@ export function WorkflowRunDetail({
                 )}
               </>
             )}
-            <button type="button" onClick={() => onRerun(selectedStepIndex)}>Rerun Step</button>
+            <button type="button" onClick={() => onRerun(selectedStepIndex)}>重新运行步骤</button>
             {(run.status === 'running' || run.status === 'awaiting-confirm' || run.status === 'awaiting-input') && (
               <button type="button" className="danger" onClick={onAbort}>Stop</button>
             )}
@@ -266,27 +268,6 @@ export function WorkflowRunDetail({
             </div>
           ) : null
         })()}
-
-        {/* prompt display */}
-        <div className="workflow-prompt-section">
-          {editingPrompt ? (
-            <div className="workflow-prompt-edit">
-              <textarea value={promptDraft} onChange={(e) => setPromptDraft(e.target.value)} rows={3} autoFocus />
-              <div className="workflow-prompt-edit-actions">
-                <button type="button" className="primary" onClick={() => {
-                  void onUpdatePrompt(run.id, promptDraft.trim()).then(() => setEditingPrompt(false))
-                }}>保存</button>
-                <button type="button" onClick={() => setEditingPrompt(false)}>取消</button>
-              </div>
-            </div>
-          ) : (
-            <div className="workflow-prompt-display" onClick={() => { setPromptDraft(run.initialPrompt); setEditingPrompt(true) }}>
-              <span className="workflow-prompt-label">任务描述</span>
-              <span className="workflow-prompt-text">{run.initialPrompt}</span>
-              <span className="workflow-prompt-edit-hint">点击编辑</span>
-            </div>
-          )}
-        </div>
 
         {gitSafetyMessage && <div className="workflow-run-warning">{gitSafetyMessage}</div>}
         {selectedExecution?.error && (
@@ -365,6 +346,7 @@ export function WorkflowRunDetail({
           placeholder={composerPlaceholder}
           attachedFiles={attachedFiles}
           onPickFiles={onPickFiles}
+          onPasteImages={onPasteImages}
           onRemoveFile={onRemoveFile}
         />
         {composerError && <div className="workflow-input-error">{composerError}</div>}
@@ -388,6 +370,17 @@ export function WorkflowRunDetail({
             activeTab={rightTab}
             onTabChange={setRightTab}
             onOpenFile={(path) => void openFile(path)}
+            editingPrompt={editingPrompt}
+            promptDraft={promptDraft}
+            onPromptDraftChange={setPromptDraft}
+            onStartPromptEdit={() => {
+              setPromptDraft(run.initialPrompt)
+              setEditingPrompt(true)
+            }}
+            onCancelPromptEdit={() => setEditingPrompt(false)}
+            onSavePrompt={() => {
+              void onUpdatePrompt(run.id, promptDraft.trim()).then(() => setEditingPrompt(false))
+            }}
           />
         )}
       </div>
@@ -525,16 +518,28 @@ function WorkflowSidePanel({
   handoff,
   activeTab,
   onTabChange,
-  onOpenFile
+  onOpenFile,
+  editingPrompt,
+  promptDraft,
+  onPromptDraftChange,
+  onStartPromptEdit,
+  onCancelPromptEdit,
+  onSavePrompt
 }: {
   run: WorkflowRun
   selectedStep: WorkflowRunStep | undefined
   selectedAgent: AgentDefinition | null
   selectedExecution: WorkflowRun['steps'][number]['executions'][number] | null
   handoff: NonNullable<WorkflowRun['steps'][number]['executions'][number]['handoff']> | null
-  activeTab: 'files' | 'output'
-  onTabChange: (tab: 'files' | 'output') => void
+  activeTab: 'task' | 'files' | 'output'
+  onTabChange: (tab: 'task' | 'files' | 'output') => void
   onOpenFile: (path: string) => void
+  editingPrompt: boolean
+  promptDraft: string
+  onPromptDraftChange: (value: string) => void
+  onStartPromptEdit: () => void
+  onCancelPromptEdit: () => void
+  onSavePrompt: () => void
 }): JSX.Element {
   const artifacts = handoff?.artifacts ?? []
   const outputLines = [
@@ -554,6 +559,14 @@ function WorkflowSidePanel({
         <div className="detail-tabs-inline">
           <button
             type="button"
+            className={`detail-tab ${activeTab === 'task' ? 'active' : ''}`}
+            onClick={() => onTabChange('task')}
+          >
+            <ClipboardList size={13} />
+            任务
+          </button>
+          <button
+            type="button"
             className={`detail-tab ${activeTab === 'files' ? 'active' : ''}`}
             onClick={() => onTabChange('files')}
           >
@@ -569,7 +582,38 @@ function WorkflowSidePanel({
         </div>
       </div>
       <div className="right-panel-body">
-        {activeTab === 'files' ? (
+        {activeTab === 'task' ? (
+          <div className="workflow-side-task">
+            <div className="workflow-side-task-heading">
+              <span className="workflow-prompt-label">任务描述</span>
+              {!editingPrompt && (
+                <button type="button" className="workflow-side-task-edit" onClick={onStartPromptEdit}>
+                  <Pencil size={12} />
+                  编辑
+                </button>
+              )}
+            </div>
+            {editingPrompt ? (
+              <div className="workflow-prompt-edit workflow-side-task-edit-form">
+                <textarea
+                  value={promptDraft}
+                  onChange={(e) => onPromptDraftChange(e.target.value)}
+                  rows={9}
+                  autoFocus
+                />
+                <div className="workflow-prompt-edit-actions">
+                  <button type="button" className="primary" onClick={onSavePrompt}>保存</button>
+                  <button type="button" onClick={onCancelPromptEdit}>取消</button>
+                </div>
+              </div>
+            ) : (
+              <button type="button" className="workflow-prompt-display workflow-side-task-display" onClick={onStartPromptEdit}>
+                <span className="workflow-prompt-text">{run.initialPrompt}</span>
+                <span className="workflow-prompt-edit-hint">点击编辑</span>
+              </button>
+            )}
+          </div>
+        ) : activeTab === 'files' ? (
           artifacts.length > 0 ? (
             <div className="workflow-side-files">
               {artifacts.map((artifact, index) => {

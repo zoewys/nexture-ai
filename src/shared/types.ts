@@ -141,6 +141,12 @@ export interface RunAttachment {
   name?: string
 }
 
+export interface PastedImageInput {
+  data: ArrayBuffer
+  mediaType: string
+  name?: string
+}
+
 export interface ApiConversationMessage {
   role: 'system' | 'user' | 'assistant' | 'tool'
   content: string | Array<Record<string, unknown>>
@@ -681,6 +687,8 @@ export const IPC = {
   pickDir: 'dialog:pickDir',
   /** renderer → main: open a native file picker, returns chosen file paths or null. */
   pickFiles: 'dialog:pickFiles',
+  /** renderer → main: save a pasted clipboard image as a local attachment file. */
+  savePastedImage: 'clipboard:image:save',
   /** renderer → main: export data to a zip file. */
   dataExport: 'data:export',
   /** renderer → main: export a single template to a zip file. */

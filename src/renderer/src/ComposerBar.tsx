@@ -5,6 +5,7 @@
  */
 
 import { ArrowUp, Code2, FileText, Image, Paperclip, Plus, X } from 'lucide-react'
+import type { ClipboardEvent } from 'react'
 
 interface ComposerBarProps {
   value: string
@@ -14,6 +15,7 @@ interface ComposerBarProps {
   placeholder: string
   attachedFiles: string[]
   onPickFiles: () => Promise<void>
+  onPasteImages?: (files: File[]) => Promise<void>
   onRemoveFile: (file: string) => void
   className?: string
 }
@@ -26,10 +28,21 @@ export function ComposerBar({
   placeholder,
   attachedFiles,
   onPickFiles,
+  onPasteImages,
   onRemoveFile,
   className
 }: ComposerBarProps): JSX.Element {
   const canSend = !disabled && (value.trim() !== '' || attachedFiles.length > 0)
+  const handlePaste = (event: ClipboardEvent<HTMLInputElement>): void => {
+    if (disabled || !onPasteImages) return
+    const imageFiles = Array.from(event.clipboardData.items)
+      .filter((item) => item.kind === 'file' && item.type.startsWith('image/'))
+      .map((item) => item.getAsFile())
+      .filter((file): file is File => file !== null)
+    if (imageFiles.length === 0) return
+    event.preventDefault()
+    void onPasteImages(imageFiles)
+  }
 
   return (
     <div className={`composer-bar ${className ?? ''}`}>
@@ -60,6 +73,7 @@ export function ComposerBar({
           disabled={disabled}
           placeholder={placeholder}
           onChange={(e) => onChange(e.target.value)}
+          onPaste={handlePaste}
           onKeyDown={(e) => { if (e.key === 'Enter') { e.preventDefault(); void onSend() } }}
         />
         <button

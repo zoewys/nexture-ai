@@ -18,6 +18,7 @@ import { NewWorkflowRunDrawer } from './NewWorkflowRunDrawer'
 import type { NewWorkflowRunDefaults } from './NewWorkflowRunDrawer'
 import { UiReviewMockNav } from './UiReviewMockNav'
 import { workflowNotificationForRun } from './workflowRunView'
+import { savePastedImageFiles } from './pastedImages'
 import {
   playWorkflowNotificationSound,
   prepareWorkflowNotificationSound,
@@ -57,7 +58,18 @@ export function WorkflowWorkspace({
   const handlePickFiles = async () => {
     const files = await window.api.pickFiles()
     if (files && files.length > 0) {
+      setWorkflowInputError(null)
       setAttachedFiles(prev => [...prev, ...files])
+    }
+  }
+
+  const handlePasteImages = async (files: File[]): Promise<void> => {
+    setWorkflowInputError(null)
+    try {
+      const paths = await savePastedImageFiles(files)
+      setAttachedFiles(prev => [...prev, ...paths])
+    } catch (err) {
+      setWorkflowInputError(err instanceof Error ? err.message : String(err))
     }
   }
 
@@ -210,6 +222,7 @@ export function WorkflowWorkspace({
             onComposerSend={sendWorkflowInput}
             onUpdatePrompt={workflows.updatePrompt}
             onPickFiles={handlePickFiles}
+            onPasteImages={handlePasteImages}
             onRemoveFile={handleRemoveFile}
             attachedFiles={attachedFiles}
             showMemoryReferences={showMemoryReferences}

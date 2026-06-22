@@ -26,6 +26,7 @@ import { TranscriptViewer } from './TranscriptViewer'
 import { MemoryReferences } from './MemoryReferences'
 import { ComposerBar } from './ComposerBar'
 import { SingleSessionSidebar } from './SingleSessionSidebar'
+import { savePastedImageFiles } from './pastedImages'
 import { readLastProjectPath, rememberProjectPath } from './projectPathMemory'
 import { Bot, ChevronDown, FolderOpen, MessageSquare, Settings2, Square } from 'lucide-react'
 import { useProviders } from './useProviders'
@@ -74,6 +75,7 @@ export function SingleRunPanel({
   const [codexReasoningEffort, setCodexReasoningEffort] = useState<RunConfig['codexReasoningEffort']>()
   const [codexServiceTier, setCodexServiceTier] = useState<string | undefined>()
   const [message, setMessage] = useState('')
+  const [composerError, setComposerError] = useState<string | null>(null)
   const [selectedAgentId, setSelectedAgentId] = useState<string | null>(null)
   const [selectedProviderId, setSelectedProviderId] = useState('')
   const [apiMaxSteps, setApiMaxSteps] = useState('10')
@@ -165,7 +167,20 @@ export function SingleRunPanel({
 
   const handlePickFiles = async () => {
     const files = await window.api.pickFiles()
-    if (files && files.length > 0) setAttachedFiles(prev => [...prev, ...files])
+    if (files && files.length > 0) {
+      setComposerError(null)
+      setAttachedFiles(prev => [...prev, ...files])
+    }
+  }
+
+  const handlePasteImages = async (files: File[]): Promise<void> => {
+    setComposerError(null)
+    try {
+      const paths = await savePastedImageFiles(files)
+      setAttachedFiles(prev => [...prev, ...paths])
+    } catch (err) {
+      setComposerError(err instanceof Error ? err.message : String(err))
+    }
   }
 
   const handleCreateSession = async (): Promise<SingleSession> => {
@@ -441,7 +456,10 @@ export function SingleRunPanel({
 
         <ComposerBar
           value={message}
-          onChange={setMessage}
+          onChange={(value) => {
+            setMessage(value)
+            setComposerError(null)
+          }}
           onSend={handleSend}
           disabled={!cwd.trim() || (vendor === 'api' && !selectedProvider)}
           placeholder={
@@ -451,8 +469,10 @@ export function SingleRunPanel({
           }
           attachedFiles={attachedFiles}
           onPickFiles={handlePickFiles}
+          onPasteImages={handlePasteImages}
           onRemoveFile={(f) => setAttachedFiles(prev => prev.filter(x => x !== f))}
         />
+        {composerError && <div className="workflow-input-error">{composerError}</div>}
       </main>
     </>
   )

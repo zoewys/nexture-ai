@@ -30,7 +30,8 @@ import {
   type FeishuConnectionStatus,
   type ExportOptions,
   type ImportPreview,
-  type ImportOptions
+  type ImportOptions,
+  type PastedImageInput
 } from '@shared/types'
 
 /**
@@ -152,6 +153,9 @@ const api = {
 
   pickFiles: (): Promise<string[] | null> =>
     ipcRenderer.invoke(IPC.pickFiles),
+
+  savePastedImage: (input: PastedImageInput): Promise<string> =>
+    ipcRenderer.invoke(IPC.savePastedImage, input),
 
   pushWorkflowInput: (runId: string, stepIndex: number, text: string) =>
     ipcRenderer.invoke(IPC.workflowPush, runId, stepIndex, text),
