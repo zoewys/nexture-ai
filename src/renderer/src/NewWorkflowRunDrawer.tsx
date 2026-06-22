@@ -96,7 +96,6 @@ export function NewWorkflowRunDrawer({
   const canStart =
     !!selectedTemplate &&
     projectPath.trim() !== '' &&
-    initialPrompt.trim() !== '' &&
     (safety?.level !== 'requires-confirmation' || allowUnsafeSameGitRoot) &&
     (runningRunCount < 5 || allowHighConcurrency)
 

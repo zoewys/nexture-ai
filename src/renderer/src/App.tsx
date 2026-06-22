@@ -184,6 +184,9 @@ export function App(): JSX.Element {
             <TemplatesView
               agents={agents}
               templates={workflows.templates}
+              clis={clis}
+              modelCatalog={modelCatalog}
+              onSaveAgent={saveAgent}
               onSave={workflows.save}
               onDelete={workflows.remove}
             />
