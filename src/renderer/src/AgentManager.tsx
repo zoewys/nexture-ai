@@ -241,6 +241,32 @@ export function AgentManager({ agents, clis, modelCatalog, onSave, onDelete, onC
                     </Select>
                   </label>
                 </div>
+                <div className="field-row">
+                  <label className="field field-grow">
+                    <span>Temperature</span>
+                    <input
+                      type="number"
+                      min="0"
+                      max="2"
+                      step="0.1"
+                      value={draft.apiTemperature ?? ''}
+                      onChange={(e) => setDraft((d) => ({ ...d, apiTemperature: parseOptionalFloat(e.target.value) }))}
+                      placeholder="Default"
+                    />
+                  </label>
+                  <label className="field field-grow">
+                    <span>Top P</span>
+                    <input
+                      type="number"
+                      min="0"
+                      max="1"
+                      step="0.05"
+                      value={draft.apiTopP ?? ''}
+                      onChange={(e) => setDraft((d) => ({ ...d, apiTopP: parseOptionalFloat(e.target.value) }))}
+                      placeholder="Default"
+                    />
+                  </label>
+                </div>
               </>
             )}
 
@@ -273,7 +299,7 @@ export function AgentManager({ agents, clis, modelCatalog, onSave, onDelete, onC
 
             <label className="field field-grow">
               <span style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: 8 }}>
-                System Prompt
+                <span>System Prompt</span>
                 <button
                   type="button"
                   className="agent-prompt-import-btn"

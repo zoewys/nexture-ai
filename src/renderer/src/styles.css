@@ -14337,3 +14337,123 @@ button:disabled,
   border-color: rgba(0, 212, 170, 0.12) !important;
   background: rgba(10, 15, 26, 0.38) !important;
 }
+
+/* ── Single chat skill slash menu ─────────────────────────────────────── */
+
+.composer-bar {
+  position: relative;
+}
+
+.composer-skill-chips {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+}
+
+.composer-chip-icon.skill {
+  background: rgba(61, 142, 134, 0.12);
+  color: var(--brand-primary, var(--accent));
+}
+
+.composer-skill-chip {
+  border-color: rgba(61, 142, 134, 0.2);
+}
+
+.composer-skill-menu {
+  position: absolute;
+  left: 14px;
+  right: 14px;
+  bottom: calc(100% - 8px);
+  z-index: 40;
+  max-height: 278px;
+  overflow-y: auto;
+  overscroll-behavior: contain;
+  border: 1px solid var(--neutral-border, var(--border));
+  border-radius: 8px;
+  background: rgba(255, 255, 255, 0.96);
+  box-shadow: 0 18px 44px rgba(32, 38, 50, 0.18);
+  backdrop-filter: blur(18px);
+}
+
+.composer-skill-menu-header {
+  display: flex;
+  align-items: center;
+  gap: 7px;
+  height: 34px;
+  padding: 0 11px;
+  border-bottom: 1px solid var(--neutral-border, var(--border));
+  color: var(--neutral-muted, var(--text-dim));
+  font-size: 11px;
+  font-weight: 750;
+  text-transform: uppercase;
+  position: sticky;
+  top: 0;
+  z-index: 1;
+  background: rgba(255, 255, 255, 0.96);
+}
+
+.composer-skill-option {
+  width: 100%;
+  min-height: 48px;
+  display: grid;
+  grid-template-columns: 18px minmax(0, 1fr) auto;
+  align-items: center;
+  gap: 9px;
+  border: 0;
+  border-radius: 0;
+  padding: 8px 11px;
+  background: transparent;
+  color: var(--neutral-text, var(--text));
+  text-align: left;
+  cursor: pointer;
+}
+
+.composer-skill-option:hover,
+.composer-skill-option.active {
+  background: rgba(61, 142, 134, 0.08);
+  color: var(--brand-primary, var(--accent));
+}
+
+.composer-skill-option-main {
+  min-width: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+}
+
+.composer-skill-option-main strong {
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  font-size: 12px;
+  font-weight: 750;
+  color: inherit;
+}
+
+.composer-skill-option-main span {
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  color: var(--neutral-muted, var(--text-dim));
+  font-size: 11px;
+}
+
+.composer-skill-source {
+  max-width: 116px;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  color: var(--neutral-muted, var(--text-dim));
+  font-size: 10px;
+  font-weight: 650;
+}
+
+[data-theme="dark"] .composer-skill-menu {
+  border-color: rgba(0, 212, 170, 0.12);
+  background: rgba(12, 22, 30, 0.94);
+  box-shadow: 0 18px 44px rgba(0, 0, 0, 0.42);
+}
+
+[data-theme="dark"] .composer-skill-menu-header {
+  background: rgba(12, 22, 30, 0.94);
+}

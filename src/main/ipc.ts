@@ -15,6 +15,7 @@ import {
   type SingleSessionDetail,
   type SingleSessionEventEnvelope,
   type SingleSessionSendInput,
+  type SkillSummary,
   type CliCheckResult,
   type CliVersionResult,
   type AgentDefinition,
@@ -45,6 +46,7 @@ import { WorkflowStore } from './WorkflowStore'
 import { WorkflowManager } from './WorkflowManager'
 import { SingleSessionStore } from './SingleSessionStore'
 import { SingleSessionManager } from './SingleSessionManager'
+import { SkillStore } from './SkillStore'
 import { ScheduleStore, type ScheduleSaveInput } from './ScheduleStore'
 import { Scheduler } from './Scheduler'
 import { describeCron, isValidCron, nextFireTime } from './cronParser'
@@ -155,6 +157,7 @@ export function registerIpc(
   const agentStore = new AgentStore()
   const workflowStore = new WorkflowStore()
   const singleSessionStore = new SingleSessionStore()
+  const skillStore = new SkillStore()
   const scheduleStore = new ScheduleStore()
   const appSettingsStore = new AppSettingsStore()
   const providerStore = new ProviderStore()
@@ -285,6 +288,7 @@ export function registerIpc(
     singleSessionStore,
     runManager,
     transcriptStore,
+    skillStore,
     memoryInjector,
     emitSingleSession
   )
@@ -372,6 +376,8 @@ export function registerIpc(
   ipcMain.handle(IPC.singleSessionDelete, (_e, id: string): void => {
     singleSessionManager.deleteSession(id)
   })
+
+  ipcMain.handle(IPC.skillsList, (): SkillSummary[] => skillStore.list())
 
   ipcMain.handle(IPC.checkClis, (): Promise<CliCheckResult> => checkClis())
 

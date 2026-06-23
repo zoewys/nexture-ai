@@ -10,6 +10,7 @@ const source = (relativePath) => readFileSync(join(root, relativePath), 'utf8')
 const shared = source('src/shared/types.ts')
 const singleStore = source('src/main/SingleSessionStore.ts')
 const singleManager = source('src/main/SingleSessionManager.ts')
+const skillStore = source('src/main/SkillStore.ts')
 const transcriptStore = source('src/main/TranscriptStore.ts')
 const runManager = source('src/main/RunManager.ts')
 const factory = source('src/main/adapters/factory.ts')
@@ -40,13 +41,16 @@ test('shared session contract exposes session types, workflow conversation, nati
     'ConversationState',
     'SingleSession',
     'SingleSessionDetail',
-    'SingleSessionEventEnvelope'
+    'SingleSessionEventEnvelope',
+    'SkillSummary',
+    'SkillDefinition'
   ]) {
     assert.match(shared, new RegExp(`(?:type|interface) ${name}\\b`))
   }
   assert.match(shared, /nativeResume: boolean/)
   assert.match(shared, /conversation\?: ConversationState/)
   assert.match(shared, /cwd: string[\s\S]*route: SessionRoute/)
+  assert.match(shared, /skillIds\?: string\[\]/)
   assert.match(shared, /Working directory used when this segment was launched/)
   for (const channel of [
     'singleSessionsList',
@@ -59,6 +63,21 @@ test('shared session contract exposes session types, workflow conversation, nati
   ]) {
     assert.match(shared, new RegExp(`${channel}: 'single:sessions:`))
   }
+  assert.match(shared, /skillsList: 'skills:list'/)
+})
+
+test('skill store discovers local SKILL.md files and builds prompt context', () => {
+  assert.equal(existsSync(join(root, 'src/main/SkillStore.ts')), true)
+  assert.match(skillStore, /export class SkillStore/)
+  assert.match(skillStore, /CODEX_HOME/)
+  assert.match(skillStore, /\.codex'[\s\S]*'skills'/)
+  assert.match(skillStore, /\.agents'[\s\S]*'skills'/)
+  assert.match(skillStore, /plugins'[\s\S]*'cache'/)
+  assert.match(skillStore, /parseFrontmatter/)
+  assert.match(skillStore, /description/)
+  assert.match(skillStore, /pluginSourceLabel/)
+  assert.match(skillStore, /buildPrompt\(skillIds: string\[\] \| undefined\)/)
+  assert.match(skillStore, /selected_skills/)
 })
 
 test('composer can save pasted clipboard images as attachments', () => {
@@ -143,7 +162,11 @@ test('single session manager implements continuation decisions and emits session
   assert.match(singleManager, /liveCapabilities\?\.bidirectionalStdin/)
   assert.match(singleManager, /const sameContext = sameRoute && sameCwd/)
   assert.match(singleManager, /sameContext && liveRunId && liveCapabilities\?\.bidirectionalStdin/)
-  assert.match(singleManager, /this\.runManager\.push\(liveRunId, clean\)/)
+  assert.match(singleManager, /this\.skillStore\.buildPrompt\(input\.skillIds\)/)
+  assert.match(singleManager, /this\.runManager\.push\(liveRunId, prependSkillPrompt\(clean, skillContext\.text\)\)/)
+  assert.match(singleManager, /appendSystemPrompt\(config\.appendSystemPrompt, skillContext\.text\)/)
+  assert.match(singleManager, /text: `Using skill: \$\{skillContext\.skills\.map/)
+  assert.match(singleManager, /skillIds: skillContext\.skills\.length > 0/)
   assert.match(singleManager, /cwdEqual\(activeSegment\.cwd \?\? session\.cwd, targetCwd\)/)
   assert.match(singleManager, /项目目录已切换/)
   assert.match(singleManager, /cwd: input\.cwd\.trim\(\)/)
@@ -164,6 +187,7 @@ test('single session manager implements continuation decisions and emits session
 
 test('ipc and preload expose single session CRUD, send, abort, and event APIs', () => {
   assert.match(ipc, /new SingleSessionStore\(\)/)
+  assert.match(ipc, /new SkillStore\(\)/)
   assert.match(ipc, /new SingleSessionManager\(/)
   for (const channel of [
     'singleSessionsList',
@@ -176,6 +200,7 @@ test('ipc and preload expose single session CRUD, send, abort, and event APIs', 
     assert.match(ipc, new RegExp(`ipcMain\\.handle\\(IPC\\.${channel}`))
   }
   assert.match(ipc, /win\.webContents\.send\(IPC\.singleSessionEvent, envelope\)/)
+  assert.match(ipc, /ipcMain\.handle\(IPC\.skillsList/)
   for (const method of [
     'listSingleSessions',
     'createSingleSession',
@@ -183,6 +208,7 @@ test('ipc and preload expose single session CRUD, send, abort, and event APIs', 
     'sendSingleSessionMessage',
     'abortSingleSession',
     'deleteSingleSession',
+    'listSkills',
     'onSingleSessionEvent'
   ]) {
     assert.match(preload, new RegExp(`${method}:`))
@@ -212,6 +238,24 @@ test('single renderer uses session hook, sidebar cards, route header, and route-
   assert.match(singlePanel, /当前话题不变，后续由新模型接手/)
   assert.match(singlePanel, /跨模型不会复用旧模型的原生 session/)
   assert.match(singlePanel, /window\.confirm/)
+  assert.match(singlePanel, /useSkills\(\)/)
+  assert.match(singlePanel, /parseSkillCommand\(message, skillState\.skills, selectedSkillIds\)/)
+  assert.match(singlePanel, /onlySelectedSkill/)
+  assert.match(singlePanel, /skillIds: parsedMessage\.skillIds/)
+  assert.match(composerBar, /composer-skill-menu/)
+  assert.match(composerBar, /ArrowDown/)
+  assert.match(composerBar, /ArrowUp/)
+  assert.match(composerBar, /event\.key === 'Tab' \|\| event\.key === 'Enter'/)
+  assert.match(composerBar, /selectedSkills\?: SkillSummary\[\]/)
+  assert.match(composerBar, /const description = skill\.description\.trim\(\)/)
+  assert.match(composerBar, /\{description \? <span>\{description\}<\/span> : null\}/)
+  assert.doesNotMatch(composerBar, /skill\.description \|\| skill\.sourceLabel/)
+  assert.doesNotMatch(composerBar, /\.slice\(0,\s*8\)/)
+  assert.match(styles, /\.composer-skill-menu/)
+  assert.match(styles, /\.composer-skill-menu\s*\{[\s\S]*overflow-y:\s*auto;/)
+  assert.match(styles, /\.composer-skill-menu-header\s*\{[\s\S]*position:\s*sticky;/)
+  assert.doesNotMatch(styles, /\.composer-skill-menu\s*\{[^}]*overflow:\s*hidden;/)
+  assert.match(styles, /\.composer-skill-chip/)
   assert.match(styles, /\.single-session-sidebar/)
   assert.match(styles, /\.single-session-card/)
   assert.match(styles, /\.single-session-card-delete/)

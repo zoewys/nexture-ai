@@ -9,6 +9,7 @@ import {
   type SingleSessionDetail,
   type SingleSessionEventEnvelope,
   type SingleSessionSendInput,
+  type SkillSummary,
   type CliCheckResult,
   type CliVersionResult,
   type AgentDefinition,
@@ -64,6 +65,9 @@ const api = {
 
   deleteSingleSession: (id: string): Promise<void> =>
     ipcRenderer.invoke(IPC.singleSessionDelete, id),
+
+  listSkills: (): Promise<SkillSummary[]> =>
+    ipcRenderer.invoke(IPC.skillsList),
 
   checkClis: (): Promise<CliCheckResult> => ipcRenderer.invoke(IPC.checkClis),
 

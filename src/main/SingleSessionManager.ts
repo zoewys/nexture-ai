@@ -15,6 +15,7 @@ import type {
 } from '@shared/types'
 import type { MemoryInjector } from './memory/MemoryInjector'
 import { RunManager } from './RunManager'
+import { SkillStore, type SkillPromptContext } from './SkillStore'
 import { SingleSessionStore } from './SingleSessionStore'
 import { TranscriptStore } from './TranscriptStore'
 
@@ -25,6 +26,7 @@ export class SingleSessionManager {
     private readonly store: SingleSessionStore,
     private readonly runManager: RunManager,
     private readonly transcripts: TranscriptStore,
+    private readonly skillStore: SkillStore,
     private readonly memoryInjector: MemoryInjector,
     private readonly emit: EmitSingleSessionEvent
   ) {}
@@ -54,14 +56,17 @@ export class SingleSessionManager {
     const sameContext = sameRoute && sameCwd
     const liveRunId = activeSegment?.runId
     const liveCapabilities = liveRunId ? this.runManager.getLiveRunCapabilities(liveRunId) : null
+    const skillContext = this.skillStore.buildPrompt(input.skillIds)
 
     this.recordVisibleUserInput(session, clean)
 
     if (sameContext && liveRunId && liveCapabilities?.bidirectionalStdin) {
+      this.recordSkillUsage(session, skillContext)
+      this.mergeSegmentSkills(activeSegment, skillContext)
       session.cwd = targetCwd
       this.persistAndEmit(session)
       this.transcripts.recordUserInput(liveRunId, clean)
-      void this.runManager.push(liveRunId, clean).catch((err) => {
+      void this.runManager.push(liveRunId, prependSkillPrompt(clean, skillContext.text)).catch((err) => {
         this.handleAgentEvent(session.id, activeSegment.id, liveRunId, {
           kind: 'error',
           recoverable: false,
@@ -73,7 +78,15 @@ export class SingleSessionManager {
 
     const strategy = this.chooseStrategy(session, activeSegment, input.route, sameContext)
     const previousCwd = session.cwd
-    const segment = this.createSegment(session, input.route, strategy, targetCwd, !cwdEqual(previousCwd, targetCwd))
+    const segment = this.createSegment(
+      session,
+      input.route,
+      strategy,
+      targetCwd,
+      !cwdEqual(previousCwd, targetCwd),
+      skillContext
+    )
+    this.recordSkillUsage(session, skillContext)
     const previousSessionIds = this.nativeSessionIdsBefore(session, segment.id)
     const replayMessages = strategy === 'logic-replay' && input.route.vendor === 'api'
       ? this.transcripts.buildReplayMessagesFromTimeline(previousSessionIds, clean)
@@ -81,7 +94,10 @@ export class SingleSessionManager {
     const prompt = strategy === 'logic-replay' && input.route.vendor !== 'api'
       ? this.transcripts.buildReplayPromptFromTimeline(previousSessionIds, clean)
       : clean
-    const config = this.buildRunConfig(session, input, prompt, strategy, activeSegment, replayMessages)
+    const config = this.withSkillContext(
+      this.buildRunConfig(session, input, prompt, strategy, activeSegment, replayMessages),
+      skillContext
+    )
     const { launchConfig, injectedMemoryIds } = this.withMemoryContext(config)
     if (injectedMemoryIds.length > 0) {
       session.injectedMemoryIds = mergeIds(session.injectedMemoryIds ?? [], injectedMemoryIds)
@@ -161,13 +177,15 @@ export class SingleSessionManager {
     route: SessionRoute,
     strategy: SessionContinuationStrategy,
     cwd: string,
-    cwdChanged: boolean
+    cwdChanged: boolean,
+    skillContext: SkillPromptContext
   ): SessionSegment {
     const segment: SessionSegment = {
       id: randomUUID(),
       scope: 'single',
       route,
       cwd,
+      skillIds: skillContext.skills.length > 0 ? skillContext.skills.map((skill) => skill.id) : undefined,
       continuationStrategy: strategy,
       startedAt: Date.now()
     }
@@ -237,6 +255,27 @@ export class SingleSessionManager {
       },
       injectedMemoryIds
     }
+  }
+
+  private withSkillContext(config: RunConfig, skillContext: SkillPromptContext): RunConfig {
+    if (!skillContext.text) return config
+    return {
+      ...config,
+      appendSystemPrompt: appendSystemPrompt(config.appendSystemPrompt, skillContext.text)
+    }
+  }
+
+  private recordSkillUsage(session: SingleSession, skillContext: SkillPromptContext): void {
+    if (skillContext.skills.length === 0) return
+    session.conversation.events.push({
+      kind: 'system',
+      text: `Using skill: ${skillContext.skills.map((skill) => skill.name).join(', ')}`
+    })
+  }
+
+  private mergeSegmentSkills(segment: SessionSegment | undefined, skillContext: SkillPromptContext): void {
+    if (!segment || skillContext.skills.length === 0) return
+    segment.skillIds = mergeIds(segment.skillIds ?? [], skillContext.skills.map((skill) => skill.id))
   }
 
   private handleAgentEvent(
@@ -356,6 +395,15 @@ function prependMemoryToMessages(
     return next
   }
   return [{ role: 'user', content: text }, ...next]
+}
+
+function appendSystemPrompt(base: string | undefined, addition: string): string {
+  return [base?.trim(), addition.trim()].filter(Boolean).join('\n\n')
+}
+
+function prependSkillPrompt(userText: string, skillText: string): string {
+  if (!skillText.trim()) return userText
+  return `${skillText.trim()}\n\n# User request\n${userText}`
 }
 
 function truncate(value: string, max: number): string {

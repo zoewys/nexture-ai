@@ -14,6 +14,7 @@ import type {
   RunConfig,
   RunAttachment,
   SessionRoute,
+  SkillSummary,
   SingleSession,
   SingleSessionCreateInput,
   SingleSessionDetail,
@@ -30,6 +31,7 @@ import { savePastedImageFiles } from './pastedImages'
 import { readLastProjectPath, rememberProjectPath } from './projectPathMemory'
 import { Bot, ChevronDown, FolderOpen, MessageSquare, Settings2, Square } from 'lucide-react'
 import { useProviders } from './useProviders'
+import { useSkills } from './useSkills'
 
 interface SingleRunPanelProps {
   agents: AgentDefinition[]
@@ -82,9 +84,11 @@ export function SingleRunPanel({
   const [apiTemperature, setApiTemperature] = useState('')
   const [apiTopP, setApiTopP] = useState('')
   const [attachedFiles, setAttachedFiles] = useState<string[]>([])
+  const [selectedSkillIds, setSelectedSkillIds] = useState<string[]>([])
   const [lastRouteSwitch, setLastRouteSwitch] = useState<string | null>(null)
   const [showAdvanced, setShowAdvanced] = useState(false)
   const providerState = useProviders()
+  const skillState = useSkills()
 
   const selectedAgent = useMemo(
     () => agents.find((a) => a.id === selectedAgentId) ?? null,
@@ -115,6 +119,12 @@ export function SingleRunPanel({
   }
   const routeChanged = !!selectedSession?.route && !routesEqual(selectedSession.route, currentRoute)
   const cliAvailable = clis ? clis[vendor] : true
+  const selectedSkills = useMemo(
+    () => selectedSkillIds
+      .map((id) => skillState.skills.find((skill) => skill.id === id))
+      .filter((skill): skill is SkillSummary => skill !== undefined),
+    [selectedSkillIds, skillState.skills]
+  )
 
   useEffect(() => {
     if (!selectedSession) return
@@ -213,7 +223,14 @@ export function SingleRunPanel({
   }
 
   const handleSend = async (): Promise<void> => {
-    const text = message.trim()
+    const parsedMessage = parseSkillCommand(message, skillState.skills, selectedSkillIds)
+    if (parsedMessage.onlySelectedSkill) {
+      setMessage('')
+      setComposerError(null)
+      setSelectedSkillIds(parsedMessage.skillIds)
+      return
+    }
+    const text = parsedMessage.text.trim()
     if ((!text && attachedFiles.length === 0) || (vendor === 'api' && !selectedProvider)) return
     const fullText = vendor === 'api'
       ? (text || 'Please review the attached files.')
@@ -224,6 +241,7 @@ export function SingleRunPanel({
     const previousRoute = session.route
     setMessage('')
     setAttachedFiles([])
+    setSelectedSkillIds([])
     rememberProjectPath(cwd)
     const updated = await onSendMessage(
       fullText,
@@ -236,7 +254,8 @@ export function SingleRunPanel({
           path,
           kind: inferAttachmentKind(path),
           name: fileName(path)
-        }))
+        })),
+        skillIds: parsedMessage.skillIds
       },
       session.id
     )
@@ -259,7 +278,7 @@ export function SingleRunPanel({
   const showInlineCodexOptions = showAdvanced && vendor === 'codex'
   const advancedSummaryChips = vendor === 'api'
     ? [
-        `${parseOptionalPositiveInt(apiMaxSteps) ?? 10} steps`
+        compactNumericLabel(parseOptionalPositiveInt(apiMaxSteps) ?? 10, 'steps')
       ]
     : []
 
@@ -468,6 +487,13 @@ export function SingleRunPanel({
           onPickFiles={handlePickFiles}
           onPasteImages={handlePasteImages}
           onRemoveFile={(f) => setAttachedFiles(prev => prev.filter(x => x !== f))}
+          skills={skillState.skills}
+          selectedSkills={selectedSkills}
+          onAddSkill={(skill) => {
+            setComposerError(null)
+            setSelectedSkillIds((prev) => prev.includes(skill.id) ? prev : [...prev, skill.id])
+          }}
+          onRemoveSkill={(skillId) => setSelectedSkillIds((prev) => prev.filter((id) => id !== skillId))}
         />
         {composerError && <div className="workflow-input-error">{composerError}</div>}
       </main>
@@ -505,6 +531,10 @@ function parseOptionalFloat(value: string): number | undefined {
   return Number.isFinite(parsed) ? parsed : undefined
 }
 
+function compactNumericLabel(value: number, unit: string): string {
+  return `${value} ${unit}`
+}
+
 function inferAttachmentKind(path: string): RunAttachment['kind'] {
   return /\.(png|jpe?g|gif|webp|bmp)$/i.test(path) ? 'image' : 'file'
 }
@@ -518,4 +548,38 @@ function folderDisplayName(path: string): string {
   if (!clean) return 'No project selected'
   const withoutTrailingSlash = clean.replace(/[\\/]+$/, '')
   return fileName(withoutTrailingSlash) || clean
+}
+
+function parseSkillCommand(
+  rawText: string,
+  skills: SkillSummary[],
+  selectedSkillIds: string[]
+): { text: string; skillIds: string[]; onlySelectedSkill: boolean } {
+  const text = rawText.trim()
+  const currentSkillIds = [...selectedSkillIds]
+  if (!text.startsWith('/')) {
+    return { text: rawText, skillIds: currentSkillIds, onlySelectedSkill: false }
+  }
+
+  const match = text.match(/^\/([^\s/]+)(?:\s+([\s\S]*))?$/)
+  if (!match) return { text: rawText, skillIds: currentSkillIds, onlySelectedSkill: false }
+
+  const skill = findSkillBySlashToken(skills, match[1])
+  if (!skill) return { text: rawText, skillIds: currentSkillIds, onlySelectedSkill: false }
+
+  const skillIds = currentSkillIds.includes(skill.id) ? currentSkillIds : [...currentSkillIds, skill.id]
+  const remainingText = match[2]?.trim() ?? ''
+  return {
+    text: remainingText,
+    skillIds,
+    onlySelectedSkill: remainingText === ''
+  }
+}
+
+function findSkillBySlashToken(skills: SkillSummary[], token: string): SkillSummary | undefined {
+  const normalized = token.trim().toLowerCase()
+  return skills.find((skill) => (
+    skill.id.toLowerCase() === normalized ||
+    skill.name.trim().toLowerCase() === normalized
+  ))
 }
