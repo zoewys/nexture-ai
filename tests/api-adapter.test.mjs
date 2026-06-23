@@ -632,13 +632,86 @@ test('ApiAdapter reserves context space when Kimi max output matches the full co
   assert.ok(calls[0].maxOutputTokens >= 200000)
 })
 
-test('ApiAdapter reports max output truncation instead of completing without a handoff', async () => {
+test('ApiAdapter clamps Kimi thinking max output even without stored context metadata', async () => {
   const calls = []
-  const logs = []
   const { ApiAdapter } = await importApiAdapter(mocksFor([
-    { type: 'finish-step', finishReason: 'length', usage: { inputTokens: 10, outputTokens: 8192 } },
+    { type: 'text-delta', textDelta: 'ok' },
     { type: 'finish' }
   ], calls))
+  const adapter = new ApiAdapter({
+    id: 'kimi',
+    name: 'Kimi',
+    format: 'openai-compatible',
+    apiKey: 'sk-test',
+    baseUrl: 'https://api.moonshot.cn/v1',
+    models: ['kimi-k2-thinking-251104'],
+    defaultModel: 'kimi-k2-thinking-251104',
+    maxOutputTokens: 2_140_665
+  }, guard)
+
+  await collect(adapter.runTurn({
+    prompt: 'hello',
+    cwd: root,
+    abortSignal: new AbortController().signal
+  }))
+
+  assert.ok(calls[0].maxOutputTokens <= 262144 - 8192)
+  assert.ok(calls[0].maxOutputTokens >= 200000)
+})
+
+test('ApiAdapter uses a conservative Kimi input estimate for long single-agent transcripts', async () => {
+  const calls = []
+  const { ApiAdapter } = await importApiAdapter(mocksFor([
+    { type: 'text-delta', textDelta: 'ok' },
+    { type: 'finish' }
+  ], calls))
+  const adapter = new ApiAdapter({
+    id: 'kimi',
+    name: 'Kimi',
+    format: 'openai-compatible',
+    apiKey: 'sk-test',
+    baseUrl: 'https://api.moonshot.cn/v1',
+    models: ['kimi-k2.6'],
+    defaultModel: 'kimi-k2.6',
+    maxOutputTokens: 262_144
+  }, guard)
+  const longTranscript = '中文上下文 transcript token pressure '.repeat(3200)
+
+  await collect(adapter.runTurn({
+    prompt: longTranscript,
+    cwd: root,
+    abortSignal: new AbortController().signal
+  }))
+
+  assert.ok(calls[0].maxOutputTokens <= 226_380)
+  assert.ok(calls[0].maxOutputTokens >= 180_000)
+})
+
+test('ApiAdapter retries a concise structured handoff after max output truncation', async () => {
+  const calls = []
+  const logs = []
+  const mocks = mocksFor([])
+  let callCount = 0
+  mocks.streamText = async (args) => {
+    calls.push(args)
+    callCount += 1
+    return {
+      fullStream: (async function* () {
+        if (callCount === 1) {
+          yield { type: 'text-delta', textDelta: 'long unfinished response' }
+          yield { type: 'finish-step', finishReason: 'length', usage: { inputTokens: 10, outputTokens: 8192 } }
+          yield { type: 'finish' }
+          return
+        }
+        yield {
+          type: 'text-delta',
+          textDelta: '{"summary":"ok","artifacts":[],"nextStepGuidance":null,"routeSuggestion":null}'
+        }
+        yield { type: 'finish', totalUsage: { inputTokens: 20, outputTokens: 40 } }
+      })()
+    }
+  }
+  const { ApiAdapter } = await importApiAdapter(mocks)
   const adapter = new ApiAdapter({
     id: 'p1',
     name: 'DeepSeek',
@@ -660,11 +733,19 @@ test('ApiAdapter reports max output truncation instead of completing without a h
     abortSignal: new AbortController().signal
   }))
 
-  assert.equal(events.some((event) => event.kind === 'turn-done' && event.reason === 'complete'), false)
-  const error = events.find((event) => event.kind === 'error')
-  assert.match(error?.message ?? '', /max output token limit/i)
-  assert.equal(logs[0].status, 'error')
+  assert.equal(calls.length, 2)
+  assert.equal(calls[1].tools, undefined)
+  assert.equal(calls[1].stopWhen, undefined)
+  assert.equal(calls[1].output, undefined)
+  assert.equal(calls[1].maxOutputTokens, 8192)
+  assert.match(systemText(calls[1].system), /Max Output Recovery/)
+  assert.match(userText(calls[1].messages.at(-1)), /Do not continue the truncated response/)
+  assert.equal(events.some((event) => event.kind === 'error'), false)
+  assert.equal(events.some((event) => event.kind === 'system' && /retrying with a concise structured handoff/.test(event.text)), true)
+  assert.equal(events.some((event) => event.kind === 'turn-done' && event.reason === 'complete'), true)
+  assert.equal(logs[0].status, 'success')
   assert.equal(logs[0].structuredOutput, 'fallback')
+  assert.deepEqual(logs[0].usage, { inputTokens: 30, outputTokens: 8232 })
 })
 
 test('ApiAdapter retries with schema prompt fallback when native structured output is unsupported', async () => {

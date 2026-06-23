@@ -17,11 +17,19 @@ const DEFAULT_MAX_OUTPUT_TOKENS = 8192
 const GLM_MAX_OUTPUT_TOKENS = 131_072
 const CONTEXT_WINDOW_OUTPUT_RESERVE_TOKENS = 8192
 const MIN_CONTEXT_SAFE_OUTPUT_TOKENS = 1024
-const TOKEN_ESTIMATE_CHARS_PER_TOKEN = 4
+const STRUCTURED_RECOVERY_MAX_OUTPUT_TOKENS = 8192
+const TOKEN_ESTIMATE_NON_CJK_CHARS_PER_TOKEN = 2
 const DEFAULT_TEMPERATURE = 0.2
 const DEFAULT_TOP_P = 1
 const MAX_OUTPUT_TOKENS_ERROR_MESSAGE =
-  'API response hit the max output token limit before completion. Increase max output tokens or rerun with a shorter task.'
+  'API 输出达到最大输出 Tokens 上限，模型回答已被截断。请调高 API Provider 的最大输出 Tokens，或把任务拆小后重试。'
+
+class MaxOutputTokensError extends Error {
+  constructor(readonly usage: { inputTokens: number; outputTokens: number }) {
+    super(MAX_OUTPUT_TOKENS_ERROR_MESSAGE)
+    this.name = 'MaxOutputTokensError'
+  }
+}
 
 const BASE_CORE_PROMPT = [
   'You are an autonomous agent equipped with tools for reading files, editing files, running shell commands, searching content, fetching URLs, and tracking multi-step work.',
@@ -102,6 +110,19 @@ export class ApiAdapter implements CliAdapter {
       try {
         usage = await executeModelTurn(options as Parameters<typeof streamText>[0], sessionId, queue)
       } catch (err) {
+        if (input.outputSchema && err instanceof MaxOutputTokensError) {
+          usage = addUsage(usage, err.usage)
+          structuredOutput = 'fallback'
+          queue.push({
+            kind: 'system',
+            text: 'API output hit the max token limit; retrying with a concise structured handoff.'
+          })
+          const recoveryOptions = buildStructuredRecoveryOptions(baseOptions, input.outputSchema, messages)
+          callOptions = recoveryOptions
+          const recoveryUsage = await executeModelTurn(recoveryOptions as Parameters<typeof streamText>[0], sessionId, queue)
+          usage = addUsage(usage, recoveryUsage)
+          return
+        }
         if (!input.outputSchema || !useNativeStructuredOutput || !isStructuredOutputUnsupportedError(err)) throw err
         structuredOutput = 'fallback'
         const fallbackOptions = {
@@ -262,7 +283,17 @@ function modelContextWindow(config: ApiProviderConfig, modelId: string): number 
   if (typeof matched === 'number' && Number.isFinite(matched) && matched >= 1) return Math.floor(matched)
 
   const marker = `${config.name} ${config.baseUrl ?? ''} ${modelId}`.toLowerCase()
-  if (/\bkimi-k2\.6\b/.test(marker)) return 262_144
+  const moonshotWindow = moonshotModelContextWindow(marker)
+  if (moonshotWindow) return moonshotWindow
+  return null
+}
+
+function moonshotModelContextWindow(marker: string): number | null {
+  const moonshotMatch = marker.match(/\bmoonshot-v1-(\d+)k\b/)
+  if (moonshotMatch) return Number(moonshotMatch[1]) * 1024
+  if (/\bkimi-k2(?:\.6|-thinking(?:-\d+)?)\b/.test(marker)) return 262_144
+  if (/\bkimi-k2\b/.test(marker)) return 131_072
+  if (/\bkimi\b/.test(marker)) return 262_144
   return null
 }
 
@@ -293,7 +324,8 @@ function safeTokenEstimateText(value: unknown): string {
 
 function roughTokenCount(text: string): number {
   if (!text) return 0
-  return Math.ceil(text.length / TOKEN_ESTIMATE_CHARS_PER_TOKEN)
+  const cjkChars = text.match(/[\u3400-\u9fff\uf900-\ufaff]/g)?.length ?? 0
+  return Math.ceil(cjkChars + (text.length - cjkChars) / TOKEN_ESTIMATE_NON_CJK_CHARS_PER_TOKEN)
 }
 
 function isKnownJsonSchemaUnsupportedProvider(config: ApiProviderConfig, modelId: string): boolean {
@@ -437,7 +469,7 @@ async function executeModelTurn(
 
     if (isLengthFinishReason(state.finishReason)) {
       flushAssistantMessage(queue, state)
-      throw new Error(MAX_OUTPUT_TOKENS_ERROR_MESSAGE)
+      throw new MaxOutputTokensError(state.usage)
     }
 
     if (state.noOutput && !state.turnDone) {
@@ -476,7 +508,7 @@ async function runGenerateFallback(
   if (isLengthFinishReason(result.finishReason)) {
     if (text) queue.push({ kind: 'message', role: 'assistant', text })
     emitFallbackUsage()
-    throw new Error(MAX_OUTPUT_TOKENS_ERROR_MESSAGE)
+    throw new MaxOutputTokensError(usage)
   }
 
   if (!text) {
@@ -681,6 +713,60 @@ function withStructuredOutputFallbackHint(
 
   if (typeof system === 'string') return `${system}\n\n${hint}`
   return [...system, { role: 'system', content: hint }]
+}
+
+function withMaxOutputRecoveryHint(system: string | SystemModelMessage[]): string | SystemModelMessage[] {
+  const hint = [
+    '# Max Output Recovery',
+    'The previous response hit the max output token limit before the workflow handoff could finish.',
+    'Do not continue the long prose or report.',
+    'Return only the final concise structured handoff JSON for the work already completed.',
+    'Keep the summary brief and include only the key artifact paths.'
+  ].join('\n')
+
+  if (typeof system === 'string') return `${system}\n\n${hint}`
+  return [...system, { role: 'system', content: hint }]
+}
+
+function buildStructuredRecoveryOptions(
+  baseOptions: Record<string, unknown>,
+  schema: NonNullable<RunTurnInput['outputSchema']>,
+  messages: ModelMessage[]
+): Record<string, unknown> {
+  const { tools: _tools, stopWhen: _stopWhen, output: _output, ...withoutTools } = baseOptions
+  const baseMaxOutputTokens = typeof baseOptions.maxOutputTokens === 'number' && Number.isFinite(baseOptions.maxOutputTokens)
+    ? Math.floor(baseOptions.maxOutputTokens)
+    : STRUCTURED_RECOVERY_MAX_OUTPUT_TOKENS
+  return {
+    ...withoutTools,
+    messages: buildStructuredRecoveryMessages(messages),
+    system: withStructuredOutputFallbackHint(withMaxOutputRecoveryHint(baseOptions.system as string | SystemModelMessage[]), schema),
+    maxOutputTokens: Math.max(1, Math.min(baseMaxOutputTokens, STRUCTURED_RECOVERY_MAX_OUTPUT_TOKENS))
+  }
+}
+
+function buildStructuredRecoveryMessages(messages: ModelMessage[]): ModelMessage[] {
+  return [
+    ...messages,
+    {
+      role: 'user',
+      content: [
+        'The previous response was truncated by the max output token limit.',
+        'Do not continue the truncated response.',
+        'Return only a concise JSON object that satisfies the required workflow handoff schema.'
+      ].join('\n')
+    } as ModelMessage
+  ]
+}
+
+function addUsage(
+  a: { inputTokens: number; outputTokens: number },
+  b: { inputTokens: number; outputTokens: number }
+): { inputTokens: number; outputTokens: number } {
+  return {
+    inputTokens: a.inputTokens + b.inputTokens,
+    outputTokens: a.outputTokens + b.outputTokens
+  }
 }
 
 function safeSchemaText(schema: NonNullable<RunTurnInput['outputSchema']>): string {
