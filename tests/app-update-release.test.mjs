@@ -25,6 +25,9 @@ test('main, preload, and settings expose app update controls', () => {
   assert.match(types, /appUpdateEvent: 'app:update:event'/)
 
   assert.match(updater, /autoUpdater/)
+  assert.doesNotMatch(updater, /import\s*\{\s*autoUpdater[\s,}]/)
+  assert.match(updater, /import electronUpdater from 'electron-updater'/)
+  assert.match(updater, /const \{ autoUpdater \} = electronUpdater/)
   assert.match(updater, /checkForUpdates/)
   assert.match(updater, /quitAndInstall/)
   assert.match(updater, /app\.isPackaged/)

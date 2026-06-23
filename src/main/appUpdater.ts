@@ -1,8 +1,11 @@
 import { app, type BrowserWindow } from 'electron'
-import { autoUpdater, type ProgressInfo, type UpdateInfo } from 'electron-updater'
+import electronUpdater from 'electron-updater'
+import type { ProgressInfo, UpdateInfo } from 'electron-updater'
 import { IPC, type AppUpdateState } from '@shared/types'
 
 type GetWindow = () => BrowserWindow | null
+
+const { autoUpdater } = electronUpdater
 
 let configured = false
 let getWindow: GetWindow = () => null
