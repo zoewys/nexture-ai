@@ -1,0 +1,433 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Agents 管理页 — 列表布局设计稿</title>
+<style>
+  :root {
+    --brand-primary: #3d8e86;
+    --brand-primary-hover: #2a7a72;
+    --semantic-success: #6abd79;
+    --semantic-warning: #c9952c;
+    --semantic-error: #c94f4f;
+    --neutral-border: rgba(120, 140, 130, 0.14);
+    --neutral-border-subtle: rgba(120, 140, 130, 0.08);
+    --neutral-text-primary: #1e2e28;
+    --neutral-text-secondary: #5a7268;
+    --neutral-text-muted: #8a9e90;
+    --shadow-sm: 0 1px 4px rgba(30, 46, 40, 0.05);
+    --shadow-md: 0 4px 14px rgba(30, 46, 40, 0.08);
+    --page-bg: #f0eee9;
+  }
+  * { box-sizing: border-box; margin: 0; padding: 0; }
+  body {
+    font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, "Helvetica Neue", Arial, sans-serif;
+    background: var(--page-bg);
+    color: var(--neutral-text-primary);
+    padding: 40px 28px;
+    line-height: 1.5;
+  }
+
+  /* ===== 页面头部 ===== */
+  .page-header {
+    display: flex; align-items: flex-end; justify-content: space-between; gap: 20px;
+    margin-bottom: 28px; flex-wrap: wrap;
+  }
+  .page-title { font-size: 24px; font-weight: 700; letter-spacing: -0.4px; }
+  .page-subtitle { color: var(--neutral-text-muted); font-size: 13px; margin-top: 3px; }
+  .header-actions { display: flex; align-items: center; gap: 8px; }
+  .btn {
+    display: inline-flex; align-items: center; gap: 6px;
+    padding: 7px 14px; border-radius: 9px; font-size: 13px; font-weight: 600;
+    border: 1px solid transparent; cursor: pointer; transition: all 160ms ease;
+    white-space: nowrap;
+  }
+  .btn-primary {
+    background: var(--brand-primary); color: #fff;
+    box-shadow: 0 1px 3px rgba(61,142,134,0.22);
+  }
+  .btn-primary:hover { background: var(--brand-primary-hover); transform: translateY(-1px); }
+  .btn-ghost {
+    background: #fff; color: var(--neutral-text-secondary);
+    border-color: var(--neutral-border-subtle); box-shadow: var(--shadow-sm);
+  }
+  .btn-ghost:hover { color: var(--neutral-text-primary); border-color: var(--neutral-border); }
+
+  /* ===== 工具栏 ===== */
+  .toolbar { display: flex; align-items: center; gap: 14px; margin-bottom: 24px; flex-wrap: wrap; }
+  .search-box { position: relative; width: 280px; }
+  .search-box input {
+    width: 100%; padding: 8px 12px 8px 34px; border-radius: 9px;
+    border: 1px solid var(--neutral-border-subtle); background: #fff;
+    font-size: 13px; color: var(--neutral-text-primary); outline: none;
+    transition: all 160ms ease; box-shadow: var(--shadow-sm);
+  }
+  .search-box input:focus {
+    border-color: rgba(61,142,134,0.30); box-shadow: 0 0 0 3px rgba(61,142,134,0.06);
+  }
+  .search-box input::placeholder { color: var(--neutral-text-muted); }
+  .search-icon {
+    position: absolute; left: 11px; top: 50%; transform: translateY(-50%);
+    color: var(--neutral-text-muted); pointer-events: none;
+  }
+  .filter-group { display: flex; align-items: center; gap: 5px; }
+  .filter-chip {
+    display: inline-flex; align-items: center; gap: 5px;
+    padding: 5px 11px; border-radius: 7px; font-size: 12px; font-weight: 500;
+    border: 1px solid transparent; background: transparent;
+    color: var(--neutral-text-secondary); cursor: pointer; transition: all 160ms ease;
+  }
+  .filter-chip:hover { background: rgba(120,140,130,0.05); color: var(--neutral-text-primary); }
+  .filter-chip.active { background: #fff; color: var(--brand-primary); box-shadow: var(--shadow-sm); }
+  .filter-chip .dot { width: 5px; height: 5px; border-radius: 50%; flex-shrink: 0; opacity: 0.55; }
+  .filter-chip.active .dot { opacity: 1; }
+
+  /* ===== 列表布局 ===== */
+  .agents-list {
+    display: flex;
+    flex-direction: column;
+    gap: 2px;
+    background: var(--neutral-border-subtle);
+    border-radius: 14px;
+    overflow: hidden;
+    border: 1px solid var(--neutral-border-subtle);
+  }
+
+  .list-item {
+    display: flex; align-items: flex-start; gap: 14px;
+    padding: 14px 18px;
+    background: #fff;
+    cursor: pointer;
+    transition: all 150ms ease;
+    position: relative;
+  }
+  .list-item:hover {
+    background: #fafaf8;
+  }
+  .list-item:hover .item-menu { opacity: 1; }
+
+  /* 左侧 accent bar */
+  .item-accent {
+    position: absolute; left: 0; top: 0; bottom: 0; width: 3px;
+    opacity: 0.85;
+  }
+  .accent-claude { background: linear-gradient(to bottom, #d4895e, #e8a67a); }
+  .accent-codex { background: linear-gradient(to bottom, #6b9fd6, #8ab8e8); }
+  .accent-api { background: linear-gradient(to bottom, #4a9e94, #6ab8ae); }
+
+  /* 图标 */
+  .item-icon {
+    width: 42px; height: 42px; border-radius: 10px; flex-shrink: 0;
+    display: flex; align-items: center; justify-content: center;
+    transition: transform 180ms ease;
+  }
+  .list-item:hover .item-icon { transform: scale(1.06) rotate(-1deg); }
+  .item-icon svg { width: 20px; height: 20px; stroke: currentColor; stroke-width: 2; fill: none; stroke-linecap: round; stroke-linejoin: round; }
+  .icon-claude { background: linear-gradient(135deg, rgba(203,119,79,0.12), rgba(203,119,79,0.04)); color: #b0633a; border: 1px solid rgba(203,119,79,0.10); }
+  .icon-codex { background: linear-gradient(135deg, rgba(91,142,201,0.12), rgba(91,142,201,0.04)); color: #4a7eb8; border: 1px solid rgba(91,142,201,0.10); }
+  .icon-api { background: linear-gradient(135deg, rgba(61,142,134,0.12), rgba(61,142,134,0.04)); color: #357a72; border: 1px solid rgba(61,142,134,0.10); }
+
+  /* 内容区 */
+  .item-content {
+    flex: 1; min-width: 0;
+    display: flex; flex-direction: column; gap: 3px;
+    padding-top: 1px;
+  }
+  .item-name {
+    font-size: 14px; font-weight: 700; color: var(--neutral-text-primary);
+    letter-spacing: -0.15px;
+    display: flex; align-items: center; gap: 8px;
+  }
+  .item-name-text {
+    white-space: nowrap; overflow: hidden; text-overflow: ellipsis;
+  }
+  .item-desc {
+    font-size: 13px; color: var(--neutral-text-secondary); line-height: 1.5;
+    display: -webkit-box; -webkit-line-clamp: 2; -webkit-box-orient: vertical;
+    overflow: hidden;
+  }
+  .item-meta {
+    font-size: 12px; color: var(--neutral-text-muted);
+    display: flex; align-items: center; gap: 10px; flex-wrap: wrap;
+    margin-top: 2px;
+  }
+  .item-meta span { display: inline-flex; align-items: center; gap: 4px; }
+  .meta-sep { width: 3px; height: 3px; border-radius: 50%; background: var(--neutral-border); flex-shrink: 0; }
+  .meta-dot { width: 5px; height: 5px; border-radius: 50%; flex-shrink: 0; }
+  .dot-claude { background: #cb774f; }
+  .dot-codex { background: #5b8ec9; }
+  .dot-api { background: #3d8e86; }
+
+  /* 右侧操作区 */
+  .item-actions {
+    display: flex; align-items: center; gap: 10px;
+    flex-shrink: 0;
+    padding-top: 2px;
+  }
+  .item-stats {
+    display: flex; align-items: center; gap: 12px;
+    font-size: 12px; color: var(--neutral-text-muted);
+  }
+  .stat { display: inline-flex; align-items: baseline; gap: 3px; }
+  .stat .num {
+    font-family: "JetBrains Mono", monospace; font-weight: 700; color: var(--neutral-text-primary); font-size: 12px;
+  }
+  .item-menu {
+    width: 28px; height: 28px; border-radius: 7px;
+    display: flex; align-items: center; justify-content: center;
+    border: none; background: transparent; color: var(--neutral-text-muted);
+    cursor: pointer; opacity: 0; transition: all 150ms ease;
+  }
+  .item-menu:hover { background: rgba(120,140,130,0.08); color: var(--neutral-text-primary); }
+  .item-menu svg { width: 14px; height: 14px; stroke: currentColor; stroke-width: 2.2; fill: none; stroke-linecap: round; stroke-linejoin: round; }
+
+  /* 底部新建行 */
+  .list-item.new-agent {
+    justify-content: center; align-items: center;
+    gap: 8px;
+    color: var(--neutral-text-muted);
+    border-top: 1px dashed var(--neutral-border);
+  }
+  .list-item.new-agent:hover {
+    color: var(--brand-primary);
+    background: rgba(61,142,134,0.02);
+  }
+  .new-icon {
+    width: 32px; height: 32px; border-radius: 9px;
+    display: flex; align-items: center; justify-content: center;
+    background: rgba(120,140,130,0.04); color: inherit;
+    border: 1.5px dashed var(--neutral-border-subtle);
+    transition: all 180ms ease;
+  }
+  .list-item.new-agent:hover .new-icon {
+    background: rgba(61,142,134,0.06);
+    border-color: var(--brand-primary);
+  }
+  .new-icon svg { width: 16px; height: 16px; stroke: currentColor; stroke-width: 2; fill: none; stroke-linecap: round; stroke-linejoin: round; }
+  .new-title { font-size: 13px; font-weight: 600; color: inherit; }
+  .new-desc { font-size: 12px; color: inherit; opacity: 0.6; }
+
+  @media (max-width: 640px) {
+    .page-header { flex-direction: column; align-items: flex-start; }
+    .toolbar { flex-direction: column; align-items: stretch; }
+    .search-box { width: auto; }
+    .item-stats { display: none; }
+    .item-desc { -webkit-line-clamp: 1; }
+  }
+</style>
+</head>
+<body>
+
+<!-- 页面头部 -->
+<div class="page-header">
+  <div>
+    <h1 class="page-title">Agents</h1>
+    <p class="page-subtitle">管理你的 AI Agent，配置角色、模型和系统提示词</p>
+  </div>
+  <div class="header-actions">
+    <button class="btn btn-ghost">
+      <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><polyline points="7 10 12 15 17 10"/><line x1="12" y1="15" x2="12" y2="3"/></svg>
+      导入
+    </button>
+    <button class="btn btn-primary">
+      <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><line x1="12" y1="5" x2="12" y2="19"/><line x1="5" y1="12" x2="19" y2="12"/></svg>
+      新建 Agent
+    </button>
+  </div>
+</div>
+
+<!-- 工具栏 -->
+<div class="toolbar">
+  <div class="search-box">
+    <span class="search-icon">
+      <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="11" cy="11" r="8"/><line x1="21" y1="21" x2="16.65" y2="16.65"/></svg>
+    </span>
+    <input type="text" placeholder="搜索 Agent 名称或角色...">
+  </div>
+  <div class="filter-group">
+    <span class="filter-chip active"><span class="dot" style="background:#3d8e86"></span>全部</span>
+    <span class="filter-chip"><span class="dot" style="background:#cb774f"></span>Claude</span>
+    <span class="filter-chip"><span class="dot" style="background:#5b8ec9"></span>Codex</span>
+    <span class="filter-chip"><span class="dot" style="background:#6abd79"></span>API</span>
+  </div>
+</div>
+
+<!-- Agent 列表 -->
+<div class="agents-list">
+
+  <!-- Agent 1: Claude -->
+  <div class="list-item">
+    <div class="item-accent accent-claude"></div>
+    <div class="item-icon icon-claude">
+      <svg viewBox="0 0 24 24"><path d="M12 2a3 3 0 0 0-3 3v7a3 3 0 0 0 6 0V5a3 3 0 0 0-3-3Z"/><path d="M19 10v2a7 7 0 0 1-14 0v-2"/><line x1="12" y1="19" x2="12" y2="22"/></svg>
+    </div>
+    <div class="item-content">
+      <div class="item-name">
+        <span class="item-name-text">Senior Product Manager</span>
+      </div>
+      <div class="item-desc">你是一位资深产品经理，擅长需求分析、竞品调研和用户故事编写。请基于提供的产品文档输出详细的功能规格说明。</div>
+      <div class="item-meta">
+        <span>product</span>
+        <span class="meta-sep"></span>
+        <span><span class="meta-dot dot-claude"></span>Claude</span>
+        <span class="meta-sep"></span>
+        <span>acceptEdits</span>
+        <span class="meta-sep"></span>
+        <span style="font-family:'JetBrains Mono',monospace;font-size:11px;background:rgba(0,0,0,0.03);padding:1px 6px;border-radius:4px;border:1px solid var(--neutral-border-subtle);">claude-sonnet-4</span>
+      </div>
+    </div>
+    <div class="item-actions">
+      <div class="item-stats">
+        <span class="stat"><span class="num">24</span> 次运行</span>
+        <span class="stat"><span class="num">156</span> 记忆</span>
+      </div>
+      <button type="button" class="item-menu" title="更多操作" aria-label="更多操作">
+        <svg viewBox="0 0 24 24"><circle cx="12" cy="5" r="1.5"/><circle cx="12" cy="12" r="1.5"/><circle cx="12" cy="19" r="1.5"/></svg>
+      </button>
+    </div>
+  </div>
+
+  <!-- Agent 2: Codex -->
+  <div class="list-item">
+    <div class="item-accent accent-codex"></div>
+    <div class="item-icon icon-codex">
+      <svg viewBox="0 0 24 24"><polyline points="16 18 22 12 16 6"/><polyline points="8 6 2 12 8 18"/></svg>
+    </div>
+    <div class="item-content">
+      <div class="item-name">
+        <span class="item-name-text">Code Reviewer</span>
+      </div>
+      <div class="item-desc">你是一位严格的代码审查专家，专注于发现潜在 Bug、性能瓶颈、安全漏洞和代码风格问题。</div>
+      <div class="item-meta">
+        <span>dev</span>
+        <span class="meta-sep"></span>
+        <span><span class="meta-dot dot-codex"></span>Codex</span>
+        <span class="meta-sep"></span>
+        <span>bypass</span>
+        <span class="meta-sep"></span>
+        <span style="font-family:'JetBrains Mono',monospace;font-size:11px;background:rgba(0,0,0,0.03);padding:1px 6px;border-radius:4px;border:1px solid var(--neutral-border-subtle);">codex-latest</span>
+        <span style="font-family:'JetBrains Mono',monospace;font-size:11px;background:rgba(0,0,0,0.03);padding:1px 6px;border-radius:4px;border:1px solid var(--neutral-border-subtle);">effort: high</span>
+      </div>
+    </div>
+    <div class="item-actions">
+      <div class="item-stats">
+        <span class="stat"><span class="num">112</span> 次运行</span>
+        <span class="stat"><span class="num">892</span> 记忆</span>
+      </div>
+      <button type="button" class="item-menu" title="更多操作" aria-label="更多操作">
+        <svg viewBox="0 0 24 24"><circle cx="12" cy="5" r="1.5"/><circle cx="12" cy="12" r="1.5"/><circle cx="12" cy="19" r="1.5"/></svg>
+      </button>
+    </div>
+  </div>
+
+  <!-- Agent 3: API -->
+  <div class="list-item">
+    <div class="item-accent accent-api"></div>
+    <div class="item-icon icon-api">
+      <svg viewBox="0 0 24 24"><rect x="2" y="3" width="20" height="14" rx="2" ry="2"/><line x1="8" y1="21" x2="16" y2="21"/><line x1="12" y1="17" x2="12" y2="21"/></svg>
+    </div>
+    <div class="item-content">
+      <div class="item-name">
+        <span class="item-name-text">API Model Coverage</span>
+      </div>
+      <div class="item-desc">自动调用多个 AI 模型的 API，对比响应一致性，检测功能覆盖率和兼容性差异。</div>
+      <div class="item-meta">
+        <span>test</span>
+        <span class="meta-sep"></span>
+        <span><span class="meta-dot dot-api"></span>API</span>
+        <span class="meta-sep"></span>
+        <span>plan</span>
+        <span class="meta-sep"></span>
+        <span style="font-family:'JetBrains Mono',monospace;font-size:11px;background:rgba(0,0,0,0.03);padding:1px 6px;border-radius:4px;border:1px solid var(--neutral-border-subtle);">deepseek-chat</span>
+        <span style="font-family:'JetBrains Mono',monospace;font-size:11px;background:rgba(0,0,0,0.03);padding:1px 6px;border-radius:4px;border:1px solid var(--neutral-border-subtle);">temp: 0.7</span>
+      </div>
+    </div>
+    <div class="item-actions">
+      <div class="item-stats">
+        <span class="stat"><span class="num">8</span> 次运行</span>
+        <span class="stat"><span class="num">34</span> 记忆</span>
+      </div>
+      <button type="button" class="item-menu" title="更多操作" aria-label="更多操作">
+        <svg viewBox="0 0 24 24"><circle cx="12" cy="5" r="1.5"/><circle cx="12" cy="12" r="1.5"/><circle cx="12" cy="19" r="1.5"/></svg>
+      </button>
+    </div>
+  </div>
+
+  <!-- Agent 4: Claude, 长名称 -->
+  <div class="list-item">
+    <div class="item-accent accent-claude"></div>
+    <div class="item-icon icon-claude">
+      <svg viewBox="0 0 24 24"><circle cx="12" cy="12" r="10"/><line x1="12" y1="16" x2="12" y2="12"/><line x1="12" y1="8" x2="12.01" y2="8"/></svg>
+    </div>
+    <div class="item-content">
+      <div class="item-name">
+        <span class="item-name-text">Frontend Architecture Reviewer and Performance Optimizer</span>
+      </div>
+      <div class="item-desc">专注于前端架构设计评审，分析组件拆分合理性、状态管理方案选型、性能优化策略。</div>
+      <div class="item-meta">
+        <span>design</span>
+        <span class="meta-sep"></span>
+        <span><span class="meta-dot dot-claude"></span>Claude</span>
+        <span class="meta-sep"></span>
+        <span>default</span>
+        <span class="meta-sep"></span>
+        <span style="font-family:'JetBrains Mono',monospace;font-size:11px;background:rgba(0,0,0,0.03);padding:1px 6px;border-radius:4px;border:1px solid var(--neutral-border-subtle);">claude-opus-4</span>
+      </div>
+    </div>
+    <div class="item-actions">
+      <div class="item-stats">
+        <span class="stat"><span class="num">3</span> 次运行</span>
+        <span class="stat"><span class="num">12</span> 记忆</span>
+      </div>
+      <button type="button" class="item-menu" title="更多操作" aria-label="更多操作">
+        <svg viewBox="0 0 24 24"><circle cx="12" cy="5" r="1.5"/><circle cx="12" cy="12" r="1.5"/><circle cx="12" cy="19" r="1.5"/></svg>
+      </button>
+    </div>
+  </div>
+
+  <!-- Agent 5: API -->
+  <div class="list-item">
+    <div class="item-accent accent-api"></div>
+    <div class="item-icon icon-api">
+      <svg viewBox="0 0 24 24"><path d="M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10z"/></svg>
+    </div>
+    <div class="item-content">
+      <div class="item-name">
+        <span class="item-name-text">Security Scanner</span>
+      </div>
+      <div class="item-desc">持续监控代码库中的依赖漏洞、暴露的密钥、敏感信息泄露，并自动输出修复建议。</div>
+      <div class="item-meta">
+        <span>dev</span>
+        <span class="meta-sep"></span>
+        <span><span class="meta-dot dot-api"></span>API</span>
+        <span class="meta-sep"></span>
+        <span>bypass</span>
+        <span class="meta-sep"></span>
+        <span style="font-family:'JetBrains Mono',monospace;font-size:11px;background:rgba(0,0,0,0.03);padding:1px 6px;border-radius:4px;border:1px solid var(--neutral-border-subtle);color:var(--neutral-text-muted);">—</span>
+      </div>
+    </div>
+    <div class="item-actions">
+      <div class="item-stats">
+        <span class="stat"><span class="num">0</span> 次运行</span>
+        <span class="stat"><span class="num">0</span> 记忆</span>
+      </div>
+      <button type="button" class="item-menu" title="更多操作" aria-label="更多操作">
+        <svg viewBox="0 0 24 24"><circle cx="12" cy="5" r="1.5"/><circle cx="12" cy="12" r="1.5"/><circle cx="12" cy="19" r="1.5"/></svg>
+      </button>
+    </div>
+  </div>
+
+  <!-- 新建 Agent -->
+  <div class="list-item new-agent">
+    <div class="new-icon">
+      <svg viewBox="0 0 24 24"><line x1="12" y1="5" x2="12" y2="19"/><line x1="5" y1="12" x2="19" y2="12"/></svg>
+    </div>
+    <span class="new-title">新建 Agent</span>
+    <span class="new-desc">配置一个新的 AI Agent</span>
+  </div>
+
+</div>
+
+</body>
+</html>
