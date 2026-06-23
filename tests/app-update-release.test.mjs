@@ -46,6 +46,7 @@ test('main, preload, and settings expose app update controls', () => {
 test('release workflow builds and publishes macOS and Windows packages from git tags', () => {
   const pkg = JSON.parse(source('package.json'))
   const builder = source('electron-builder.yml')
+  const workspace = source('pnpm-workspace.yaml')
 
   assert.equal(existsSync(join(root, '.github/workflows/release.yml')), true)
   const workflow = source('.github/workflows/release.yml')
@@ -75,4 +76,7 @@ test('release workflow builds and publishes macOS and Windows packages from git 
   assert.match(workflow, /pnpm run release:mac/)
   assert.match(workflow, /pnpm run release:win/)
   assert.match(workflow, /GH_TOKEN:\s*\$\{\{ secrets\.GITHUB_TOKEN \}\}/)
+
+  assert.match(workspace, /packages:\s*\n\s*-\s*'\.'/)
+  assert.doesNotMatch(workspace, /storeDir:\s*\/Users\//)
 })
