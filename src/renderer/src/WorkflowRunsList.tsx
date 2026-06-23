@@ -115,7 +115,7 @@ export function WorkflowRunsList({
       </div>
 
       <div className="workflow-run-cards cards-grid">
-        {filteredRuns.length === 0 && (
+        {runs.length > 0 && filteredRuns.length === 0 && (
           <div className="workflow-dashboard-empty">
             <Activity size={18} />
             <span>暂无匹配的运行记录</span>
@@ -132,8 +132,35 @@ export function WorkflowRunsList({
             onDeleteRun={onDeleteRun}
           />
         ))}
+        <CreateWorkflowRunCard
+          index={filteredRuns.length}
+          onNewRun={onNewRun}
+        />
       </div>
     </section>
+  )
+}
+
+function CreateWorkflowRunCard({
+  index,
+  onNewRun
+}: {
+  index: number
+  onNewRun: () => void
+}): JSX.Element {
+  return (
+    <button
+      type="button"
+      className="workflow-run-card dashboard-create-card workflow-run-create-card"
+      style={{ animationDelay: `${Math.min(index * 60, 360)}ms` }}
+      onClick={onNewRun}
+    >
+      <div className="dashboard-create-card-icon">
+        <Plus size={20} />
+      </div>
+      <div className="dashboard-create-card-title">新建运行</div>
+      <div className="dashboard-create-card-desc">从模板启动一个 workflow run</div>
+    </button>
   )
 }
 

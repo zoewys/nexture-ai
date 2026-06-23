@@ -476,31 +476,28 @@ export function AgentManager({ agents, clis, modelCatalog, onSave, onDelete, onC
       </div>
 
       {/* 卡片网格 */}
-      {filteredAgents.length === 0 ? (
-        <div className="transcript-empty agent-grid-empty">
-          {agents.length === 0 ? '还没有 Agent，点击「新建 Agent」开始创建。' : '没有匹配的 Agent。'}
-        </div>
-      ) : (
-        <div className="agent-cards-grid">
-          {filteredAgents.map((agent) => (
-            <AgentCard
-              key={agent.id}
-              agent={agent}
-              onOpen={() => select(agent)}
-              onDelete={() => onDelete(agent.id)}
-            />
-          ))}
+      <div className="agent-cards-grid">
+        {agents.length > 0 && filteredAgents.length === 0 && (
+          <div className="transcript-empty agent-grid-empty">没有匹配的 Agent。</div>
+        )}
+        {filteredAgents.map((agent) => (
+          <AgentCard
+            key={agent.id}
+            agent={agent}
+            onOpen={() => select(agent)}
+            onDelete={() => onDelete(agent.id)}
+          />
+        ))}
 
-          {/* 新建 Agent */}
-          <button type="button" className="agent-card agent-card-new" onClick={startNew}>
-            <div className="agent-card-new-icon">
-              <Plus size={20} />
-            </div>
-            <div className="agent-card-new-title">新建 Agent</div>
-            <div className="agent-card-new-desc">配置一个新的 AI Agent</div>
-          </button>
-        </div>
-      )}
+        {/* 新建 Agent */}
+        <button type="button" className="agent-card agent-card-new" onClick={startNew}>
+          <div className="agent-card-new-icon">
+            <Plus size={20} />
+          </div>
+          <div className="agent-card-new-title">新建 Agent</div>
+          <div className="agent-card-new-desc">配置一个新的 AI Agent</div>
+        </button>
+      </div>
     </div>
   )
 }

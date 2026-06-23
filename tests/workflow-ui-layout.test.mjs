@@ -27,6 +27,7 @@ const sharedTypes = readFileSync(join(root, 'src/shared/types.ts'), 'utf8')
 const modeRail = readFileSync(join(root, 'src/renderer/src/ModeRail.tsx'), 'utf8')
 const settingsPanel = readFileSync(join(root, 'src/renderer/src/SettingsPanel.tsx'), 'utf8')
 const scheduleWorkspace = readFileSync(join(root, 'src/renderer/src/ScheduleWorkspace.tsx'), 'utf8')
+const agentManager = readFileSync(join(root, 'src/renderer/src/AgentManager.tsx'), 'utf8')
 
 function rootBlock(selector) {
   const pattern = new RegExp(`${selector.replace(/[.*+?^${}()|[\]\\]/g, '\\$&')}\\s*\\{([^}]*)\\}`)
@@ -118,6 +119,25 @@ test('agent manager list items keep a stable two-line rhythm', () => {
   assert.match(agentNameBlock, /line-height:\s*1\.3 !important;/)
   assert.match(agentMetaBlock, /display:\s*block !important;/)
   assert.match(agentMetaBlock, /line-height:\s*1\.45 !important;/)
+})
+
+test('empty dashboards keep their create cards visible', () => {
+  assert.match(agentManager, /<div className="agent-cards-grid">/)
+  assert.match(agentManager, /agents\.length > 0 && filteredAgents\.length === 0/)
+  assert.match(agentManager, /className="agent-card agent-card-new"/)
+  assert.doesNotMatch(agentManager, /filteredAgents\.length === 0 \?/)
+
+  assert.match(scheduleList, /function CreateScheduleCard/)
+  assert.match(scheduleList, /className="schedule-card dashboard-create-card schedule-create-card"/)
+  assert.match(scheduleList, /!\s*loading && \(/)
+  assert.doesNotMatch(scheduleList, /暂无定时任务/)
+
+  assert.match(runsList, /function CreateWorkflowRunCard/)
+  assert.match(runsList, /runs\.length > 0 && filteredRuns\.length === 0/)
+  assert.match(runsList, /className="workflow-run-card dashboard-create-card workflow-run-create-card"/)
+  assert.match(css, /\.dashboard-create-card\s*\{/)
+  assert.match(css, /\.schedule-create-card\s*\{/)
+  assert.match(css, /\[data-theme="dark"\] \.dashboard-create-card\s*\{/)
 })
 
 test('runs list uses design cards without realtime tail or confirm button', () => {

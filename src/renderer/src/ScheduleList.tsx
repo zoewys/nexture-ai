@@ -1,6 +1,6 @@
 import { useEffect, useMemo, useState } from 'react'
 import type { CronPreview, WorkflowRun, WorkflowSchedule, WorkflowTemplate } from '@shared/types'
-import { CalendarClock, CircleDot, Layers, Plus, Search } from 'lucide-react'
+import { CircleDot, Layers, Plus, Search } from 'lucide-react'
 
 interface ScheduleListProps {
   schedules: WorkflowSchedule[]
@@ -88,12 +88,6 @@ export function ScheduleList({
         {loading && schedules.length === 0 && (
           <div className="schedule-empty">Loading schedules...</div>
         )}
-        {!loading && schedules.length === 0 && (
-          <div className="schedule-empty">
-            <CalendarClock size={18} />
-            <span>暂无定时任务</span>
-          </div>
-        )}
         {!loading && schedules.length > 0 && filteredSchedules.length === 0 && (
           <div className="schedule-empty">
             <Search size={18} />
@@ -112,8 +106,37 @@ export function ScheduleList({
             onToggle={onToggle}
           />
         ))}
+        {!loading && (
+          <CreateScheduleCard
+            index={filteredSchedules.length}
+            onNewSchedule={onNewSchedule}
+          />
+        )}
       </div>
     </section>
+  )
+}
+
+function CreateScheduleCard({
+  index,
+  onNewSchedule
+}: {
+  index: number
+  onNewSchedule: () => void
+}): JSX.Element {
+  return (
+    <button
+      type="button"
+      className="schedule-card dashboard-create-card schedule-create-card"
+      style={{ animationDelay: `${Math.min(index * 60, 360)}ms` }}
+      onClick={onNewSchedule}
+    >
+      <div className="dashboard-create-card-icon">
+        <Plus size={20} />
+      </div>
+      <div className="dashboard-create-card-title">新建定时任务</div>
+      <div className="dashboard-create-card-desc">设置一个自动运行的 workflow</div>
+    </button>
   )
 }
 

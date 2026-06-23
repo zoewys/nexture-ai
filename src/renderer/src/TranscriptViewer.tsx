@@ -88,6 +88,9 @@ function parseMarkdown(text: string): string {
     return `<ol>${items}</ol>`
   })
 
+  // GFM tables (header row + separator row + body rows)
+  html = convertTables(html)
+
   // Phase 4: restore inline code
   html = html.replace(/\x00INLINE(\d+)\x00/g, (_, i) => inlines[Number(i)]!)
 
@@ -115,6 +118,22 @@ function esc(s: string): string {
     .replace(/</g, '&lt;')
     .replace(/>/g, '&gt;')
     .replace(/"/g, '&quot;')
+}
+
+function convertTables(html: string): string {
+  return html.replace(/^\|(.+)\|\s*\n\|[-| :]+\|\s*\n((?:^\|.+\|\s*\n?)+)/gm, (_full, header: string, body: string) => {
+    const headers = header.split('|').map((h) => h.trim()).filter(Boolean)
+    const rows = body.trim().split('\n').map((row) =>
+      row.split('|').map((c) => c.trim()).filter(Boolean)
+    )
+
+    const thead = `<thead><tr>${headers.map((h) => `<th>${h}</th>`).join('')}</tr></thead>`
+    const tbody = `<tbody>${rows.map((row) =>
+      `<tr>${row.map((c) => `<td>${c}</td>`).join('')}</tr>`
+    ).join('')}</tbody>`
+
+    return `<table>${thead}${tbody}</table>`
+  })
 }
 
 type ToolCategory = 'read' | 'write' | 'exec' | 'search' | 'task' | 'other'
