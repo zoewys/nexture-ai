@@ -5,7 +5,7 @@
  */
 
 import { ArrowUp, BookOpen, Code2, FileText, Image, Paperclip, Plus, Search, X } from 'lucide-react'
-import { useEffect, useMemo, useState } from 'react'
+import { useEffect, useMemo, useRef, useState } from 'react'
 import type { ClipboardEvent, KeyboardEvent } from 'react'
 import type { SkillSummary } from '@shared/types'
 
@@ -72,7 +72,15 @@ export function ComposerBar({
     }
   }, [dismissedSlashValue, value])
 
-  const handlePaste = (event: ClipboardEvent<HTMLInputElement>): void => {
+  const inputRef = useRef<HTMLTextAreaElement>(null)
+  useEffect(() => {
+    const el = inputRef.current
+    if (!el) return
+    el.style.height = 'auto'
+    el.style.height = `${el.scrollHeight}px`
+  }, [value])
+
+  const handlePaste = (event: ClipboardEvent<HTMLTextAreaElement>): void => {
     if (disabled || !onPasteImages) return
     const imageFiles = Array.from(event.clipboardData.items)
       .filter((item) => item.kind === 'file' && item.type.startsWith('image/'))
@@ -87,7 +95,7 @@ export function ComposerBar({
     onChange('')
     setDismissedSlashValue(null)
   }
-  const handleKeyDown = (event: KeyboardEvent<HTMLInputElement>): void => {
+  const handleKeyDown = (event: KeyboardEvent<HTMLTextAreaElement>): void => {
     if (showSkillMenu) {
       if (event.key === 'ArrowDown') {
         event.preventDefault()
@@ -110,7 +118,7 @@ export function ComposerBar({
         return
       }
     }
-    if (event.key === 'Enter') {
+    if (event.key === 'Enter' && !event.shiftKey && !event.nativeEvent.isComposing) {
       event.preventDefault()
       void onSend()
     }
@@ -180,9 +188,11 @@ export function ComposerBar({
       )}
       <div className="composer-row">
         <button type="button" className="composer-attach-btn" onClick={() => void onPickFiles()} title="添加文件或图片"><Plus size={16} /></button>
-        <input
+        <textarea
+          ref={inputRef}
           className="composer-input"
           value={value}
+          rows={1}
           disabled={disabled}
           placeholder={placeholder}
           onChange={(e) => onChange(e.target.value)}

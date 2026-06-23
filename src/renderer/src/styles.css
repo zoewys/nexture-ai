@@ -3388,6 +3388,9 @@ button.icon-only {
   min-width: 0;
   min-height: 34px;
   font-family: inherit;
+  resize: none;
+  max-height: 160px;
+  overflow-y: auto;
 }
 
 .app-ui-review .workflow-cli-composer button:disabled {
@@ -5610,6 +5613,7 @@ button.icon-only {
   flex: 1; border: none; background: transparent; outline: none;
   color: var(--text); font-size: 13px; font-family: inherit;
   line-height: 1.4; min-height: 20px; padding: 0; width: auto;
+  resize: none; max-height: 160px; overflow-y: auto;
 }
 
 .composer-input::placeholder { color: var(--text-dim); }
@@ -9899,6 +9903,7 @@ select:focus,
   flex: 1; border: none; background: transparent; outline: none;
   color: var(--text); font-size: 13px; font-family: inherit;
   line-height: 1.4; min-height: 20px; padding: 0; width: auto;
+  resize: none; max-height: 160px; overflow-y: auto;
 }
 
 .composer-input::placeholder { color: var(--text-dim); }

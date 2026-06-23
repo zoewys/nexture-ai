@@ -625,9 +625,9 @@ test('ui review chrome matches v4 mockup navigation and composer', () => {
   assert.match(workspace, /向当前 workflow \/ step 发送消息\.\.\./)
   assert.match(detail, /uiReviewEnabled\?: boolean/)
   assert.match(detail, />\s*重新运行步骤\s*</)
-  assert.match(detail, /<input[\s\S]*placeholder=\{composerPlaceholder\}/)
-  // The composer uses <input>, not <textarea> (there may be textareas elsewhere e.g. prompt editor)
-  assert.ok(!/<textarea[^>]*placeholder=\{composerPlaceholder\}/.test(detail))
+  assert.match(detail, /<textarea[\s\S]*placeholder=\{composerPlaceholder\}/)
+  // The composer uses <textarea> (Enter sends, Shift+Enter inserts a newline), not <input>
+  assert.ok(!/<input[^>]*placeholder=\{composerPlaceholder\}/.test(detail))
   assert.match(detail, /workflow-cli-composer/)
   assert.match(drawer, /uiReviewEnabled\?: boolean/)
   assert.match(drawer, /if \(!uiReviewEnabled\) rememberProjectPath\(projectPath\.trim\(\)\)/)
