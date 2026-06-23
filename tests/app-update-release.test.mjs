@@ -52,7 +52,7 @@ test('release workflow builds and publishes macOS and Windows packages from git 
 
   assert.match(builder, /publish:\s*\n\s*provider:\s*github/)
   assert.match(builder, /owner:\s*zoewys/)
-  assert.match(builder, /repo:\s*agent-studio/)
+  assert.match(builder, /repo:\s*nexture-ai/)
   assert.match(builder, /mac:[\s\S]*-\s*dmg[\s\S]*-\s*zip/)
   assert.match(builder, /win:[\s\S]*-\s*nsis/)
   assert.match(builder, /portable:/)
