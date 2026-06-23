@@ -83,6 +83,7 @@ test('release workflow builds and publishes macOS and Windows packages from git 
   assert.match(workflow, /gh release create/)
   assert.match(workflow, /gh release upload/)
   assert.match(workflow, /GH_TOKEN:\s*\$\{\{ secrets\.GITHUB_TOKEN \}\}/)
+  assert.match(workflow, /GH_REPO:\s*\$\{\{ github\.repository \}\}/)
 
   assert.match(workspace, /packages:\s*\n\s*-\s*'\.'/)
   assert.doesNotMatch(workspace, /storeDir:\s*\/Users\//)
