@@ -59,12 +59,16 @@ test('release workflow builds and publishes macOS and Windows packages from git 
 
   assert.equal(pkg.scripts['release:mac'], 'npm run build && electron-builder --mac --publish always')
   assert.equal(pkg.scripts['release:win'], 'npm run build && electron-builder --win --x64 --publish always')
+  assert.equal(pkg.packageManager, 'pnpm@10.32.1')
 
   assert.match(workflow, /tags:\s*\n\s*-\s*'v\*'/)
   assert.match(workflow, /contents:\s*write/)
-  assert.match(workflow, /macos-latest/)
+  assert.match(workflow, /macos-15/)
   assert.match(workflow, /windows-latest/)
-  assert.match(workflow, /pnpm\/action-setup@v4/)
+  assert.match(workflow, /pnpm\/action-setup@v6/)
+  assert.match(workflow, /version:\s*10\.32\.1/)
+  assert.match(workflow, /pnpm config set store-dir \.pnpm-store/)
+  assert.doesNotMatch(workflow, /cache:\s*pnpm/)
   assert.match(workflow, /ELECTRON_SKIP_BINARY_DOWNLOAD:\s*'1'/)
   assert.match(workflow, /node --test tests\/app-update-release\.test\.mjs/)
   assert.doesNotMatch(workflow, /pnpm test/)

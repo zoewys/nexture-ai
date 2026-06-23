@@ -11,22 +11,22 @@ permissions:
 jobs:
   macos:
     name: macOS package
-    runs-on: macos-latest
+    runs-on: macos-15
     env:
       GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
       CSC_IDENTITY_AUTO_DISCOVERY: 'false'
     steps:
       - uses: actions/checkout@v4
 
-      - uses: pnpm/action-setup@v4
+      - uses: pnpm/action-setup@v6
         with:
-          version: 10
+          version: 10.32.1
 
       - uses: actions/setup-node@v4
         with:
           node-version: 20
-          cache: pnpm
 
+      - run: pnpm config set store-dir .pnpm-store
       - run: pnpm install
         env:
           ELECTRON_SKIP_BINARY_DOWNLOAD: '1'
@@ -42,15 +42,15 @@ jobs:
     steps:
       - uses: actions/checkout@v4
 
-      - uses: pnpm/action-setup@v4
+      - uses: pnpm/action-setup@v6
         with:
-          version: 10
+          version: 10.32.1
 
       - uses: actions/setup-node@v4
         with:
           node-version: 20
-          cache: pnpm
 
+      - run: pnpm config set store-dir .pnpm-store
       - run: pnpm install
         env:
           ELECTRON_SKIP_BINARY_DOWNLOAD: '1'
