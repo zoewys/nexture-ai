@@ -161,6 +161,20 @@ export interface ResumeHandle {
   transcriptPath?: string
 }
 
+// ── Skills ─────────────────────────────────────────────────────────────────
+
+export interface SkillSummary {
+  id: string
+  name: string
+  description: string
+  sourceLabel: string
+  path: string
+}
+
+export interface SkillDefinition extends SkillSummary {
+  content: string
+}
+
 // ── Product-level sessions ─────────────────────────────────────────────────
 
 export type SessionScope = 'single' | 'workflow-step'
@@ -194,6 +208,8 @@ export interface SessionSegment {
   runId?: string
   /** Native session id emitted by Claude/Codex/API for this segment. */
   nativeSessionId?: string
+  /** App-level skills selected for one or more turns in this segment. */
+  skillIds?: string[]
   continuationStrategy: SessionContinuationStrategy
   startedAt: number
   finishedAt?: number
@@ -242,6 +258,7 @@ export interface SingleSessionSendInput {
   apiTemperature?: number
   apiTopP?: number
   attachments?: RunAttachment[]
+  skillIds?: string[]
 }
 
 export type SingleSessionEvent =
@@ -684,6 +701,8 @@ export const IPC = {
   singleSessionDelete: 'single:sessions:delete',
   /** main → renderer: Single session updates and nested agent events. */
   singleSessionEvent: 'single:sessions:event',
+  /** renderer → main: list discovered local skills. */
+  skillsList: 'skills:list',
   /** main → renderer: incremental transcript delta from file tailing. */
   transcriptDelta: 'transcript:delta',
   /** renderer → main: detect which CLIs are installed. */
