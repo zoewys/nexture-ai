@@ -15,6 +15,9 @@ import type { PermissionGuard } from './api-tools/PermissionGuard'
 
 const DEFAULT_MAX_OUTPUT_TOKENS = 8192
 const GLM_MAX_OUTPUT_TOKENS = 131_072
+const CONTEXT_WINDOW_OUTPUT_RESERVE_TOKENS = 8192
+const MIN_CONTEXT_SAFE_OUTPUT_TOKENS = 1024
+const TOKEN_ESTIMATE_CHARS_PER_TOKEN = 4
 const DEFAULT_TEMPERATURE = 0.2
 const DEFAULT_TOP_P = 1
 const MAX_OUTPUT_TOKENS_ERROR_MESSAGE =
@@ -81,7 +84,7 @@ export class ApiAdapter implements CliAdapter {
         system,
         temperature: input.apiTemperature ?? DEFAULT_TEMPERATURE,
         topP: input.apiTopP ?? DEFAULT_TOP_P,
-        maxOutputTokens: resolveMaxOutputTokens(this.config, modelId),
+        maxOutputTokens: resolveMaxOutputTokens(this.config, modelId, { messages, system, tools }),
         tools,
         stopWhen: stepCountIs(input.apiMaxSteps ?? 10),
         abortSignal: input.abortSignal,
@@ -199,12 +202,26 @@ function supportsNativeStructuredOutput(config: ApiProviderConfig, modelId: stri
   return !isKnownJsonSchemaUnsupportedProvider(config, modelId)
 }
 
-function resolveMaxOutputTokens(config: ApiProviderConfig, modelId: string): number {
+interface MaxOutputTokenRequestParts {
+  messages: unknown
+  system: unknown
+  tools: unknown
+}
+
+function resolveMaxOutputTokens(
+  config: ApiProviderConfig,
+  modelId: string,
+  request?: MaxOutputTokenRequestParts
+): number {
   const configured = typeof config.maxOutputTokens === 'number' && Number.isFinite(config.maxOutputTokens)
     ? Math.floor(config.maxOutputTokens)
     : DEFAULT_MAX_OUTPUT_TOKENS
   const positive = configured >= 1 ? configured : DEFAULT_MAX_OUTPUT_TOKENS
-  const limit = maxOutputTokensLimit(config, modelId)
+  const limits = [
+    maxOutputTokensLimit(config, modelId),
+    contextSafeMaxOutputTokens(config, modelId, request)
+  ].filter((value): value is number => typeof value === 'number' && Number.isFinite(value) && value >= 1)
+  const limit = limits.length ? Math.min(...limits) : null
   return limit ? Math.min(positive, limit) : positive
 }
 
@@ -218,6 +235,65 @@ function maxOutputTokensLimit(config: ApiProviderConfig, modelId: string): numbe
     return GLM_MAX_OUTPUT_TOKENS
   }
   return null
+}
+
+function contextSafeMaxOutputTokens(
+  config: ApiProviderConfig,
+  modelId: string,
+  request?: MaxOutputTokenRequestParts
+): number | null {
+  const contextWindow = modelContextWindow(config, modelId)
+  if (!contextWindow) return null
+
+  const estimatedInputTokens = request ? estimateRequestInputTokens(request) : 0
+  const available = contextWindow - estimatedInputTokens - CONTEXT_WINDOW_OUTPUT_RESERVE_TOKENS
+  if (available >= MIN_CONTEXT_SAFE_OUTPUT_TOKENS) return Math.floor(available)
+  if (contextWindow > estimatedInputTokens) return Math.max(1, Math.floor(contextWindow - estimatedInputTokens))
+  return 1
+}
+
+function modelContextWindow(config: ApiProviderConfig, modelId: string): number | null {
+  const direct = config.modelContextWindows?.[modelId]
+  if (typeof direct === 'number' && Number.isFinite(direct) && direct >= 1) return Math.floor(direct)
+
+  const lowerModelId = modelId.toLowerCase()
+  const matched = Object.entries(config.modelContextWindows ?? {})
+    .find(([id]) => id.toLowerCase() === lowerModelId)?.[1]
+  if (typeof matched === 'number' && Number.isFinite(matched) && matched >= 1) return Math.floor(matched)
+
+  const marker = `${config.name} ${config.baseUrl ?? ''} ${modelId}`.toLowerCase()
+  if (/\bkimi-k2\.6\b/.test(marker)) return 262_144
+  return null
+}
+
+function estimateRequestInputTokens(request: MaxOutputTokenRequestParts): number {
+  return roughTokenCount([
+    safeTokenEstimateText(request.system),
+    safeTokenEstimateText(request.messages),
+    safeTokenEstimateText(request.tools)
+  ].join('\n'))
+}
+
+function safeTokenEstimateText(value: unknown): string {
+  const seen = new WeakSet<object>()
+  try {
+    return JSON.stringify(value, (_key, current) => {
+      if (typeof current === 'function') return `[Function ${current.name || 'anonymous'}]`
+      if (typeof current === 'bigint') return current.toString()
+      if (current && typeof current === 'object') {
+        if (seen.has(current)) return '[Circular]'
+        seen.add(current)
+      }
+      return current
+    }) ?? ''
+  } catch {
+    return String(value)
+  }
+}
+
+function roughTokenCount(text: string): number {
+  if (!text) return 0
+  return Math.ceil(text.length / TOKEN_ESTIMATE_CHARS_PER_TOKEN)
 }
 
 function isKnownJsonSchemaUnsupportedProvider(config: ApiProviderConfig, modelId: string): boolean {

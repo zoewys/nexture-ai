@@ -605,6 +605,33 @@ test('ApiAdapter clamps GLM max output tokens to provider range', async () => {
   assert.equal(calls[0].maxOutputTokens, 131072)
 })
 
+test('ApiAdapter reserves context space when Kimi max output matches the full context window', async () => {
+  const calls = []
+  const { ApiAdapter } = await importApiAdapter(mocksFor([
+    { type: 'text-delta', textDelta: 'ok' },
+    { type: 'finish' }
+  ], calls))
+  const adapter = new ApiAdapter({
+    id: 'kimi',
+    name: 'Kimi',
+    format: 'openai-compatible',
+    apiKey: 'sk-test',
+    baseUrl: 'https://api.moonshot.cn/v1',
+    models: ['kimi-k2.6'],
+    defaultModel: 'kimi-k2.6',
+    maxOutputTokens: 262144
+  }, guard)
+
+  await collect(adapter.runTurn({
+    prompt: 'hello',
+    cwd: root,
+    abortSignal: new AbortController().signal
+  }))
+
+  assert.ok(calls[0].maxOutputTokens <= 262144 - 8192)
+  assert.ok(calls[0].maxOutputTokens >= 200000)
+})
+
 test('ApiAdapter reports max output truncation instead of completing without a handoff', async () => {
   const calls = []
   const logs = []

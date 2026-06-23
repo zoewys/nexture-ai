@@ -10739,6 +10739,61 @@ select:focus,
   color-scheme: light !important;
 }
 
+.workflow-canvas-template-panel {
+  display: grid !important;
+  gap: 10px !important;
+  min-width: 0 !important;
+}
+
+.workflow-canvas-template-kicker,
+.workflow-canvas-template-field > span {
+  color: var(--neutral-text-muted) !important;
+  font-size: 10px !important;
+  font-weight: 700 !important;
+  letter-spacing: 0 !important;
+  text-transform: uppercase !important;
+}
+
+.workflow-canvas-template-name {
+  min-width: 0 !important;
+  color: var(--neutral-text-primary) !important;
+  font-size: 13px !important;
+  font-weight: 700 !important;
+  line-height: 1.35 !important;
+  overflow-wrap: anywhere !important;
+}
+
+.workflow-canvas-template-field {
+  display: grid !important;
+  gap: 6px !important;
+  min-width: 0 !important;
+}
+
+.workflow-canvas-template-description {
+  width: 100% !important;
+  min-height: 280px !important;
+  max-height: 520px !important;
+  resize: vertical !important;
+  padding: 9px 10px !important;
+  border: 1px solid var(--workflow-canvas-control-border, var(--neutral-border)) !important;
+  border-radius: 8px !important;
+  background: var(--workflow-canvas-control-bg, var(--neutral-surface-raised)) !important;
+  color: var(--workflow-canvas-control-text, var(--neutral-text-primary)) !important;
+  font-family: inherit !important;
+  font-size: 12px !important;
+  line-height: 1.45 !important;
+  outline: none !important;
+}
+
+.workflow-canvas-template-description::placeholder {
+  color: var(--neutral-text-muted) !important;
+}
+
+.workflow-canvas-template-budget {
+  color: var(--neutral-text-muted) !important;
+  font-size: 11px !important;
+}
+
 .workflow-canvas-property-control:focus {
   border-color: color-mix(in srgb, var(--brand-primary) 44%, transparent) !important;
   box-shadow: var(--shadow-focus) !important;

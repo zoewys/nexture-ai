@@ -46,6 +46,7 @@ export function TemplatesView({
   const [saving, setSaving] = useState(false)
   const [sidebarCollapsed, setSidebarCollapsed] = useState(false)
   const [editName, setEditName] = useState('')
+  const [editDescription, setEditDescription] = useState('')
   const pendingStepsRef = useRef<WorkflowStepNode[] | null>(null)
   const [contextMenu, setContextMenu] = useState<{ templateId: string; x: number; y: number } | null>(null)
 
@@ -68,10 +69,12 @@ export function TemplatesView({
     if (!selectedId && templates.length > 0) {
       setSelectedId(sortedTemplates[0].id)
       setEditName(sortedTemplates[0].name)
+      setEditDescription(sortedTemplates[0].description ?? '')
     }
     if (selectedId && !templates.some((t) => t.id === selectedId)) {
       setSelectedId(sortedTemplates[0]?.id ?? null)
       setEditName(sortedTemplates[0]?.name ?? '')
+      setEditDescription(sortedTemplates[0]?.description ?? '')
     }
   }, [selectedId, templates, sortedTemplates])
 
@@ -85,7 +88,10 @@ export function TemplatesView({
       setSelectedId(id)
       setIsDirty(false)
       const t = templates.find((t) => t.id === id)
-      if (t) setEditName(t.name)
+      if (t) {
+        setEditName(t.name)
+        setEditDescription(t.description ?? '')
+      }
     },
     [isDirty, templates]
   )
@@ -96,8 +102,10 @@ export function TemplatesView({
     if (isDirty && !window.confirm('You have unsaved changes. Discard?')) return
     setSaving(true)
     try {
-      const saved = await onSave({ name: 'New Workflow', steps: [] })
+      const saved = await onSave({ name: 'New Workflow', description: '', steps: [] })
       setSelectedId(saved.id)
+      setEditName(saved.name)
+      setEditDescription(saved.description ?? '')
       setIsDirty(false)
     } finally {
       setSaving(false)
@@ -120,6 +128,8 @@ export function TemplatesView({
         steps: selectedTemplate.steps
       })
       setSelectedId(saved.id)
+      setEditName(saved.name)
+      setEditDescription(saved.description ?? '')
       setIsDirty(false)
     } finally {
       setSaving(false)
@@ -133,16 +143,18 @@ export function TemplatesView({
       const saved = await onSave({
         id: selectedTemplate.id,
         name: editName.trim() || selectedTemplate.name,
-        description: selectedTemplate.description,
+        description: editDescription.trim() || undefined,
         steps,
         budgetUsd: selectedTemplate.budgetUsd
       })
       setSelectedId(saved.id)
+      setEditName(saved.name)
+      setEditDescription(saved.description ?? '')
       setIsDirty(false)
     } finally {
       setSaving(false)
     }
-  }, [selectedTemplate, onSave, saving, editName])
+  }, [selectedTemplate, onSave, saving, editName, editDescription])
 
   const handleCanvasSaveFromButton = useCallback(() => {
     if (!selectedTemplate) return
@@ -306,6 +318,11 @@ export function TemplatesView({
                   modelCatalog={modelCatalog}
                   onSaveAgent={onSaveAgent}
                   onMarkDirty={markDirty}
+                  templateDescription={editDescription}
+                  onTemplateDescriptionChange={(description) => {
+                    setEditDescription(description)
+                    markDirty()
+                  }}
                   onStepsChange={(steps) => {
                     pendingStepsRef.current = steps
                   }}

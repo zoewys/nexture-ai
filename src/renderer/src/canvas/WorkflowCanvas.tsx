@@ -87,6 +87,8 @@ interface WorkflowCanvasProps {
   modelCatalog: ModelCatalog | null
   onSaveAgent: (draft: AgentDraft) => Promise<AgentDefinition | null>
   onMarkDirty: () => void
+  templateDescription?: string
+  onTemplateDescriptionChange?: (description: string) => void
   onStepsChange?: (steps: import('@shared/types').WorkflowStepNode[]) => void
   onSave?: (steps: import('@shared/types').WorkflowStepNode[]) => void
 }
@@ -106,7 +108,19 @@ const edgeTypes = { conditional: ConditionalEdge }
 
 // ── Inner Canvas (needs ReactFlowProvider ancestor) ───────────────────────────
 
-function CanvasInner({ agents, template, templates, clis, modelCatalog, onSaveAgent, onMarkDirty, onStepsChange, onSave }: WorkflowCanvasProps) {
+function CanvasInner({
+  agents,
+  template,
+  templates,
+  clis,
+  modelCatalog,
+  onSaveAgent,
+  onMarkDirty,
+  templateDescription,
+  onTemplateDescriptionChange,
+  onStepsChange,
+  onSave
+}: WorkflowCanvasProps) {
   const reactFlowInstance = useReactFlow()
 
   const {
@@ -805,7 +819,11 @@ function CanvasInner({ agents, template, templates, clis, modelCatalog, onSaveAg
                 onOpenAgentDetail={openAgentDetail}
               />
             ) : (
-              <TemplatePropertyPanel template={template} />
+              <TemplatePropertyPanel
+                template={template}
+                description={templateDescription}
+                onDescriptionChange={onTemplateDescriptionChange}
+              />
             )}
           </div>
         </div>
@@ -1443,7 +1461,15 @@ function permissionModeLabel(mode: AgentDefinition['permissionMode']): string {
 
 // ── Template Property Panel (no node selected) ────────────────────────────────
 
-function TemplatePropertyPanel({ template }: { template: WorkflowTemplate | null }) {
+function TemplatePropertyPanel({
+  template,
+  description,
+  onDescriptionChange
+}: {
+  template: WorkflowTemplate | null
+  description?: string
+  onDescriptionChange?: (description: string) => void
+}) {
   if (!template) {
     return (
       <div style={{ fontSize: 12, color: colors.textDim, fontStyle: 'italic' }}>
@@ -1452,23 +1478,28 @@ function TemplatePropertyPanel({ template }: { template: WorkflowTemplate | null
     )
   }
 
+  const descriptionValue = description ?? template.description ?? ''
+
   return (
-    <>
-      <div style={{ fontSize: 11, color: colors.textMuted, textTransform: 'uppercase', letterSpacing: 0.5 }}>
-        Template
-      </div>
-      <div style={{ fontSize: 13, fontWeight: 600, color: colors.text }}>{template.name}</div>
-      {template.description && (
-        <div style={{ fontSize: 11, color: colors.textMuted, lineHeight: 1.4 }}>
-          {template.description}
-        </div>
-      )}
+    <div className="workflow-canvas-template-panel">
+      <div className="workflow-canvas-template-kicker">Template</div>
+      <div className="workflow-canvas-template-name">{template.name}</div>
+      <label className="workflow-canvas-template-field">
+        <span>描述</span>
+        <textarea
+          className="workflow-canvas-property-control workflow-canvas-template-description"
+          value={descriptionValue}
+          placeholder="填写描述"
+          readOnly={!onDescriptionChange}
+          onChange={(event) => onDescriptionChange?.(event.target.value)}
+        />
+      </label>
       {template.budgetUsd != null && (
-        <div style={{ fontSize: 11, color: colors.textMuted }}>
+        <div className="workflow-canvas-template-budget">
           Budget: <strong style={{ color: colors.text }}>${template.budgetUsd}</strong>
         </div>
       )}
-    </>
+    </div>
   )
 }
 
