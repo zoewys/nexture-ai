@@ -1,6 +1,6 @@
 {
   "name": "nexture-ai",
-  "version": "0.1.0",
+  "version": "0.1.1",
   "description": "Nexture AI desktop app that orchestrates Claude and Codex CLIs into local multi-agent workflows",
   "main": "./out/main/index.js",
   "author": "siyuan",
@@ -20,7 +20,9 @@
     "test:codex-stderr-noise": "node tests/codex-stderr-noise.test.mjs",
     "dist:mac": "npm run build && electron-builder --mac",
     "dist:win": "npm run build && electron-builder --win --x64",
-    "dist:win:dir": "npm run build && electron-builder --win --x64 --dir"
+    "dist:win:dir": "npm run build && electron-builder --win --x64 --dir",
+    "release:mac": "npm run build && electron-builder --mac --publish always",
+    "release:win": "npm run build && electron-builder --win --x64 --publish always"
   },
   "dependencies": {
     "@ai-sdk/anthropic": "^3.0.83",

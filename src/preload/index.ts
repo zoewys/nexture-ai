@@ -32,7 +32,8 @@ import {
   type ExportOptions,
   type ImportPreview,
   type ImportOptions,
-  type PastedImageInput
+  type PastedImageInput,
+  type AppUpdateState
 } from '@shared/types'
 
 /**
@@ -207,6 +208,15 @@ const api = {
   appSettingsSave: (settings: AppSettings): Promise<void> =>
     ipcRenderer.invoke(IPC.appSettingsSave, settings),
 
+  getAppVersion: (): Promise<string> =>
+    ipcRenderer.invoke(IPC.appVersionGet),
+
+  checkForUpdates: (): Promise<AppUpdateState> =>
+    ipcRenderer.invoke(IPC.appUpdateCheck),
+
+  installUpdate: (): Promise<AppUpdateState> =>
+    ipcRenderer.invoke(IPC.appUpdateInstall),
+
   skipWorkflowStep: (runId: string) =>
     ipcRenderer.invoke(IPC.workflowSkipStep, runId),
 
@@ -235,6 +245,12 @@ const api = {
     const listener = (_e: unknown, envelope: WorkflowEventEnvelope): void => cb(envelope)
     ipcRenderer.on(IPC.workflowEvent, listener)
     return () => ipcRenderer.removeListener(IPC.workflowEvent, listener)
+  },
+
+  onAppUpdateEvent: (cb: (state: AppUpdateState) => void): (() => void) => {
+    const listener = (_e: unknown, state: AppUpdateState): void => cb(state)
+    ipcRenderer.on(IPC.appUpdateEvent, listener)
+    return () => ipcRenderer.removeListener(IPC.appUpdateEvent, listener)
   },
 
   exportData: (options: ExportOptions): Promise<{ ok: boolean; path?: string }> =>

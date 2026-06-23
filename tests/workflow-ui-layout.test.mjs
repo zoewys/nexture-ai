@@ -133,7 +133,7 @@ test('empty dashboards keep their create cards visible', () => {
   assert.doesNotMatch(scheduleList, /暂无定时任务/)
 
   assert.match(runsList, /function CreateWorkflowRunCard/)
-  assert.match(runsList, /runs\.length > 0 && filteredRuns\.length === 0/)
+  assert.match(runsList, /dashboardRuns\.length > 0 && filteredRuns\.length === 0/)
   assert.match(runsList, /className="workflow-run-card dashboard-create-card workflow-run-create-card"/)
   assert.match(css, /\.dashboard-create-card\s*\{/)
   assert.match(css, /\.schedule-create-card\s*\{/)

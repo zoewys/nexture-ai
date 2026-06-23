@@ -9,6 +9,7 @@ import { useMemo, useState } from 'react'
 import type { AgentDefinition, WorkflowRun, WorkflowRunStep, WorkflowStepExecution } from '@shared/types'
 import { Activity, Clock3, Plus, RefreshCw, Search, Trash2 } from 'lucide-react'
 import {
+  workflowDashboardRuns,
   workflowRunDisplayName,
   workflowRunProgressSegments,
   type WorkflowRunProgressSegment
@@ -50,11 +51,12 @@ export function WorkflowRunsList({
     () => new Map(agents.map((agent) => [agent.id, agent])),
     [agents]
   )
+  const dashboardRuns = useMemo(() => workflowDashboardRuns(runs), [runs])
   const filteredRuns = useMemo(
-    () => filterRuns(runs, query, filter, sortMode),
-    [filter, query, runs, sortMode]
+    () => filterRuns(dashboardRuns, query, filter, sortMode),
+    [dashboardRuns, filter, query, sortMode]
   )
-  const counts = useMemo(() => runFilterCounts(runs), [runs])
+  const counts = useMemo(() => runFilterCounts(dashboardRuns), [dashboardRuns])
 
   return (
     <section className="workflow-runs-list workflow-dashboard-page">
@@ -115,7 +117,7 @@ export function WorkflowRunsList({
       </div>
 
       <div className="workflow-run-cards cards-grid">
-        {runs.length > 0 && filteredRuns.length === 0 && (
+        {dashboardRuns.length > 0 && filteredRuns.length === 0 && (
           <div className="workflow-dashboard-empty">
             <Activity size={18} />
             <span>暂无匹配的运行记录</span>

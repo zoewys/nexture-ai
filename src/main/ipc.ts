@@ -37,7 +37,8 @@ import {
   type ApiCallLogStatus,
   type ExportOptions,
   type ImportOptions,
-  type PastedImageInput
+  type PastedImageInput,
+  type AppUpdateState
 } from '@shared/types'
 import { RunManager } from './RunManager'
 import { TranscriptStore } from './TranscriptStore'
@@ -65,6 +66,7 @@ import { ApiCallLogStore } from './ApiCallLogStore'
 import { respondToPermissionRequest } from './adapters/api-tools/PermissionGuard'
 import { normalizeProviderBaseUrl, resolveModel, shouldUseAnthropicBearerAuth } from './adapters/apiAdapter'
 import { FeishuNotifier } from './FeishuNotifier'
+import { checkForAppUpdates, installAppUpdate } from './appUpdater'
 
 /** Minimal JSON fetch using Node.js http/https (no dependency on the global
  *  `fetch` which may behave differently across Electron versions). */
@@ -636,6 +638,16 @@ export function registerIpc(
     }
     return result
   })
+
+  ipcMain.handle(IPC.appVersionGet, (): string => app.getVersion())
+
+  ipcMain.handle(IPC.appUpdateCheck, async (): Promise<AppUpdateState> =>
+    checkForAppUpdates()
+  )
+
+  ipcMain.handle(IPC.appUpdateInstall, (): AppUpdateState =>
+    installAppUpdate()
+  )
 
   // ── Agent CRUD ─────────────────────────────────────────────────────────
 

@@ -12,9 +12,15 @@ files:
   - resources/**/*
   - "!resources/icon.svg"
 
+publish:
+  provider: github
+  owner: zoewys
+  repo: agent-studio
+
 mac:
   target:
     - dmg
+    - zip
   icon: resources/icon.icns
 
 win:

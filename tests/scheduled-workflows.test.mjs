@@ -123,6 +123,17 @@ test('workflow manager records scheduled metadata and auto-confirms successful h
   assert.match(manager, /run\.status = 'completed'/)
 })
 
+test('workflow dashboard omits scheduled run history', async () => {
+  const { workflowDashboardRuns } = await importTs('src/renderer/src/workflowRunView.ts')
+  const manualRun = { id: 'manual-run', startedAt: 10_000 }
+  const scheduledRun = { id: 'scheduled-run', startedAt: 20_000, scheduledBy: 'schedule-nightly' }
+
+  assert.deepEqual(
+    workflowDashboardRuns([scheduledRun, manualRun]).map((run) => run.id),
+    ['manual-run']
+  )
+})
+
 test('ipc and preload expose schedule CRUD plus cron preview helpers', () => {
   const ipc = source('src/main/ipc.ts')
   const preload = source('src/preload/index.ts')

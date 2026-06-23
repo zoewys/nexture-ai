@@ -5,6 +5,7 @@ import { registerIpc } from './ipc'
 import type { AppManagers } from './ipc'
 import { AppSettingsStore } from './AppSettingsStore'
 import type { WorkflowRun, WorkflowSchedule } from '@shared/types'
+import { checkForAppUpdates, configureAppUpdater } from './appUpdater'
 
 let mainWindow: BrowserWindow | null = null
 let appManagers: AppManagers | null = null
@@ -211,11 +212,13 @@ app.whenReady().then(() => {
   }
 
   createTray()
+  configureAppUpdater(() => mainWindow)
   appManagers = registerIpc(() => mainWindow, {
     notifyScheduleResult,
     notifyScheduleError
   })
   createWindow()
+  void checkForAppUpdates({ silent: true })
 
   app.on('activate', () => {
     if (mainWindow && !mainWindow.isDestroyed()) {

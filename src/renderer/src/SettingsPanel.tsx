@@ -1,6 +1,6 @@
 import { useCallback, useEffect, useState } from 'react'
 import { Bell, Bot, Code2, Database, Download, FolderOpen, Globe, MessageSquare, Moon, RefreshCw, Sliders, Sun, Terminal, Trash2, Upload } from 'lucide-react'
-import type { ApiCallLogEntry, AppSettings, FeishuConnectionStatus, FeishuConfig } from '@shared/types'
+import type { ApiCallLogEntry, AppSettings, AppUpdateState, FeishuConnectionStatus, FeishuConfig } from '@shared/types'
 import { DEFAULT_FEISHU_CONFIG } from '@shared/types'
 import { ExportDialog } from './ExportDialog'
 import { ImportDialog } from './ImportDialog'
@@ -55,6 +55,13 @@ export function SettingsPanel({ settings, loading, onSave }: SettingsPanelProps)
   const [feishuSaving, setFeishuSaving] = useState(false)
   const [feishuTestResult, setFeishuTestResult] = useState<{ ok: boolean; error?: string } | null>(null)
   const [activeSection, setActiveSection] = useState('cli')
+  const [appVersion, setAppVersion] = useState('')
+  const [checkingUpdate, setCheckingUpdate] = useState(false)
+  const [updateState, setUpdateState] = useState<AppUpdateState>({
+    status: 'idle',
+    currentVersion: '',
+    canInstall: false
+  })
 
   const refresh = useCallback(async () => {
     setRefreshing(true)
@@ -106,6 +113,22 @@ export function SettingsPanel({ settings, loading, onSave }: SettingsPanelProps)
     setFeishuDraft({ ...DEFAULT_FEISHU_CONFIG, ...settings.feishu })
   }, [settings.feishu])
 
+  useEffect(() => {
+    let cancelled = false
+    void window.api.getAppVersion().then((version) => {
+      if (cancelled) return
+      setAppVersion(version)
+      setUpdateState((prev) => ({ ...prev, currentVersion: version }))
+    })
+    const unsubscribe = window.api.onAppUpdateEvent((state) => {
+      setUpdateState(state)
+    })
+    return () => {
+      cancelled = true
+      unsubscribe()
+    }
+  }, [])
+
   const handleInstall = useCallback(async (cli: 'claude' | 'codex') => {
     setClis(prev => ({ ...prev, [cli]: { ...prev[cli], installing: true, message: '准备安装…' } }))
     await window.api.installCli(cli)
@@ -152,6 +175,19 @@ export function SettingsPanel({ settings, loading, onSave }: SettingsPanelProps)
     await window.api.clearApiLogs()
     await refreshApiLogs()
   }, [refreshApiLogs])
+
+  const handleCheckForUpdates = useCallback(async () => {
+    setCheckingUpdate(true)
+    try {
+      setUpdateState(await window.api.checkForUpdates())
+    } finally {
+      setCheckingUpdate(false)
+    }
+  }, [])
+
+  const handleInstallUpdate = useCallback(async () => {
+    setUpdateState(await window.api.installUpdate())
+  }, [])
 
   const scrollToSection = useCallback((key: string) => {
     setActiveSection(key)
@@ -365,6 +401,46 @@ export function SettingsPanel({ settings, loading, onSave }: SettingsPanelProps)
           >
             {settings.appearanceTheme === 'dark' ? <Moon size={12} /> : <Sun size={12} />}
           </button>
+        </div>
+      </section>
+
+      <hr className="settings-divider" />
+
+      <section className="settings-section app-update-section">
+        <div className="settings-section-head">
+          <div>
+            <h3 className="settings-section-title">版本更新</h3>
+            <p className="settings-section-desc">启动时会自动检查 GitHub Release，也可以在这里手动检查。</p>
+          </div>
+        </div>
+
+        <div className="settings-toggle-row">
+          <div className="settings-toggle-info">
+            <h4>当前版本 {appVersion || updateState.currentVersion || 'dev'}</h4>
+            <p>{formatUpdateState(updateState)}</p>
+            {updateState.error && <p className="settings-inline-error">{updateState.error}</p>}
+          </div>
+          <div className="settings-btn-group">
+            <button
+              type="button"
+              className="btn"
+              disabled={checkingUpdate || updateState.status === 'checking' || updateState.status === 'downloading'}
+              onClick={() => void handleCheckForUpdates()}
+            >
+              <RefreshCw size={14} />
+              {checkingUpdate || updateState.status === 'checking' ? '检查中…' : '检查更新'}
+            </button>
+            {updateState.canInstall && (
+              <button
+                type="button"
+                className="btn primary"
+                onClick={() => void handleInstallUpdate()}
+              >
+                <Download size={14} />
+                重启安装
+              </button>
+            )}
+          </div>
         </div>
       </section>
 
@@ -600,6 +676,28 @@ function formatLogTimestamp(timestamp: string): string {
   const hours = String(date.getHours()).padStart(2, '0')
   const minutes = String(date.getMinutes()).padStart(2, '0')
   return `${month}/${day} ${hours}:${minutes}`
+}
+
+function formatUpdateState(state: AppUpdateState): string {
+  switch (state.status) {
+    case 'checking':
+      return '正在检查是否有新版本。'
+    case 'available':
+      return state.availableVersion ? `发现新版本 ${state.availableVersion}，开始下载。` : '发现新版本，开始下载。'
+    case 'downloading':
+      return typeof state.percent === 'number'
+        ? `正在下载更新 ${Math.round(state.percent)}%。`
+        : '正在下载更新。'
+    case 'downloaded':
+      return state.availableVersion ? `新版本 ${state.availableVersion} 已下载，重启后安装。` : '新版本已下载，重启后安装。'
+    case 'not-available':
+      return state.message ?? '当前已是最新版本。'
+    case 'error':
+      return state.message ?? '检查更新失败。'
+    case 'idle':
+    default:
+      return '应用会在打包版本启动后自动检查更新。'
+  }
 }
 
 function feishuStatusLabel(status: FeishuConnectionStatus): string {

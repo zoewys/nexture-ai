@@ -733,6 +733,14 @@ export const IPC = {
   dataImport: 'data:import',
   /** renderer → main: restart the app. */
   appRestart: 'app:restart',
+  /** renderer → main: get the current packaged app version. */
+  appVersionGet: 'app:version:get',
+  /** renderer → main: manually check for a packaged app update. */
+  appUpdateCheck: 'app:update:check',
+  /** renderer → main: install a downloaded app update and restart. */
+  appUpdateInstall: 'app:update:install',
+  /** main → renderer: app update status changed. */
+  appUpdateEvent: 'app:update:event',
   /** renderer → main: list all saved agent definitions. */
   agentsList: 'agents:list',
   /** renderer → main: create or update an agent definition. */
@@ -853,6 +861,25 @@ export interface CliCheckResult {
 export interface CliVersionResult {
   claude: string | null
   codex: string | null
+}
+
+export type AppUpdateStatus =
+  | 'idle'
+  | 'checking'
+  | 'available'
+  | 'not-available'
+  | 'downloading'
+  | 'downloaded'
+  | 'error'
+
+export interface AppUpdateState {
+  status: AppUpdateStatus
+  currentVersion: string
+  availableVersion?: string
+  percent?: number
+  message?: string
+  error?: string
+  canInstall: boolean
 }
 
 // ── Data Import / Export ───────────────────────────────────────────────────

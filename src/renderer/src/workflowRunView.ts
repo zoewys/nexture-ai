@@ -23,6 +23,10 @@ export function sortWorkflowRunsByStartedAt(runs: WorkflowRun[]): WorkflowRun[] 
   return [...runs].sort((a, b) => b.startedAt - a.startedAt)
 }
 
+export function workflowDashboardRuns(runs: WorkflowRun[]): WorkflowRun[] {
+  return runs.filter((run) => !run.scheduledBy)
+}
+
 export function workflowRunDisplayName(run: WorkflowRun): string {
   return run.runName?.trim() || run.templateName
 }
