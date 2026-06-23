@@ -1,4 +1,5 @@
 import { app, shell, BrowserWindow, nativeImage, Tray, Menu, Notification } from 'electron'
+import type { NativeImage, NotificationConstructorOptions } from 'electron'
 import { join } from 'node:path'
 import { registerIpc } from './ipc'
 import type { AppManagers } from './ipc'
@@ -12,11 +13,13 @@ let quitting = false
 let scheduleBadgeActive = false
 
 const APP_NAME = 'Nexture AI'
+const APP_ID = 'ai.nexture.app'
 const LEGACY_USER_DATA_DIR = join(app.getPath('appData'), 'agent-studio')
 const appIconPath = join(__dirname, '../../resources/icon.png')
 const trayIconPath = join(__dirname, '../../resources/tray-icon.png')
 
 app.setName(APP_NAME)
+app.setAppUserModelId(APP_ID)
 app.setPath('userData', LEGACY_USER_DATA_DIR)
 
 function createWindow(): void {
@@ -109,6 +112,38 @@ function stepDisplayName(run: WorkflowRun): string {
   return step?.displayName ?? step?.role ?? `步骤 ${run.currentStepIndex + 1}`
 }
 
+function workflowDisplayName(run: WorkflowRun): string {
+  return run.templateName?.trim() || run.runName?.replace(/^\s*\[scheduled\]\s*/i, '').trim() || 'Workflow'
+}
+
+function workflowRunStatusLabel(status: WorkflowRun['status']): string {
+  switch (status) {
+    case 'completed':
+      return '已完成'
+    case 'error':
+      return '失败'
+    case 'aborted':
+      return '已中止'
+    case 'interrupted':
+      return '已中断'
+    case 'awaiting-confirm':
+      return '等待确认'
+    case 'awaiting-input':
+      return '等待输入'
+    case 'running':
+      return '运行中'
+  }
+}
+
+function workflowProgressText(run: WorkflowRun): string {
+  const total = run.steps.length
+  if (total === 0) return '0 步'
+  const done = run.status === 'completed'
+    ? total
+    : run.steps.filter((step) => step.status === 'done' || step.status === 'stale').length
+  return `${done}/${total} 步`
+}
+
 function lastExecutionError(run: WorkflowRun): string | undefined {
   const step = run.steps[run.currentStepIndex]
   if (!step) return undefined
@@ -124,20 +159,22 @@ function truncate(text: string, max = 200): string {
 }
 
 function notifyScheduleResult(schedule: WorkflowSchedule, run: WorkflowRun): void {
+  const workflowName = workflowDisplayName(run)
+  const statusLabel = workflowRunStatusLabel(run.status)
   if (run.status === 'error') {
     setScheduleBadge(true)
     const reason = lastExecutionError(run) ?? '执行过程中断，请打开应用查看详情'
     showNotification(
-      `定时任务失败：${schedule.name}`,
-      `步骤「${stepDisplayName(run)}」执行失败：${truncate(reason)}`
+      `Workflow ${statusLabel}：${workflowName}`,
+      `状态：${statusLabel} · 定时任务：${schedule.name} · 步骤「${stepDisplayName(run)}」：${truncate(reason)}`
     )
     return
   }
 
   if (run.status === 'completed') {
     showNotification(
-      `定时任务完成：${schedule.name}`,
-      `共 ${run.steps.length} 步，已全部执行完成`
+      `Workflow ${statusLabel}：${workflowName}`,
+      `状态：${statusLabel} · 定时任务：${schedule.name} · 进度：${workflowProgressText(run)}`
     )
   }
 }
@@ -153,7 +190,16 @@ function notifyScheduleError(schedule: WorkflowSchedule, error: unknown): void {
 
 function showNotification(title: string, body: string): void {
   if (!Notification.isSupported()) return
-  new Notification({ title, body, icon: appIconPath }).show()
+  const options: NotificationConstructorOptions = { title, body }
+  const icon = notificationIcon()
+  if (icon && process.platform !== 'darwin') options.icon = icon
+  new Notification(options).show()
+}
+
+function notificationIcon(): NativeImage | undefined {
+  const icon = nativeImage.createFromPath(appIconPath)
+  if (icon.isEmpty()) return undefined
+  return icon.resize({ width: 128, height: 128 })
 }
 
 app.commandLine.appendSwitch('remote-debugging-port', '9223')

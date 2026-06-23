@@ -15,7 +15,7 @@ files:
 mac:
   target:
     - dmg
-  icon: resources/icon.png
+  icon: resources/icon.icns
 
 win:
   target:

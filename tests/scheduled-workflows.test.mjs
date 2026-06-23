@@ -147,16 +147,26 @@ test('ipc and preload expose schedule CRUD plus cron preview helpers', () => {
 
 test('main process implements tray minimize, dock badge, and scheduled notifications', () => {
   const index = source('src/main/index.ts')
+  const builder = source('electron-builder.yml')
 
   assert.match(index, /Tray/)
   assert.match(index, /Menu/)
   assert.match(index, /Notification/)
+  assert.match(index, /APP_ID = 'ai\.nexture\.app'/)
+  assert.match(index, /app\.setAppUserModelId\(APP_ID\)/)
   assert.match(index, /createTray/)
   assert.match(index, /minimizeToTray/)
   assert.match(index, /event\.preventDefault\(\)/)
   assert.match(index, /mainWindow\.hide\(\)/)
   assert.match(index, /app\.dock\.setBadge\('!'\)/)
   assert.match(index, /notifyScheduleResult/)
+  assert.match(index, /workflowDisplayName\(run\)/)
+  assert.match(index, /workflowRunStatusLabel\(run\.status\)/)
+  assert.match(index, /状态：\$\{statusLabel\}/)
+  assert.match(index, /定时任务：\$\{schedule\.name\}/)
+  assert.match(index, /process\.platform !== 'darwin'/)
+  assert.match(builder, /icon: resources\/icon\.icns/)
+  assert.equal(existsSync(join(root, 'resources/icon.icns')), true)
 })
 
 test('renderer exposes schedules tab, drawer, detail history, settings toggle, and scheduled run badge', () => {
