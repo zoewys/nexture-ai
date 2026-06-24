@@ -11443,14 +11443,19 @@ select:focus,
 
 .single-session-toolbar-main {
   width: 100% !important;
-  display: grid !important;
-  grid-template-columns: minmax(260px, 320px) minmax(320px, 1fr) minmax(560px, 720px) !important;
+  display: flex !important;
+  flex-wrap: nowrap !important;
   gap: 12px !important;
-  align-items: start !important;
+  align-items: flex-start !important;
 }
 
-.single-session-toolbar-main-codex-advanced {
-  grid-template-columns: minmax(220px, 300px) minmax(280px, 1fr) minmax(430px, 540px) minmax(360px, 440px) !important;
+.single-session-toolbar-main > * {
+  flex: 1 1 0 !important;
+  min-width: 0 !important;
+}
+
+.single-session-toolbar-context {
+  flex: 2 1 0 !important;
 }
 
 .single-session-toolbar-cluster {
@@ -11619,9 +11624,8 @@ select:focus,
 
 .single-session-inline-advanced-controls {
   min-width: 0 !important;
-  width: min(440px, 100%) !important;
-  justify-self: end !important;
-  align-self: start !important;
+  width: auto !important;
+  align-self: flex-start !important;
 }
 
 .single-session-inline-advanced-controls .codex-options {
@@ -11858,12 +11862,8 @@ select:focus,
 
 @media (max-width: 1180px) {
   .single-session-toolbar-main {
-    grid-template-columns: repeat(2, minmax(0, 1fr)) !important;
-    align-items: start !important;
-  }
-
-  .single-session-toolbar-context {
-    grid-column: 1 / -1;
+    flex-wrap: wrap !important;
+    align-items: flex-start !important;
   }
 
   .single-session-toolbar-meta {
@@ -11872,12 +11872,8 @@ select:focus,
 }
 
 @media (max-width: 860px) {
-  .single-session-toolbar-main {
-    grid-template-columns: minmax(0, 1fr) !important;
-  }
-
-  .single-session-toolbar-context {
-    grid-column: auto !important;
+  .single-session-toolbar-main > * {
+    flex-basis: 100% !important;
   }
 
   .single-session-toolbar-inline,
