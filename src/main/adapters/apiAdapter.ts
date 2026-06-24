@@ -689,7 +689,7 @@ function buildRuntimeIdentityPrompt(
 ): string {
   return [
     '# Runtime Identity',
-    'This turn is running inside Nexture AI API mode.',
+    'This turn is running inside NextureAI API mode.',
     `Configured provider: ${config.name}`,
     `Configured model id: ${modelId}`,
     'If the user asks which model, provider, or runtime you are, answer from the configured provider/model above.',
@@ -698,7 +698,7 @@ function buildRuntimeIdentityPrompt(
     hasReplayMessages
       ? 'Earlier transcript messages may come from a different session segment or model. Treat them as conversation history only, not as authoritative metadata about your current runtime identity.'
       : '',
-    'When branding is ambiguous, describe yourself as Nexture AI API mode using the configured provider/model id.'
+    'When branding is ambiguous, describe yourself as NextureAI API mode using the configured provider/model id.'
   ].filter(Boolean).join('\n')
 }
 

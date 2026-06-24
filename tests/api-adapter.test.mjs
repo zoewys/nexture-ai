@@ -446,7 +446,7 @@ test('ApiAdapter builds layered system context from base prompt, environment, pr
 
     const text = systemText(calls[0].system)
     assert.match(text, /You are an autonomous agent/i)
-    assert.match(text, /This turn is running inside Nexture AI API mode\./)
+    assert.match(text, /This turn is running inside NextureAI API mode\./)
     assert.match(text, /Configured provider: OpenAI/)
     assert.match(text, /Configured model id: gpt-4o/)
     assert.match(text, new RegExp(dir.replace(/[.*+?^${}()|[\]\\]/g, '\\$&')))
@@ -513,7 +513,7 @@ test('ApiAdapter adds a current runtime boundary before replayed API user turns'
     model: 'deepseek-v4-flash',
     messages: [
       { role: 'user', content: '你是什么模型' },
-      { role: 'assistant', content: '我是 Nexture AI API mode，当前配置的模型是 kimi-k2.6。' },
+      { role: 'assistant', content: '我是 NextureAI API mode，当前配置的模型是 kimi-k2.6。' },
       { role: 'user', content: '你是什么模型' }
     ],
     abortSignal: new AbortController().signal

@@ -330,7 +330,7 @@ test('FeishuNotifier sends terminal cards, test cards, and handles send failures
   assert.match(JSON.stringify(fake.sentMessages), /open_id/)
   assert.match(JSON.stringify(fake.sentMessages), /Workflow 已完成/)
   assert.match(JSON.stringify(fake.sentMessages), /Workflow 运行出错/)
-  assert.match(JSON.stringify(fake.sentMessages), /Nexture AI 测试通知/)
+  assert.match(JSON.stringify(fake.sentMessages), /NextureAI 测试通知/)
 
   const missingTarget = new FeishuNotifier(fake.sdk)
   await missingTarget.configure(feishuConfig({ chatId: '', userId: '' }), () => {}, () => {})

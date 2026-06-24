@@ -13,7 +13,7 @@ let tray: Tray | null = null
 let quitting = false
 let scheduleBadgeActive = false
 
-const APP_NAME = 'Nexture AI'
+const APP_NAME = 'NextureAI'
 const APP_ID = 'ai.nexture.app'
 const LEGACY_USER_DATA_DIR = join(app.getPath('appData'), 'agent-studio')
 const appIconPath = join(__dirname, '../../resources/icon.png')
