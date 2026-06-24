@@ -60,10 +60,10 @@
 
 成功发布后，GitHub Release 应包含：
 
-- Windows 安装包：`Nexture.AI.Setup.<version>.exe`
-- Windows 便携版：`Nexture.AI-<version>-portable.exe`
-- macOS 安装包：`Nexture.AI-<version>-arm64.dmg`
-- macOS zip：`Nexture.AI-<version>-arm64-mac.zip`
+- Windows 安装包：`NextureAI.Setup.<version>.exe`
+- Windows 便携版：`NextureAI-<version>-portable.exe`
+- macOS 安装包：`NextureAI-<version>-arm64.dmg`
+- macOS zip：`NextureAI-<version>-arm64-mac.zip`
 - Windows 热更新元数据：`latest.yml`
 - macOS 热更新元数据：`latest-mac.yml`
 - 对应 `.blockmap` 文件
