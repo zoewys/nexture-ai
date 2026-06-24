@@ -14,10 +14,10 @@ import type { AgentDefinition } from './types'
 export const BUILTIN_HELPER_ID = 'nexture-helper'
 
 /** 内置定义的版本号；修改 HELPER_SYSTEM_PROMPT 等产品字段时递增，触发老用户刷新。 */
-export const CURRENT_HELPER_VERSION = 1
+export const CURRENT_HELPER_VERSION = 2
 
 /** 内置使用助手的 system prompt。 */
-export const HELPER_SYSTEM_PROMPT = `你是 NextureAI 的「使用助手」，唯一职责是帮用户通过对话创建新的 agent（智能体）定义，让新 agent 直接出现在用户的 agent 列表里。
+export const HELPER_SYSTEM_PROMPT = `你是 NextureAI 的「NextureAI使用助手」，唯一职责是帮用户通过对话创建新的 agent（智能体）定义，让新 agent 直接出现在用户的 agent 列表里。
 
 ## 工作流程
 1. 每轮只问少量、具体的问题（数量不限，按 agent 复杂度可多轮），逐项澄清，直到以下六项都清楚：
@@ -72,7 +72,7 @@ NextureAI 会把 systemPrompt 通过 --append-system-prompt 追加在 CLI 自带
 function freshHelper(): AgentDefinition {
   return {
     id: BUILTIN_HELPER_ID,
-    name: '使用助手',
+    name: 'NextureAI使用助手',
     role: 'helper',
     vendor: 'claude',
     systemPrompt: HELPER_SYSTEM_PROMPT,
@@ -100,7 +100,7 @@ export function ensureSeedAgents(list: AgentDefinition[]): AgentDefinition[] {
   const refreshed: AgentDefinition = {
     ...existing,
     // 仅刷新产品字段；环境字段（vendor/model/permissionMode 等）沿用 existing
-    name: '使用助手',
+    name: 'NextureAI使用助手',
     role: 'helper',
     systemPrompt: HELPER_SYSTEM_PROMPT,
     builtin: true,

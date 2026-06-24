@@ -36,6 +36,7 @@ import {
   Save,
   Search,
   Server,
+  Sparkles,
   Trash2,
   Upload
 } from 'lucide-react'
@@ -511,7 +512,9 @@ interface AgentCardProps {
 function AgentCard({ agent, onOpen, onDelete }: AgentCardProps): JSX.Element {
   const { meta } = useAgentMemoryMeta(agent.id)
 
-  const VendorIcon = agent.vendor === 'codex' ? Code2 : agent.vendor === 'api' ? Server : Bot
+  const VendorIcon = agent.builtin
+    ? Sparkles
+    : agent.vendor === 'codex' ? Code2 : agent.vendor === 'api' ? Server : Bot
   const modelValue = agent.model || '—'
 
   return (
@@ -529,7 +532,7 @@ function AgentCard({ agent, onOpen, onDelete }: AgentCardProps): JSX.Element {
     >
       <div className="agent-card-body">
         <div className="agent-card-top">
-          <div className={`agent-avatar agent-avatar-${agent.vendor}`}>
+          <div className={`agent-avatar agent-avatar-${agent.builtin ? 'builtin' : agent.vendor}`}>
             <VendorIcon size={20} />
           </div>
           <div className="agent-card-title-wrap">

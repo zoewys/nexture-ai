@@ -241,9 +241,6 @@ export function SettingsPanel({ settings, loading, onSave }: SettingsPanelProps)
                       <div className="cli-card-pkg">{def.pkg}</div>
                     </div>
                   </div>
-                  <span className={`cli-status-badge ${isInstalling ? 'installing' : isInstalled ? 'ok' : 'missing'}`}>
-                    {isInstalling ? '安装中' : isInstalled ? '已安装' : '未安装'}
-                  </span>
                 </div>
 
                 <div className="cli-card-meta">

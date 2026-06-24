@@ -5,7 +5,7 @@
  * 主区显示当前会话 transcript，header 内直接承载 route / model / cwd 配置。
  */
 
-import { useEffect, useMemo, useState } from 'react'
+import { useCallback, useEffect, useMemo, useRef, useState } from 'react'
 import type {
   AgentDefinition,
   AgentVendor,
@@ -34,7 +34,6 @@ import { useProviders } from './useProviders'
 import { useSkills } from './useSkills'
 import { useAgentCreateCapture } from './useAgentCreateCapture'
 import { AgentCreateConfirmCard } from './AgentCreateConfirmCard'
-import { AgentEditForm } from './AgentEditForm'
 import type { AgentDraftPayload } from '@shared/agentDefinitionParser'
 import type { AgentDraft } from './useAgents'
 
@@ -104,8 +103,19 @@ export function SingleRunPanel({
     selectedSession?.running ?? false,
     selectedSession?.id
   )
-  const [editingDraft, setEditingDraft] = useState<AgentDraftPayload | null>(null)
   const [creatingAgent, setCreatingAgent] = useState(false)
+  const [toastVisible, setToastVisible] = useState(false)
+  const toastTimerRef = useRef<number | null>(null)
+
+  const showToast = useCallback(() => {
+    setToastVisible(true)
+    if (toastTimerRef.current !== null) window.clearTimeout(toastTimerRef.current)
+    toastTimerRef.current = window.setTimeout(() => setToastVisible(false), 4000)
+  }, [])
+
+  useEffect(() => () => {
+    if (toastTimerRef.current !== null) window.clearTimeout(toastTimerRef.current)
+  }, [])
 
   const handleCreateAgent = async (draft: AgentDraftPayload): Promise<void> => {
     setCreatingAgent(true)
@@ -113,15 +123,10 @@ export function SingleRunPanel({
       await onSaveAgentDraft(draft)
       await onAgentsChanged()
       capture.dismiss()
+      showToast()
     } finally {
       setCreatingAgent(false)
     }
-  }
-  const handleEditSave = async (draft: AgentDraft): Promise<void> => {
-    await onSaveAgentDraft(draft)
-    await onAgentsChanged()
-    setEditingDraft(null)
-    capture.dismiss()
   }
 
   const selectedAgent = useMemo(
@@ -504,16 +509,6 @@ export function SingleRunPanel({
           )}
         </div>
 
-        {capture.pendingDraft && (
-          <AgentCreateConfirmCard
-            draft={capture.pendingDraft}
-            saving={creatingAgent}
-            onSave={handleCreateAgent}
-            onEdit={(d) => setEditingDraft(d)}
-            onDismiss={capture.dismiss}
-          />
-        )}
-
         <ComposerBar
           value={message}
           onChange={(value) => {
@@ -542,51 +537,27 @@ export function SingleRunPanel({
         {composerError && <div className="workflow-input-error">{composerError}</div>}
       </main>
 
-      {editingDraft && (
-        <div
-          className="agent-create-edit-overlay"
-          style={{
-            position: 'fixed',
-            inset: 0,
-            zIndex: 60,
-            display: 'flex',
-            justifyContent: 'center',
-            alignItems: 'center',
-            padding: 24
-          }}
-        >
-          <div
-            className="agent-create-edit-backdrop"
-            style={{ position: 'absolute', inset: 0, background: 'rgba(0,0,0,0.4)' }}
-            onClick={() => setEditingDraft(null)}
-          />
-          <div
-            className="agent-create-edit-panel"
-            style={{
-              position: 'relative',
-              width: 'min(520px, 100%)',
-              maxHeight: '80vh',
-              overflowY: 'auto',
-              background: 'var(--glass-bg)',
-              border: '1px solid var(--glass-border)',
-              borderRadius: 12,
-              boxShadow: '0 24px 64px rgba(0,0,0,0.4)',
-              backdropFilter: 'var(--glass-blur)',
-              padding: 14
-            }}
+      {capture.pendingDraft && (
+        <AgentCreateConfirmCard
+          draft={capture.pendingDraft}
+          modelCatalog={modelCatalog}
+          clis={clis}
+          saving={creatingAgent}
+          onSave={handleCreateAgent}
+          onDismiss={capture.dismiss}
+        />
+      )}
+
+      {toastVisible && (
+        <div className="agent-create-toast" role="status">
+          <span className="agent-create-toast-text">创建成功，可以在 agents 列表查看</span>
+          <button
+            type="button"
+            className="agent-create-toast-action"
+            onClick={() => { setToastVisible(false); onModeAgents() }}
           >
-            <div style={{ fontSize: 13, fontWeight: 700, marginBottom: 10 }}>
-              编辑 agent 定义
-            </div>
-            <AgentEditForm
-              initialDraft={editingDraft}
-              modelCatalog={modelCatalog}
-              clis={clis}
-              submitLabel="保存"
-              onSave={handleEditSave}
-              onCancel={() => setEditingDraft(null)}
-            />
-          </div>
+            查看
+          </button>
         </div>
       )}
     </>

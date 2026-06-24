@@ -18,6 +18,11 @@ export interface AgentCreateCapture {
   dismiss: () => void
 }
 
+// 已弹出过的候选指纹。放在模块作用域而非 useRef，使其跨组件挂载/卸载持久——
+// 切换页面会让 SingleRunPanel 卸载、本 hook 重建，模块级缓存保证已处理过的草稿
+// （创建 / 继续调整）不会在切回页面后重新弹出。
+const seenFingerprints = new Set<string>()
+
 export function useAgentCreateCapture(
   events: AgentEvent[],
   running: boolean,
@@ -26,13 +31,11 @@ export function useAgentCreateCapture(
   const [pendingDraft, setPendingDraft] = useState<AgentDraftPayload | null>(null)
   // 已扫描到的 events 下标（按 sessionId 隔离；session 切换时重置）。
   const scannedIndexRef = useRef(0)
-  // 已弹出过的候选指纹，跨 session 持久，避免重复弹。
-  const seenFingerprintsRef = useRef<Set<string>>(new Set())
 
-  // session 切换：重置扫描进度、清空当前候选（指纹记忆保留）。
+  // session 切换：只重置扫描进度，不清空已弹出的候选卡片——未处理的 agent 草稿
+  // 持续吸附在输入框上方，只有显式操作（继续调整 / 创建）才会收起。
   useEffect(() => {
     scannedIndexRef.current = 0
-    setPendingDraft(null)
   }, [sessionId])
 
   useEffect(() => {
@@ -63,8 +66,8 @@ export function useAgentCreateCapture(
     if (!draft) return
 
     const fingerprint = JSON.stringify(draft)
-    if (seenFingerprintsRef.current.has(fingerprint)) return
-    seenFingerprintsRef.current.add(fingerprint)
+    if (seenFingerprints.has(fingerprint)) return
+    seenFingerprints.add(fingerprint)
     setPendingDraft(draft)
   }, [events, running])
 
