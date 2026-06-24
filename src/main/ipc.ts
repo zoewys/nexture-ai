@@ -656,6 +656,9 @@ export function registerIpc(
   ipcMain.handle(IPC.agentsSave, (_e, input): AgentDefinition => agentStore.save(input))
 
   ipcMain.handle(IPC.agentsDelete, (_e, id: string): void => {
+    // 内置 agent（如使用助手）受保护，禁止删除
+    const existing = agentStore.list().find((a) => a.id === id)
+    if (existing?.builtin) return
     agentStore.remove(id)
     memoryStore.removeByAgent(id)
   })

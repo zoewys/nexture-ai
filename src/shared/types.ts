@@ -340,6 +340,10 @@ export interface AgentDefinition {
   systemPrompt: string
   /** CLI permission mode for this agent. Defaults to bypassPermissions. */
   permissionMode?: PermissionMode
+  /** True for agents shipped with the app (e.g. the built-in usage helper). Protected from deletion. */
+  builtin?: boolean
+  /** Monotonic version of the built-in definition; bump to force a product-field refresh on seed. */
+  builtinVersion?: number
 }
 
 // ── Workflow orchestration ─────────────────────────────────────────────────

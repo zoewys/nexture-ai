@@ -32,6 +32,11 @@ import { readLastProjectPath, rememberProjectPath } from './projectPathMemory'
 import { Bot, ChevronDown, FolderOpen, MessageSquare, Settings2, Square } from 'lucide-react'
 import { useProviders } from './useProviders'
 import { useSkills } from './useSkills'
+import { useAgentCreateCapture } from './useAgentCreateCapture'
+import { AgentCreateConfirmCard } from './AgentCreateConfirmCard'
+import { AgentEditForm } from './AgentEditForm'
+import type { AgentDraftPayload } from '@shared/agentDefinitionParser'
+import type { AgentDraft } from './useAgents'
 
 interface SingleRunPanelProps {
   agents: AgentDefinition[]
@@ -52,6 +57,8 @@ interface SingleRunPanelProps {
   onAbortSession: () => Promise<SingleSessionDetail | null>
   onDeleteSession: (id: string) => Promise<void>
   onModeAgents: () => void
+  onSaveAgentDraft: (draft: AgentDraft) => Promise<AgentDefinition>
+  onAgentsChanged: () => Promise<void> | void
   showMemoryReferences?: boolean
 }
 
@@ -69,6 +76,8 @@ export function SingleRunPanel({
   onAbortSession,
   onDeleteSession,
   onModeAgents,
+  onSaveAgentDraft,
+  onAgentsChanged,
   showMemoryReferences = false
 }: SingleRunPanelProps): JSX.Element {
   const [vendor, setVendor] = useState<AgentVendor>('claude')
@@ -89,6 +98,31 @@ export function SingleRunPanel({
   const [showAdvanced, setShowAdvanced] = useState(false)
   const providerState = useProviders()
   const skillState = useSkills()
+
+  const capture = useAgentCreateCapture(
+    selectedSession?.conversation.events ?? [],
+    selectedSession?.running ?? false,
+    selectedSession?.id
+  )
+  const [editingDraft, setEditingDraft] = useState<AgentDraftPayload | null>(null)
+  const [creatingAgent, setCreatingAgent] = useState(false)
+
+  const handleCreateAgent = async (draft: AgentDraftPayload): Promise<void> => {
+    setCreatingAgent(true)
+    try {
+      await onSaveAgentDraft(draft)
+      await onAgentsChanged()
+      capture.dismiss()
+    } finally {
+      setCreatingAgent(false)
+    }
+  }
+  const handleEditSave = async (draft: AgentDraft): Promise<void> => {
+    await onSaveAgentDraft(draft)
+    await onAgentsChanged()
+    setEditingDraft(null)
+    capture.dismiss()
+  }
 
   const selectedAgent = useMemo(
     () => agents.find((a) => a.id === selectedAgentId) ?? null,
@@ -470,6 +504,16 @@ export function SingleRunPanel({
           )}
         </div>
 
+        {capture.pendingDraft && (
+          <AgentCreateConfirmCard
+            draft={capture.pendingDraft}
+            saving={creatingAgent}
+            onSave={handleCreateAgent}
+            onEdit={(d) => setEditingDraft(d)}
+            onDismiss={capture.dismiss}
+          />
+        )}
+
         <ComposerBar
           value={message}
           onChange={(value) => {
@@ -497,6 +541,54 @@ export function SingleRunPanel({
         />
         {composerError && <div className="workflow-input-error">{composerError}</div>}
       </main>
+
+      {editingDraft && (
+        <div
+          className="agent-create-edit-overlay"
+          style={{
+            position: 'fixed',
+            inset: 0,
+            zIndex: 60,
+            display: 'flex',
+            justifyContent: 'center',
+            alignItems: 'center',
+            padding: 24
+          }}
+        >
+          <div
+            className="agent-create-edit-backdrop"
+            style={{ position: 'absolute', inset: 0, background: 'rgba(0,0,0,0.4)' }}
+            onClick={() => setEditingDraft(null)}
+          />
+          <div
+            className="agent-create-edit-panel"
+            style={{
+              position: 'relative',
+              width: 'min(520px, 100%)',
+              maxHeight: '80vh',
+              overflowY: 'auto',
+              background: 'var(--glass-bg)',
+              border: '1px solid var(--glass-border)',
+              borderRadius: 12,
+              boxShadow: '0 24px 64px rgba(0,0,0,0.4)',
+              backdropFilter: 'var(--glass-blur)',
+              padding: 14
+            }}
+          >
+            <div style={{ fontSize: 13, fontWeight: 700, marginBottom: 10 }}>
+              编辑 agent 定义
+            </div>
+            <AgentEditForm
+              initialDraft={editingDraft}
+              modelCatalog={modelCatalog}
+              clis={clis}
+              submitLabel="保存"
+              onSave={handleEditSave}
+              onCancel={() => setEditingDraft(null)}
+            />
+          </div>
+        </div>
+      )}
     </>
   )
 }

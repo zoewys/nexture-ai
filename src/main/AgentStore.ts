@@ -3,6 +3,7 @@ import { readFileSync, writeFileSync, mkdirSync, existsSync } from 'node:fs'
 import { join, dirname } from 'node:path'
 import { randomUUID } from 'node:crypto'
 import type { AgentDefinition } from '@shared/types'
+import { ensureSeedAgents } from '../shared/seedAgents'
 
 type SaveInput = Omit<AgentDefinition, 'id'> & { id?: string }
 
@@ -18,6 +19,8 @@ export class AgentStore {
     const dir = join(app.getPath('userData'))
     mkdirSync(dir, { recursive: true })
     this.path = join(dir, 'agents.json')
+    // Seed / upgrade the built-in usage-helper agent on every launch.
+    this.writeAll(ensureSeedAgents(this.list()))
   }
 
   /** Return every saved agent, newest-first. Never throws. */

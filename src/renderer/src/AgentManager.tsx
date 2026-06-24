@@ -215,7 +215,7 @@ export function AgentManager({ agents, clis, modelCatalog, onSave, onDelete, onC
               {isNew ? '新建智能体' : '编辑智能体'}
             </div>
             <div className="agent-editor-actions detail-actions">
-              {!isNew && (
+              {!isNew && !agents.find((a) => a.id === editingId)?.builtin && (
                 <button onClick={handleDelete} type="button" className="btn btn-danger btn-sm">
                   <Trash2 size={14} /> 删除
                 </button>
@@ -579,18 +579,20 @@ function AgentCard({ agent, onOpen, onDelete }: AgentCardProps): JSX.Element {
             <span className="agent-card-stat-num">{meta?.totalMemories ?? 0}</span> 条记忆
           </span>
         </div>
-        <button
-          type="button"
-          className="agent-card-delete"
-          title="删除"
-          aria-label="删除"
-          onClick={(e) => {
-            e.stopPropagation()
-            onDelete()
-          }}
-        >
-          <Trash2 size={14} />
-        </button>
+        {!agent.builtin && (
+          <button
+            type="button"
+            className="agent-card-delete"
+            title="删除"
+            aria-label="删除"
+            onClick={(e) => {
+              e.stopPropagation()
+              onDelete()
+            }}
+          >
+            <Trash2 size={14} />
+          </button>
+        )}
       </div>
     </div>
   )
