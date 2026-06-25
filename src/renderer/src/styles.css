@@ -9841,6 +9841,10 @@ select:focus,
 }
 
 .pf-btn:hover { border-color: var(--accent); }
+.pf-btn:disabled {
+  cursor: not-allowed;
+  opacity: 0.55;
+}
 .pf-btn.primary { background: var(--accent); border-color: var(--accent); color: #fff; font-weight: 600; }
 .pf-btn.success { background: var(--green); border-color: var(--green); color: #fff; font-weight: 600; }
 

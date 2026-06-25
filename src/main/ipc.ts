@@ -65,6 +65,7 @@ import { ProviderStore } from './ProviderStore'
 import { ApiCallLogStore } from './ApiCallLogStore'
 import { respondToPermissionRequest } from './adapters/api-tools/PermissionGuard'
 import { normalizeProviderBaseUrl, resolveModel, shouldUseAnthropicBearerAuth } from './adapters/apiAdapter'
+import { formatModelEndpointFailures, formatProviderHttpError, modelListEndpointCandidates, type ModelEndpointFailure } from './apiModelFetch'
 import { FeishuNotifier } from './FeishuNotifier'
 import { checkForAppUpdates, installAppUpdate } from './appUpdater'
 
@@ -84,14 +85,14 @@ function fetchJson(url: string, headers: Record<string, string>): Promise<string
         timeout: 15000
       },
       (res) => {
-        if (res.statusCode !== 200) {
-          res.resume()
-          return reject(new Error(`HTTP ${res.statusCode}`))
-        }
         let body = ''
         res.setEncoding('utf8')
         res.on('data', (chunk: string) => { body += chunk })
         res.on('end', () => {
+          if (res.statusCode !== 200) {
+            reject(new Error(formatProviderHttpError(res.statusCode, body)))
+            return
+          }
           try {
             const json = JSON.parse(body) as Record<string, unknown>
             const data = (json as { data?: Array<{ id: string }> }).data
@@ -433,17 +434,15 @@ export function registerIpc(
       } else {
         headers['Authorization'] = `Bearer ${provider.apiKey}`
       }
-      const modelCandidates = provider.format === 'anthropic'
-        ? [`${base}/models`]
-        : [`${base}/models`, `${base.replace(/\/v1\/?$/, '')}/models`]
+      const modelCandidates = modelListEndpointCandidates(provider, base)
       let modelsReachable = false
-      let modelFetchError = ''
+      const modelFetchFailures: ModelEndpointFailure[] = []
       for (const url of [...new Set(modelCandidates)]) {
         try { await fetchJson(url, headers); modelsReachable = true; break }
-        catch (err) { modelFetchError = toErrorMessage(err) }
+        catch (err) { modelFetchFailures.push({ url, error: toErrorMessage(err) }) }
       }
       if (!modelsReachable) {
-        const message = `无法连接 API (${modelFetchError})。请检查 Base URL 和 API Key 是否正确`
+        const message = `无法连接 API 模型列表：${formatModelEndpointFailures(modelFetchFailures)}。请检查 Base URL 和 API Key 是否正确`
         recordProviderApiLog({ source: 'provider-test', provider, providerId: id, model: modelId, startedAt, status: 'error', error: message, messagesSummary: 'Provider connection test' })
         return { ok: false, message }
       }
@@ -505,9 +504,8 @@ export function registerIpc(
         headers['Authorization'] = `Bearer ${apiKey}`
       }
 
-      const candidates = provider.format === 'anthropic'
-        ? [`${base}/models`]
-        : [`${base}/models`, `${base.replace(/\/v1\/?$/, '')}/models`]
+      const candidates = modelListEndpointCandidates(provider, base)
+      const failures: ModelEndpointFailure[] = []
 
       for (const url of [...new Set(candidates)]) {
         try {
@@ -517,10 +515,10 @@ export function registerIpc(
             return { models }
           }
         } catch (err) {
-          // try next candidate
+          failures.push({ url, error: toErrorMessage(err) })
         }
       }
-      const error = `无法从 ${candidates[0]} 获取模型列表，请检查 API Key 和 Base URL`
+      const error = `无法获取模型列表：${formatModelEndpointFailures(failures)}`
       recordProviderApiLog({ source: 'model-fetch', provider, providerId, startedAt, status: 'error', error, messagesSummary: 'Fetch provider model list' })
       return { models: [], error }
     } catch (err) {

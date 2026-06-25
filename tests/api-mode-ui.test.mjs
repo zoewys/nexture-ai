@@ -53,6 +53,11 @@ test('ProviderSettings implements compact provider list and inline form with luc
   assert.match(component, /model-row-context-input/)
   assert.match(component, /placeholder="上下文窗口"/)
   assert.match(component, /buildModelContextWindows/)
+  assert.match(component, /请输入供应商名称/)
+  assert.match(component, /请至少添加一个模型，或先点击自动获取/)
+  assert.match(component, /保存供应商失败/)
+  assert.match(component, /savingProvider/)
+  assert.match(component, /disabled=\{savingProvider\}/)
 })
 
 test('ProviderSettings shows decrypted API keys directly when editing providers', () => {

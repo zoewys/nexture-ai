@@ -51,6 +51,7 @@ export function ProviderSettings({ providers, loading, save, remove, testConnect
   const [showKey, setShowKey] = useState(false)
   const [fetchingModels, setFetchingModels] = useState(false)
   const [fetchedModels, setFetchedModels] = useState<string[]>([])
+  const [savingProvider, setSavingProvider] = useState(false)
 
   const suggestedModels = useMemo(
     () => [...new Set([...PRESETS.flatMap((p) => p.models), ...fetchedModels])],
@@ -106,6 +107,14 @@ export function ProviderSettings({ providers, loading, save, remove, testConnect
   }
 
   const submit = async (): Promise<void> => {
+    if (!draft.name.trim()) {
+      setTestMessage('请输入供应商名称')
+      return
+    }
+    if (!draft.apiKey.trim()) {
+      setTestMessage('请输入 API Key')
+      return
+    }
     const modelEntries = draft.models
       .map((model, index) => ({
         model: model.trim(),
@@ -113,23 +122,30 @@ export function ProviderSettings({ providers, loading, save, remove, testConnect
       }))
       .filter((entry) => Boolean(entry.model))
     const models = modelEntries.map((entry) => entry.model)
-    if (!draft.name.trim() || models.length === 0) return
-    if (!draft.apiKey.trim()) {
-      setTestMessage('请输入 API Key')
+    if (models.length === 0) {
+      setTestMessage('请至少添加一个模型，或先点击自动获取')
       return
     }
-    await save({
-      id: editingId ?? undefined,
-      name: draft.name.trim(),
-      format: draft.format,
-      apiKey: draft.apiKey,
-      baseUrl: draft.baseUrl.trim() || undefined,
-      models,
-      modelContextWindows: buildModelContextWindows(modelEntries),
-      defaultModel: draft.defaultModel.trim() || models[0],
-      maxOutputTokens: parseOptionalPositiveInt(draft.maxOutputTokens)
-    })
-    closeForm()
+    setSavingProvider(true)
+    setTestMessage('')
+    try {
+      await save({
+        id: editingId ?? undefined,
+        name: draft.name.trim(),
+        format: draft.format,
+        apiKey: draft.apiKey,
+        baseUrl: draft.baseUrl.trim() || undefined,
+        models,
+        modelContextWindows: buildModelContextWindows(modelEntries),
+        defaultModel: draft.defaultModel.trim() || models[0],
+        maxOutputTokens: parseOptionalPositiveInt(draft.maxOutputTokens)
+      })
+      closeForm()
+    } catch (err) {
+      setTestMessage(`保存供应商失败：${toErrorMessage(err)}`)
+    } finally {
+      setSavingProvider(false)
+    }
   }
 
   const testCurrent = async (): Promise<void> => {
@@ -438,8 +454,8 @@ export function ProviderSettings({ providers, loading, save, remove, testConnect
             <button type="button" className="pf-btn" onClick={closeForm}>
               <X size={13} /> 取消
             </button>
-            <button type="button" className="pf-btn primary" onClick={() => void submit()}>
-              <Save size={13} /> 保存
+            <button type="button" className="pf-btn primary" onClick={() => void submit()} disabled={savingProvider}>
+              <Save size={13} /> {savingProvider ? '保存中...' : '保存'}
             </button>
           </div>
         </div>
