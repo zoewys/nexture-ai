@@ -17,7 +17,7 @@ const APP_NAME = 'NextureAI'
 const APP_ID = 'ai.nexture.app'
 const LEGACY_USER_DATA_DIR = join(app.getPath('appData'), 'agent-studio')
 const appIconPath = join(__dirname, '../../resources/icon.png')
-const trayIconPath = join(__dirname, '../../resources/trayIconTemplate.png')
+const trayIconPath = join(__dirname, '../../resources/tray-icon.png')
 
 app.setName(APP_NAME)
 app.setAppUserModelId(APP_ID)
@@ -72,9 +72,8 @@ function createWindow(): void {
 
 function createTray(): void {
   const traySource = nativeImage.createFromPath(trayIconPath)
-  const fallbackSource = nativeImage.createFromPath(appIconPath).resize({ width: 22, height: 22 })
-  const icon = traySource.isEmpty() ? fallbackSource : traySource
-  icon.setTemplateImage(true)
+  const fallbackSource = nativeImage.createFromPath(appIconPath)
+  const icon = (traySource.isEmpty() ? fallbackSource : traySource).resize({ width: 16, height: 16 })
   tray = new Tray(icon)
   tray.setToolTip(APP_NAME)
   updateTrayMenu()
@@ -209,6 +208,11 @@ function notificationIcon(): NativeImage | undefined {
 app.commandLine.appendSwitch('remote-debugging-port', '9223')
 
 app.whenReady().then(() => {
+  if (process.platform === 'darwin') {
+    const dockIcon = nativeImage.createFromPath(appIconPath)
+    if (!dockIcon.isEmpty()) app.dock.setIcon(dockIcon)
+  }
+
   createTray()
   configureAppUpdater(() => mainWindow)
   appManagers = registerIpc(() => mainWindow, {
