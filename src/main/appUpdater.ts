@@ -2,6 +2,7 @@ import { app, type BrowserWindow } from 'electron'
 import electronUpdater from 'electron-updater'
 import type { ProgressInfo, UpdateInfo } from 'electron-updater'
 import { IPC, type AppUpdateState } from '@shared/types'
+import { selectMirror, installMirrorRedirector } from './githubMirror'
 
 type GetWindow = () => BrowserWindow | null
 
@@ -14,6 +15,21 @@ let currentState: AppUpdateState = {
   status: 'idle',
   currentVersion: app.getVersion(),
   canInstall: false
+}
+
+// Resolves once mirror selection has run. Probe is best-effort — it resolves
+// null (direct connection) if no mirror answers, so it never blocks updates.
+let mirrorReady: Promise<string | null> | null = null
+
+function ensureMirrorReady(): Promise<string | null> {
+  if (!mirrorReady) {
+    mirrorReady = (async () => {
+      const mirror = await selectMirror()
+      installMirrorRedirector()
+      return mirror
+    })()
+  }
+  return mirrorReady
 }
 
 export function configureAppUpdater(nextGetWindow: GetWindow): void {
@@ -100,9 +116,10 @@ export async function checkForAppUpdates(options: { silent?: boolean } = {}): Pr
   }
 
   try {
+    const mirror = await ensureMirrorReady()
     setUpdateState({
       status: 'checking',
-      message: '正在检查新版本',
+      message: mirror ? '正在检查新版本（镜像加速）' : '正在检查新版本',
       error: undefined,
       canInstall: false
     }, !options.silent)
