@@ -1,6 +1,6 @@
 {
   "name": "nexture-ai",
-  "version": "0.1.14",
+  "version": "0.1.15",
   "description": "NextureAI desktop app that orchestrates Claude and Codex CLIs into local multi-agent workflows",
   "main": "./out/main/index.js",
   "author": "siyuan",
