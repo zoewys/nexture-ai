@@ -31,7 +31,7 @@ interface WorkflowRunsListProps {
   onRefresh?: () => Promise<void>
 }
 
-type RunFilter = 'all' | 'running' | 'completed' | 'error' | 'awaiting'
+type RunFilter = 'all' | 'running' | 'completed' | 'error' | 'awaiting' | 'scheduled'
 type SortMode = 'newest' | 'oldest' | 'name'
 type WorkflowRunCardModelTagStatus = 'done' | 'running' | 'waiting' | 'error'
 
@@ -52,11 +52,20 @@ export function WorkflowRunsList({
     [agents]
   )
   const dashboardRuns = useMemo(() => workflowDashboardRuns(runs), [runs])
+  const scheduledRuns = useMemo(() => runs.filter((run) => run.scheduledBy), [runs])
   const filteredRuns = useMemo(
-    () => filterRuns(dashboardRuns, query, filter, sortMode),
-    [dashboardRuns, filter, query, sortMode]
+    () => filterRuns(
+      filter === 'scheduled' ? scheduledRuns : dashboardRuns,
+      query,
+      filter,
+      sortMode
+    ),
+    [dashboardRuns, scheduledRuns, filter, query, sortMode]
   )
-  const counts = useMemo(() => runFilterCounts(dashboardRuns), [dashboardRuns])
+  const counts = useMemo(
+    () => runFilterCounts(dashboardRuns, scheduledRuns),
+    [dashboardRuns, scheduledRuns]
+  )
 
   return (
     <section className="workflow-runs-list workflow-dashboard-page">
@@ -117,7 +126,7 @@ export function WorkflowRunsList({
       </div>
 
       <div className="workflow-run-cards cards-grid">
-        {dashboardRuns.length > 0 && filteredRuns.length === 0 && (
+        {filteredRuns.length === 0 && runs.length > 0 && (
           <div className="workflow-dashboard-empty">
             <Activity size={18} />
             <span>暂无匹配的运行记录</span>
@@ -301,7 +310,8 @@ const runFilterOptions: Array<{ key: RunFilter; label: string; className?: strin
   { key: 'running', label: '运行中', className: 'running' },
   { key: 'completed', label: '已完成', className: 'success' },
   { key: 'error', label: '出错', className: 'error' },
-  { key: 'awaiting', label: '待处理', className: 'awaiting' }
+  { key: 'awaiting', label: '待处理', className: 'awaiting' },
+  { key: 'scheduled', label: '定时任务', className: 'scheduled' }
 ]
 
 function filterRuns(
@@ -318,7 +328,7 @@ function filterRuns(
       run.templateName.toLowerCase().includes(cleanQuery) ||
       run.projectPath.toLowerCase().includes(cleanQuery)
     if (!matchesQuery) return false
-    if (filter === 'all') return true
+    if (filter === 'all' || filter === 'scheduled') return true
     if (filter === 'awaiting') return run.status === 'awaiting-confirm' || run.status === 'awaiting-input'
     if (filter === 'error') return run.status === 'error' || run.status === 'interrupted' || run.status === 'aborted'
     return run.status === filter
@@ -331,13 +341,17 @@ function filterRuns(
   })
 }
 
-function runFilterCounts(runs: WorkflowRun[]): Record<RunFilter, number> {
+function runFilterCounts(
+  runs: WorkflowRun[],
+  scheduledRuns: WorkflowRun[]
+): Record<RunFilter, number> {
   return {
     all: runs.length,
     running: runs.filter((run) => run.status === 'running').length,
     completed: runs.filter((run) => run.status === 'completed').length,
     error: runs.filter((run) => run.status === 'error' || run.status === 'interrupted' || run.status === 'aborted').length,
-    awaiting: runs.filter((run) => run.status === 'awaiting-confirm' || run.status === 'awaiting-input').length
+    awaiting: runs.filter((run) => run.status === 'awaiting-confirm' || run.status === 'awaiting-input').length,
+    scheduled: scheduledRuns.length
   }
 }
 

@@ -13501,6 +13501,11 @@ button:disabled,
   border-color: var(--semantic-running-border) !important;
 }
 
+.filter-chip.scheduled {
+  color: var(--purple) !important;
+  border-color: rgba(180, 142, 173, 0.34) !important;
+}
+
 .filter-chip-count {
   min-width: 20px !important;
   padding: 1px 7px !important;
