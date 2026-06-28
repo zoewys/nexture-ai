@@ -208,11 +208,6 @@ function notificationIcon(): NativeImage | undefined {
 app.commandLine.appendSwitch('remote-debugging-port', '9223')
 
 app.whenReady().then(() => {
-  if (process.platform === 'darwin') {
-    const dockIcon = nativeImage.createFromPath(appIconPath)
-    if (!dockIcon.isEmpty()) app.dock.setIcon(dockIcon)
-  }
-
   createTray()
   configureAppUpdater(() => mainWindow)
   appManagers = registerIpc(() => mainWindow, {
