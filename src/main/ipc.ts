@@ -299,6 +299,7 @@ export function registerIpc(
     scheduleStore,
     workflowManager,
     workflowStore,
+    agentStore,
     emitWorkflow,
     {
       onScheduleRunResult: notificationHooks.notifyScheduleResult,

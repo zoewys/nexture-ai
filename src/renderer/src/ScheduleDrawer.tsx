@@ -1,5 +1,11 @@
 import { useEffect, useMemo, useState } from 'react'
-import type { CronPreview, WorkflowSchedule, WorkflowTemplate } from '@shared/types'
+import type {
+  AgentDefinition,
+  CronPreview,
+  WorkflowSchedule,
+  WorkflowScheduleTargetType,
+  WorkflowTemplate
+} from '@shared/types'
 import { CalendarClock } from 'lucide-react'
 import { readLastProjectPath, rememberProjectPath } from './projectPathMemory'
 import {
@@ -15,6 +21,7 @@ import { Select } from './Select'
 import type { ScheduleDraft } from './useSchedules'
 
 interface ScheduleDrawerProps {
+  agents: AgentDefinition[]
   templates: WorkflowTemplate[]
   schedule: WorkflowSchedule | null
   onSave: (input: ScheduleDraft) => Promise<WorkflowSchedule>
@@ -55,12 +62,19 @@ const weekdayOptions = [
 ]
 
 export function ScheduleDrawer({
+  agents,
   templates,
   schedule,
   onSave,
   onClose
 }: ScheduleDrawerProps): JSX.Element {
-  const [templateId, setTemplateId] = useState(schedule?.templateId ?? templates[0]?.id ?? '')
+  const [targetType, setTargetType] = useState<WorkflowScheduleTargetType>(schedule?.targetType ?? 'workflow')
+  const [templateId, setTemplateId] = useState(
+    schedule?.targetType !== 'agent' ? schedule?.templateId ?? templates[0]?.id ?? '' : templates[0]?.id ?? ''
+  )
+  const [agentId, setAgentId] = useState(
+    schedule?.targetType === 'agent' ? schedule.agentId ?? agents[0]?.id ?? '' : agents[0]?.id ?? ''
+  )
   const [name, setName] = useState(schedule?.name ?? '')
   const [projectPath, setProjectPath] = useState(schedule?.projectPath ?? readLastProjectPath())
   const [scheduleState, setScheduleState] = useState<ScheduleCronState>(() =>
@@ -75,6 +89,10 @@ export function ScheduleDrawer({
     () => templates.find((template) => template.id === templateId) ?? null,
     [templateId, templates]
   )
+  const selectedAgent = useMemo(
+    () => agents.find((agent) => agent.id === agentId) ?? null,
+    [agentId, agents]
+  )
 
   const cronResult = useMemo(() => buildScheduleCron(scheduleState), [scheduleState])
   const cron = cronResult.cron
@@ -82,6 +100,10 @@ export function ScheduleDrawer({
   useEffect(() => {
     if (!templateId && templates[0]) setTemplateId(templates[0].id)
   }, [templateId, templates])
+
+  useEffect(() => {
+    if (!agentId && agents[0]) setAgentId(agents[0].id)
+  }, [agentId, agents])
 
   useEffect(() => {
     let cancelled = false
@@ -138,7 +160,7 @@ export function ScheduleDrawer({
   }
 
   const canSave =
-    !!selectedTemplate &&
+    (targetType === 'workflow' ? !!selectedTemplate : !!selectedAgent) &&
     name.trim() !== '' &&
     projectPath.trim() !== '' &&
     initialPrompt.trim() !== '' &&
@@ -146,13 +168,15 @@ export function ScheduleDrawer({
     !saving
 
   const save = async (): Promise<void> => {
-    if (!selectedTemplate || !canSave) return
+    if (!canSave) return
     setSaving(true)
     try {
       rememberProjectPath(projectPath.trim())
       await onSave({
         id: schedule?.id,
-        templateId: selectedTemplate.id,
+        targetType,
+        templateId: targetType === 'workflow' ? selectedTemplate?.id : undefined,
+        agentId: targetType === 'agent' ? selectedAgent?.id : undefined,
         name: name.trim(),
         cron,
         enabled: schedule?.enabled ?? true,
@@ -170,11 +194,11 @@ export function ScheduleDrawer({
   }
 
   return (
-    <aside className="workflow-new-run-drawer workflow-schedule-drawer" aria-label="Schedule Workflow">
+    <aside className="workflow-new-run-drawer workflow-schedule-drawer" aria-label="Schedule Run">
       <div className="workflow-new-run-header">
         <div>
           <strong>{schedule ? 'Edit Schedule' : 'New Schedule'}</strong>
-          <span>Bind a workflow template to a schedule rule</span>
+          <span>Bind a workflow or agent to a schedule rule</span>
         </div>
         <button type="button" onClick={onClose} aria-label="Close">
           Close
@@ -188,15 +212,39 @@ export function ScheduleDrawer({
         </label>
 
         <label className="field">
-          <span>Template</span>
-          <Select value={templateId} onChange={setTemplateId}>
-            {templates.map((template) => (
-              <Select.Item key={template.id} value={template.id}>
-                {template.name} · {template.steps.length} steps
-              </Select.Item>
-            ))}
+          <span>Run Target</span>
+          <Select
+            value={targetType}
+            onChange={(value) => setTargetType(value as WorkflowScheduleTargetType)}
+          >
+            <Select.Item value="workflow">Workflow</Select.Item>
+            <Select.Item value="agent">Agent</Select.Item>
           </Select>
         </label>
+
+        {targetType === 'workflow' ? (
+          <label className="field">
+            <span>Template</span>
+            <Select value={templateId} onChange={setTemplateId}>
+              {templates.map((template) => (
+                <Select.Item key={template.id} value={template.id}>
+                  {template.name} · {template.steps.length} steps
+                </Select.Item>
+              ))}
+            </Select>
+          </label>
+        ) : (
+          <label className="field">
+            <span>Agent</span>
+            <Select value={agentId} onChange={setAgentId}>
+              {agents.map((agent) => (
+                <Select.Item key={agent.id} value={agent.id}>
+                  {agent.name} · {agent.role}
+                </Select.Item>
+              ))}
+            </Select>
+          </label>
+        )}
 
         <label className="field">
           <span>Project Directory</span>

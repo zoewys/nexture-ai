@@ -189,14 +189,15 @@ export function App(): JSX.Element {
           </main>
         ) : isSchedules ? (
           <main className="panel panel-runtime panel-runtime-workflow">
-          <ScheduleWorkspace
-            templates={workflows.templates}
-            runs={workflows.runs}
-            scheduleState={uiReview.enabled ? uiReview.schedules : undefined}
-            onOpenRun={(runId) => {
-              setWorkflowOpenRunId(runId)
-              setMode('workflow')
-            }}
+            <ScheduleWorkspace
+              agents={agents}
+              templates={workflows.templates}
+              runs={workflows.runs}
+              scheduleState={uiReview.enabled ? uiReview.schedules : undefined}
+              onOpenRun={(runId) => {
+                setWorkflowOpenRunId(runId)
+                setMode('workflow')
+              }}
             />
           </main>
         ) : isSettings ? (

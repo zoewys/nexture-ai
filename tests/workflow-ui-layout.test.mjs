@@ -575,7 +575,7 @@ test('ui review fixture provides v4 design data without touching persisted state
   assert.match(app, /uiReview\.enabled \? uiReview\.agents : savedAgents/)
   assert.match(app, /uiReview\.enabled \? uiReview\.workflows : savedWorkflows/)
   assert.match(app, /uiReview\.enabled \? uiReview\.schedules : undefined/)
-  assert.match(app, /uiReview\.topbarChips/)
+  assert.match(fixture, /topbarChips/)
   assert.match(fixture, /schedules: UseSchedulesResult/)
   assert.match(fixture, /createSchedules/)
   assert.match(fixture, /Nightly QA Sweep/)

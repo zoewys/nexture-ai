@@ -24,7 +24,10 @@ export class ScheduleStore {
       if (!existsSync(this.path)) return []
       const parsed: unknown = JSON.parse(readFileSync(this.path, 'utf8'))
       if (!Array.isArray(parsed)) return []
-      return parsed.filter(isSchedule).sort((a, b) => b.createdAt - a.createdAt)
+      return parsed
+        .map(normalizeSchedule)
+        .filter((item): item is WorkflowSchedule => item !== null)
+        .sort((a, b) => b.createdAt - a.createdAt)
     } catch {
       return []
     }
@@ -35,8 +38,12 @@ export class ScheduleStore {
     const cron = input.cron.trim()
     const projectPath = input.projectPath.trim()
     const initialPrompt = input.initialPrompt.trim()
+    const targetType = input.targetType ?? (input.agentId ? 'agent' : 'workflow')
+    const templateId = input.templateId?.trim() ?? ''
+    const agentId = input.agentId?.trim() ?? ''
     if (!name) throw new Error('Schedule name is required')
-    if (!input.templateId.trim()) throw new Error('Workflow template is required')
+    if (targetType === 'workflow' && !templateId) throw new Error('Workflow template is required')
+    if (targetType === 'agent' && !agentId) throw new Error('Agent is required')
     if (!projectPath) throw new Error('Project directory is required')
     if (!initialPrompt) throw new Error('Initial prompt is required')
     if (!isValidCron(cron)) throw new Error('Invalid cron expression')
@@ -45,7 +52,9 @@ export class ScheduleStore {
     const existing = input.id ? current.find((item) => item.id === input.id) : undefined
     const schedule: WorkflowSchedule = {
       id: input.id ?? randomUUID(),
-      templateId: input.templateId,
+      targetType,
+      templateId: targetType === 'workflow' ? templateId : undefined,
+      agentId: targetType === 'agent' ? agentId : undefined,
       name,
       cron,
       enabled: input.enabled,
@@ -99,17 +108,44 @@ export class ScheduleStore {
   }
 }
 
-function isSchedule(value: unknown): value is WorkflowSchedule {
-  if (typeof value !== 'object' || value === null) return false
+function normalizeSchedule(value: unknown): WorkflowSchedule | null {
+  if (typeof value !== 'object' || value === null) return null
   const item = value as Partial<WorkflowSchedule>
-  return (
+  const commonValid =
     typeof item.id === 'string' &&
-    typeof item.templateId === 'string' &&
     typeof item.name === 'string' &&
     typeof item.cron === 'string' &&
     typeof item.enabled === 'boolean' &&
     typeof item.projectPath === 'string' &&
     typeof item.initialPrompt === 'string' &&
     typeof item.createdAt === 'number'
-  )
+  if (!commonValid) return null
+
+  const targetType = item.targetType === 'agent' ? 'agent' : 'workflow'
+  if (targetType === 'workflow' && typeof item.templateId !== 'string') return null
+  if (targetType === 'agent' && typeof item.agentId !== 'string') return null
+
+  const id = item.id as string
+  const name = item.name as string
+  const cron = item.cron as string
+  const enabled = item.enabled as boolean
+  const projectPath = item.projectPath as string
+  const initialPrompt = item.initialPrompt as string
+  const createdAt = item.createdAt as number
+
+  return {
+    id,
+    targetType,
+    templateId: targetType === 'workflow' ? item.templateId : undefined,
+    agentId: targetType === 'agent' ? item.agentId : undefined,
+    name,
+    cron,
+    enabled,
+    projectPath,
+    initialPrompt,
+    createdAt,
+    lastTriggeredAt: item.lastTriggeredAt,
+    lastRunId: item.lastRunId,
+    lastRunStatus: item.lastRunStatus
+  }
 }

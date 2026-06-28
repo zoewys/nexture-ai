@@ -1,5 +1,13 @@
-import type { WorkflowEventEnvelope, WorkflowRun, WorkflowSchedule } from '@shared/types'
+import type {
+  AgentDefinition,
+  WorkflowEventEnvelope,
+  WorkflowRun,
+  WorkflowSchedule,
+  WorkflowStartResult,
+  WorkflowTemplate
+} from '@shared/types'
 import type { ScheduleStore } from './ScheduleStore'
+import type { AgentStore } from './AgentStore'
 import type { WorkflowManager } from './WorkflowManager'
 import type { WorkflowStore } from './WorkflowStore'
 import { nextFireTime } from './cronParser'
@@ -21,6 +29,7 @@ export class Scheduler {
     private readonly scheduleStore: ScheduleStore,
     private readonly workflowManager: WorkflowManager,
     private readonly workflowStore: WorkflowStore,
+    private readonly agentStore: AgentStore,
     private readonly emit: EmitWorkflow,
     private readonly callbacks: SchedulerCallbacks = {}
   ) {}
@@ -90,14 +99,7 @@ export class Scheduler {
 
   private fire(schedule: WorkflowSchedule): void {
     try {
-      const result = this.workflowManager.start({
-        templateId: schedule.templateId,
-        projectPath: schedule.projectPath,
-        initialPrompt: schedule.initialPrompt,
-        runName: `[scheduled] ${schedule.name}`,
-        autoConfirm: true,
-        scheduledBy: schedule.id
-      })
+      const result = this.startScheduleRun(schedule)
       this.scheduleStore.updateLastTriggered(schedule.id, result.run.id, 'running')
       this.callbacks.onScheduleChanged?.()
     } catch (err) {
@@ -105,5 +107,46 @@ export class Scheduler {
       this.callbacks.onScheduleChanged?.()
       this.callbacks.onScheduleRunError?.(schedule, err)
     }
+  }
+
+  private startScheduleRun(schedule: WorkflowSchedule): WorkflowStartResult {
+    const baseInput = {
+      projectPath: schedule.projectPath,
+      initialPrompt: schedule.initialPrompt,
+      runName: `[scheduled] ${schedule.name}`,
+      autoConfirm: true,
+      scheduledBy: schedule.id
+    }
+
+    if (schedule.targetType === 'agent') {
+      const agentId = schedule.agentId?.trim()
+      if (!agentId) throw new Error('Agent is required')
+      const agent = this.agentStore.list().find((candidate) => candidate.id === agentId)
+      if (!agent) throw new Error(`Agent not found: ${agentId}`)
+      return this.workflowManager.startAdHoc({
+        ...baseInput,
+        template: agentScheduleTemplate(agent)
+      })
+    }
+
+    const templateId = schedule.templateId?.trim()
+    if (!templateId) throw new Error('Workflow template is required')
+    return this.workflowManager.start({
+      ...baseInput,
+      templateId
+    })
+  }
+}
+
+function agentScheduleTemplate(agent: AgentDefinition): WorkflowTemplate {
+  return {
+    id: `scheduled-agent:${agent.id}`,
+    name: `Agent: ${agent.name}`,
+    description: `Scheduled single-agent workflow for ${agent.name}.`,
+    steps: [{
+      agentId: agent.id,
+      role: agent.role || agent.name,
+      autoConfirm: true
+    }]
   }
 }

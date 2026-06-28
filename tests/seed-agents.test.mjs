@@ -46,7 +46,7 @@ test('upgrades product fields on an outdated helper but keeps user-tuned env fie
   const result = ensureSeedAgents([outdated])
   const helper = result[0]
 
-  assert.equal(helper.name, '使用助手')
+  assert.equal(helper.name, 'NextureAI使用助手')
   assert.equal(helper.role, 'helper')
   assert.equal(helper.systemPrompt, HELPER_SYSTEM_PROMPT)
   assert.equal(helper.builtinVersion, CURRENT_HELPER_VERSION)

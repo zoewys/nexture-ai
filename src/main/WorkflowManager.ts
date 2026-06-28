@@ -38,6 +38,11 @@ import {
 
 type EmitWorkflow = (envelope: WorkflowEventEnvelope) => void
 type RunSettledHandler = (run: WorkflowRun) => void
+type WorkflowTemplateStartInput = Omit<WorkflowStartInput, 'templateId'> & { templateId?: string }
+
+interface AdHocWorkflowStartInput extends Omit<WorkflowStartInput, 'templateId'> {
+  template: WorkflowTemplate
+}
 
 interface LiveStep {
   workflowRunId: string
@@ -144,6 +149,18 @@ export class WorkflowManager {
       .listTemplates()
       .find((candidate) => candidate.id === input.templateId)
     if (!template) throw new Error(`Workflow template not found: ${input.templateId}`)
+    return this.startTemplateRun(template, input, false)
+  }
+
+  startAdHoc(input: AdHocWorkflowStartInput): WorkflowStartResult {
+    return this.startTemplateRun(input.template, input, true)
+  }
+
+  private startTemplateRun(
+    template: WorkflowTemplate,
+    input: WorkflowTemplateStartInput,
+    persistTemplateSnapshot: boolean
+  ): WorkflowStartResult {
     if (template.steps.length === 0) throw new Error('Workflow template has no steps')
 
     const safety = inspectWorkflowGitSafety(input.projectPath, this.listRuns())
@@ -154,8 +171,9 @@ export class WorkflowManager {
     const now = Date.now()
     const run: WorkflowRun = {
       id: randomUUID(),
-      templateId: template.id,
+      templateId: input.templateId ?? template.id,
       templateName: template.name,
+      templateSnapshot: persistTemplateSnapshot ? template : undefined,
       runName: input.runName?.trim() || undefined,
       projectPath: input.projectPath,
       branch: safety.branch,
@@ -1292,7 +1310,7 @@ export class WorkflowManager {
   }
 
   private getTemplateStepForRunStep(run: WorkflowRun, stepIndex: number): WorkflowTemplateStep | null {
-    const template = this.workflowStore.listTemplates().find((t) => t.id === run.templateId)
+    const template = run.templateSnapshot ?? this.workflowStore.listTemplates().find((t) => t.id === run.templateId)
     if (!template) return null
     const flatSteps: WorkflowTemplateStep[] = []
     for (const node of template.steps) {

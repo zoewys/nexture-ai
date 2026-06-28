@@ -1,9 +1,10 @@
 import { useEffect, useMemo, useState } from 'react'
-import type { CronPreview, WorkflowRun, WorkflowSchedule, WorkflowTemplate } from '@shared/types'
-import { CircleDot, Layers, Plus, Search } from 'lucide-react'
+import type { AgentDefinition, CronPreview, WorkflowRun, WorkflowSchedule, WorkflowTemplate } from '@shared/types'
+import { Bot, CircleDot, Layers, Plus, Search } from 'lucide-react'
 
 interface ScheduleListProps {
   schedules: WorkflowSchedule[]
+  agents: AgentDefinition[]
   templates: WorkflowTemplate[]
   runs: WorkflowRun[]
   selectedScheduleId: string | null
@@ -15,6 +16,7 @@ interface ScheduleListProps {
 
 export function ScheduleList({
   schedules,
+  agents,
   templates,
   runs,
   selectedScheduleId,
@@ -26,8 +28,8 @@ export function ScheduleList({
   const [query, setQuery] = useState('')
   const [filter, setFilter] = useState<'all' | 'enabled' | 'disabled'>('all')
   const filteredSchedules = useMemo(
-    () => filterSchedules(schedules, templates, query, filter),
-    [filter, query, schedules, templates]
+    () => filterSchedules(schedules, templates, agents, query, filter),
+    [agents, filter, query, schedules, templates]
   )
   const counts = useMemo(
     () => ({
@@ -58,7 +60,7 @@ export function ScheduleList({
           <input
             value={query}
             onChange={(event) => setQuery(event.target.value)}
-            placeholder="搜索定时任务、模板..."
+            placeholder="搜索定时任务、目标..."
           />
         </label>
         <div className="filter-chips" role="group" aria-label="Schedule filters">
@@ -99,7 +101,7 @@ export function ScheduleList({
             key={schedule.id}
             schedule={schedule}
             selected={selectedScheduleId === schedule.id}
-            templateName={templates.find((template) => template.id === schedule.templateId)?.name ?? 'Missing template'}
+            targetName={scheduleTargetName(schedule, templates, agents)}
             runs={runs.filter((run) => run.scheduledBy === schedule.id)}
             index={index}
             onSelectSchedule={onSelectSchedule}
@@ -135,7 +137,7 @@ function CreateScheduleCard({
         <Plus size={20} />
       </div>
       <div className="dashboard-create-card-title">新建定时任务</div>
-      <div className="dashboard-create-card-desc">设置一个自动运行的 workflow</div>
+      <div className="dashboard-create-card-desc">设置一个自动运行的 workflow 或 agent</div>
     </button>
   )
 }
@@ -143,7 +145,7 @@ function CreateScheduleCard({
 function ScheduleCard({
   schedule,
   selected,
-  templateName,
+  targetName,
   runs,
   index,
   onSelectSchedule,
@@ -151,7 +153,7 @@ function ScheduleCard({
 }: {
   schedule: WorkflowSchedule
   selected: boolean
-  templateName: string
+  targetName: string
   runs: WorkflowRun[]
   index: number
   onSelectSchedule: (scheduleId: string) => void
@@ -217,8 +219,8 @@ function ScheduleCard({
 
       <div className="schedule-card-footer">
         <span className="schedule-template-name">
-          <Layers size={12} />
-          {templateName}
+          {schedule.targetType === 'agent' ? <Bot size={12} /> : <Layers size={12} />}
+          {schedule.targetType === 'agent' ? `Agent · ${targetName}` : targetName}
         </span>
       </div>
     </div>
@@ -274,22 +276,34 @@ function ScheduleTiming({ cron, enabled }: { cron: string; enabled: boolean }): 
 function filterSchedules(
   schedules: WorkflowSchedule[],
   templates: WorkflowTemplate[],
+  agents: AgentDefinition[],
   query: string,
   filter: 'all' | 'enabled' | 'disabled'
 ): WorkflowSchedule[] {
   const cleanQuery = query.trim().toLowerCase()
   return schedules.filter((schedule) => {
-    const templateName = templates.find((template) => template.id === schedule.templateId)?.name ?? ''
+    const targetName = scheduleTargetName(schedule, templates, agents)
     const matchesQuery =
       !cleanQuery ||
       schedule.name.toLowerCase().includes(cleanQuery) ||
       schedule.cron.toLowerCase().includes(cleanQuery) ||
-      templateName.toLowerCase().includes(cleanQuery)
+      targetName.toLowerCase().includes(cleanQuery)
     if (!matchesQuery) return false
     if (filter === 'enabled') return schedule.enabled
     if (filter === 'disabled') return !schedule.enabled
     return true
   })
+}
+
+function scheduleTargetName(
+  schedule: WorkflowSchedule,
+  templates: WorkflowTemplate[],
+  agents: AgentDefinition[]
+): string {
+  if (schedule.targetType === 'agent') {
+    return agents.find((agent) => agent.id === schedule.agentId)?.name ?? 'Missing agent'
+  }
+  return templates.find((template) => template.id === schedule.templateId)?.name ?? 'Missing template'
 }
 
 function scheduleSuccessRate(runs: WorkflowRun[], schedule: WorkflowSchedule): number {

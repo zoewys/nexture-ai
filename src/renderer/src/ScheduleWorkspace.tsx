@@ -1,5 +1,5 @@
 import { useEffect, useState } from 'react'
-import type { WorkflowRun, WorkflowSchedule, WorkflowTemplate } from '@shared/types'
+import type { AgentDefinition, WorkflowRun, WorkflowSchedule, WorkflowTemplate } from '@shared/types'
 import { ChevronLeft } from 'lucide-react'
 import { ScheduleDetail } from './ScheduleDetail'
 import { ScheduleDrawer } from './ScheduleDrawer'
@@ -7,6 +7,7 @@ import { ScheduleList } from './ScheduleList'
 import { useSchedules, type UseSchedulesResult } from './useSchedules'
 
 interface ScheduleWorkspaceProps {
+  agents: AgentDefinition[]
   templates: WorkflowTemplate[]
   runs: WorkflowRun[]
   onOpenRun: (runId: string) => void
@@ -14,6 +15,7 @@ interface ScheduleWorkspaceProps {
 }
 
 export function ScheduleWorkspace({
+  agents,
   templates,
   runs,
   onOpenRun,
@@ -69,6 +71,7 @@ export function ScheduleWorkspace({
       {scheduleView === 'schedules' ? (
         <ScheduleList
           schedules={schedules.schedules}
+          agents={agents}
           templates={templates}
           runs={runs}
           selectedScheduleId={selectedScheduleId}
@@ -87,6 +90,7 @@ export function ScheduleWorkspace({
           </div>
           <ScheduleDetail
             schedule={selectedSchedule}
+            agents={agents}
             templates={templates}
             runs={runs}
             onEdit={openEditScheduleDrawer}
@@ -97,6 +101,7 @@ export function ScheduleWorkspace({
       )}
       {scheduleDrawerOpen && (
         <ScheduleDrawer
+          agents={agents}
           templates={templates}
           schedule={editingSchedule}
           onSave={saveSchedule}

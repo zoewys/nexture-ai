@@ -409,9 +409,13 @@ export interface WorkflowTemplate {
   createdAt?: number
 }
 
+export type WorkflowScheduleTargetType = 'workflow' | 'agent'
+
 export interface WorkflowSchedule {
   id: string
-  templateId: string
+  targetType: WorkflowScheduleTargetType
+  templateId?: string
+  agentId?: string
   name: string
   cron: string
   enabled: boolean
@@ -503,6 +507,8 @@ export interface WorkflowRun {
   id: string
   templateId: string
   templateName: string
+  /** Template used for ad-hoc runs that are not persisted in the template store. */
+  templateSnapshot?: WorkflowTemplate
   /** User-facing instance name. Defaults to templateName when omitted. */
   runName?: string
   /** Original repository path the run was launched against. Always the source git root. */

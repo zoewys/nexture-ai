@@ -1,5 +1,5 @@
 import { useEffect, useMemo, useState } from 'react'
-import type { CronPreview, WorkflowRun, WorkflowSchedule, WorkflowTemplate } from '@shared/types'
+import type { AgentDefinition, CronPreview, WorkflowRun, WorkflowSchedule, WorkflowTemplate } from '@shared/types'
 import { Edit3, Trash2 } from 'lucide-react'
 import { workflowRunDisplayName } from './workflowRunView'
 import { formatWorkflowRunActualDuration } from './workflowRunDuration'
@@ -7,6 +7,7 @@ import { workflowRunStatusLabel } from './workflowLabels'
 
 interface ScheduleDetailProps {
   schedule: WorkflowSchedule | null
+  agents: AgentDefinition[]
   templates: WorkflowTemplate[]
   runs: WorkflowRun[]
   onEdit: (schedule: WorkflowSchedule) => void
@@ -16,6 +17,7 @@ interface ScheduleDetailProps {
 
 export function ScheduleDetail({
   schedule,
+  agents,
   templates,
   runs,
   onEdit,
@@ -23,9 +25,7 @@ export function ScheduleDetail({
   onOpenRun
 }: ScheduleDetailProps): JSX.Element {
   const [preview, setPreview] = useState<CronPreview | null>(null)
-  const template = schedule
-    ? templates.find((item) => item.id === schedule.templateId) ?? null
-    : null
+  const targetName = schedule ? scheduleTargetName(schedule, templates, agents) : ''
   const history = useMemo(
     () => schedule
       ? runs.filter((run) => run.scheduledBy === schedule.id).sort((a, b) => b.startedAt - a.startedAt)
@@ -85,8 +85,10 @@ export function ScheduleDetail({
       <div className="schedule-detail-body">
         <section className="schedule-detail-section">
           <div className="schedule-detail-grid">
-            <span>Template</span>
-            <strong>{template?.name ?? 'Missing template'}</strong>
+            <span>Target</span>
+            <strong>{targetName}</strong>
+            <span>Target type</span>
+            <strong>{schedule.targetType === 'agent' ? 'Agent' : 'Workflow'}</strong>
             <span>Project</span>
             <code>{schedule.projectPath}</code>
             <span>Cron</span>
@@ -124,6 +126,17 @@ export function ScheduleDetail({
       </div>
     </main>
   )
+}
+
+function scheduleTargetName(
+  schedule: WorkflowSchedule,
+  templates: WorkflowTemplate[],
+  agents: AgentDefinition[]
+): string {
+  if (schedule.targetType === 'agent') {
+    return agents.find((agent) => agent.id === schedule.agentId)?.name ?? 'Missing agent'
+  }
+  return templates.find((template) => template.id === schedule.templateId)?.name ?? 'Missing template'
 }
 
 function formatLastTrigger(schedule: WorkflowSchedule): string {

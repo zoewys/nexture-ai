@@ -381,6 +381,7 @@ function createSchedules(): WorkflowSchedule[] {
   const schedules: WorkflowSchedule[] = [
     {
       id: 'schedule-nightly-qa',
+      targetType: 'workflow',
       templateId: 'template-dev-flow',
       name: 'Nightly QA Sweep',
       cron: '0 21 * * 1-5',
@@ -394,6 +395,7 @@ function createSchedules(): WorkflowSchedule[] {
     },
     {
       id: 'schedule-bookmark-regression',
+      targetType: 'workflow',
       templateId: 'template-dev-flow',
       name: 'Bookmark Regression',
       cron: '*/30 9-18 * * 1-5',
@@ -407,7 +409,8 @@ function createSchedules(): WorkflowSchedule[] {
     },
     {
       id: 'schedule-icon-qa',
-      templateId: 'template-fix-bug-flow',
+      targetType: 'agent',
+      agentId: 'agent-qa-verifier',
       name: 'Icon QA Visual',
       cron: '15 10 * * 2,4',
       enabled: true,
@@ -420,6 +423,7 @@ function createSchedules(): WorkflowSchedule[] {
     },
     {
       id: 'schedule-docs-sync',
+      targetType: 'workflow',
       templateId: 'template-docs-sync',
       name: 'Docs Sync',
       cron: '0 17 * * 5',
@@ -430,6 +434,7 @@ function createSchedules(): WorkflowSchedule[] {
     },
     {
       id: 'schedule-dependency-audit',
+      targetType: 'workflow',
       templateId: 'template-fix-bug-flow',
       name: 'Dependency Audit',
       cron: '0 9 1 * *',
