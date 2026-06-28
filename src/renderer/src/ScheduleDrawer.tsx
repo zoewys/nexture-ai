@@ -1,6 +1,6 @@
 import { useEffect, useMemo, useState } from 'react'
 import type { CronPreview, WorkflowSchedule, WorkflowTemplate } from '@shared/types'
-import { CalendarClock } from 'lucide-react'
+import { CalendarClock, FolderOpen } from 'lucide-react'
 import { readLastProjectPath, rememberProjectPath } from './projectPathMemory'
 import {
   buildScheduleCron,
@@ -137,6 +137,11 @@ export function ScheduleDrawer({
     })
   }
 
+  const pickDir = async (): Promise<void> => {
+    const dir = await window.api.pickDir()
+    if (dir) setProjectPath(dir)
+  }
+
   const canSave =
     !!selectedTemplate &&
     name.trim() !== '' &&
@@ -202,6 +207,9 @@ export function ScheduleDrawer({
           <span>Project Directory</span>
           <div className="field-row">
             <input value={projectPath} onChange={(event) => setProjectPath(event.target.value)} />
+            <button type="button" onClick={pickDir} aria-label="Browse project directory" title="Browse project directory">
+              <FolderOpen size={16} />
+            </button>
           </div>
         </label>
 
