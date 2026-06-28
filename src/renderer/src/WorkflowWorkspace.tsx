@@ -210,7 +210,6 @@ export function WorkflowWorkspace({
             onRerun={workflows.rerunStep}
             onAbort={workflows.abort}
             onSkipStep={workflows.skipStep}
-            onGotoStep={workflows.gotoStep}
             composerValue={workflowInput}
             composerEditable={composerEditable}
             composerEnabled={composerEnabled}

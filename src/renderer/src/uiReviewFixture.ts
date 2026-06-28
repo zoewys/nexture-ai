@@ -189,7 +189,6 @@ export function useUiReviewFixture(): UiReviewFixture {
       abort: async () => {},
       pushInput: async () => {},
       skipStep: async () => {},
-      gotoStep: async () => {},
       updatePrompt: async () => {},
       deleteRun: async (runId: string) => {
         setRuns((current) => current.filter((run) => run.id !== runId))

@@ -110,13 +110,6 @@ export function useWorkflows() {
     setSelectedRunId(run.id)
   }, [selectedRun])
 
-  const gotoStep = useCallback(async (targetIndex: number) => {
-    if (!selectedRun) return
-    const run = await window.api.gotoWorkflowStep(selectedRun.id, targetIndex)
-    setRuns((prev) => applyRunUpdate(prev, run))
-    setSelectedRunId(run.id)
-  }, [selectedRun])
-
   const pushInput = useCallback(
     async (stepIndex: number, text: string) => {
       if (!selectedRun) return
@@ -181,7 +174,6 @@ export function useWorkflows() {
     rerunStep,
     abort,
     skipStep,
-    gotoStep,
     pushInput,
     updatePrompt,
     deleteRun,

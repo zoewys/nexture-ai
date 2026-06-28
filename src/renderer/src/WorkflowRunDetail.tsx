@@ -51,7 +51,6 @@ export interface WorkflowRunDetailProps {
   onComposerSend: () => Promise<void>
   showMemoryReferences?: boolean
   onSkipStep?: () => Promise<void>
-  onGotoStep?: (targetIndex: number) => Promise<void>
 }
 
 interface OpenFile {
@@ -85,8 +84,7 @@ export function WorkflowRunDetail({
   onRemoveFile,
   attachedFiles = [],
   showMemoryReferences = false,
-  onSkipStep,
-  onGotoStep
+  onSkipStep
 }: WorkflowRunDetailProps): JSX.Element {
   const [openFiles, setOpenFiles] = useState<OpenFile[]>([])
   const [activeFile, setActiveFile] = useState<string | null>(null)
@@ -232,18 +230,6 @@ export function WorkflowRunDetail({
                 </button>
                 {onSkipStep && (
                   <button type="button" onClick={onSkipStep}>跳过下一步</button>
-                )}
-                {onGotoStep && (
-                  <select
-                    className="workflow-goto-select"
-                    value=""
-                    onChange={(e) => { if (e.target.value) onGotoStep(Number(e.target.value)) }}
-                  >
-                    <option value="">跳转到...</option>
-                    {run.steps.map((s, i) => (
-                      <option key={i} value={i}>Step {i + 1}: {s.displayName || s.role || `Step ${i + 1}`}</option>
-                    ))}
-                  </select>
                 )}
               </>
             )}
