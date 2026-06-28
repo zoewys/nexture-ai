@@ -1462,8 +1462,10 @@ function summarizeCompletedStep(events: AgentEvent[]): string {
     .map((event) => event.text.trim())
     .filter(Boolean)
   const latestMessage = messages.at(-1)
-  if (!latestMessage) return ''
-  return truncateSummary(latestMessage)
+  if (latestMessage) return truncateSummary(latestMessage)
+  // Tool-heavy API steps (e.g. a git sync) can end with no assistant text at all —
+  // summarize from the tool calls so the step produces a handoff instead of erroring.
+  return summarizeToolActivity(events)
 }
 
 function truncateSummary(text: string): string {
@@ -1472,6 +1474,42 @@ function truncateSummary(text: string): string {
     .trim()
   if (normalized.length <= 360) return normalized
   return `${normalized.slice(0, 357).trimEnd()}...`
+}
+
+function summarizeToolActivity(events: AgentEvent[]): string {
+  const calls = events.filter(
+    (event): event is Extract<AgentEvent, { kind: 'tool-call' }> => event.kind === 'tool-call'
+  )
+  if (calls.length === 0) return ''
+  const last = calls[calls.length - 1]
+  const detail = describeToolCall(last)
+  const label = calls.length === 1 ? '1 tool call' : `${calls.length} tool calls`
+  return truncateSummary(detail ? `Completed ${label}; last: ${detail}` : `Completed ${label}.`)
+}
+
+function describeToolCall(call: Extract<AgentEvent, { kind: 'tool-call' }>): string {
+  if (call.name === 'bash') {
+    const command = readBashCommand(call.input)
+    if (command) return command
+  }
+  return call.name
+}
+
+function readBashCommand(input: unknown): string | null {
+  if (typeof input === 'string') {
+    try {
+      const parsed = JSON.parse(input) as { command?: unknown }
+      if (typeof parsed.command === 'string') return parsed.command
+    } catch {
+      return input.trim() || null
+    }
+    return null
+  }
+  if (input !== null && typeof input === 'object') {
+    const command = (input as { command?: unknown }).command
+    if (typeof command === 'string') return command
+  }
+  return null
 }
 
 function changedArtifacts(events: AgentEvent[], projectPath: string): HandoffArtifact['artifacts'] {
