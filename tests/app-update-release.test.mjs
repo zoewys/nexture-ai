@@ -46,7 +46,7 @@ test('main, preload, and settings expose app update controls', () => {
   assert.match(settings, /installUpdate/)
 })
 
-test('release workflow builds and publishes macOS and Windows packages from git tags', () => {
+test('release workflow builds Windows from git tags; macOS published from a signed local build', () => {
   const pkg = JSON.parse(source('package.json'))
   const builder = source('electron-builder.yml')
   const workspace = source('pnpm-workspace.yaml')
@@ -68,7 +68,7 @@ test('release workflow builds and publishes macOS and Windows packages from git 
 
   assert.match(workflow, /tags:\s*\n\s*-\s*'v\*'/)
   assert.match(workflow, /contents:\s*write/)
-  assert.match(workflow, /macos-15/)
+  assert.doesNotMatch(workflow, /runs-on:\s*macos/)
   assert.match(workflow, /windows-latest/)
   assert.match(workflow, /pnpm\/action-setup@v6/)
   assert.match(workflow, /version:\s*10\.32\.1/)
@@ -77,11 +77,10 @@ test('release workflow builds and publishes macOS and Windows packages from git 
   assert.match(workflow, /ELECTRON_SKIP_BINARY_DOWNLOAD:\s*'1'/)
   assert.match(workflow, /node --test tests\/app-update-release\.test\.mjs/)
   assert.doesNotMatch(workflow, /pnpm test/)
-  assert.match(workflow, /pnpm exec electron-builder --mac --publish never/)
+  assert.doesNotMatch(workflow, /electron-builder --mac/)
   assert.match(workflow, /pnpm exec electron-builder --win --x64 --publish never/)
   assert.match(workflow, /actions\/upload-artifact@v4/)
   assert.match(workflow, /actions\/download-artifact@v4/)
-  assert.match(workflow, /latest-mac\.yml/)
   assert.match(workflow, /latest\.yml/)
   assert.match(workflow, /gh release create/)
   assert.match(workflow, /gh release upload/)
