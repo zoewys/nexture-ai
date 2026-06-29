@@ -72,6 +72,7 @@ const HANDOFF_HINT = [
   'If another instruction asks for a table or report, summarize that result inside summary or nextStepGuidance; do not make the table the top-level final output.',
   'Do not output the sample object above. Replace every placeholder with facts from completed work.',
   'If the step is not complete yet, do not output JSON. Continue working or report the blocker instead.',
+  'If you used todo_write, update it before the handoff so every item is completed. Unfinished todos will fail the step.',
   'Always include all top-level keys. Use null for nextStepGuidance when there is no guidance.',
   'Use null for routeSuggestion unless you believe the workflow should deviate from the default next step.'
 ].join('\n')
@@ -753,6 +754,15 @@ export class WorkflowManager {
       this.finishStepWithError(run, stepIndex, execution, 'Could not parse handoff JSON')
       return
     }
+
+    const unfinishedTodos = findUnfinishedTodoItems(execution.events)
+    if (unfinishedTodos.length > 0) {
+      const message = formatUnfinishedTodoError(unfinishedTodos)
+      this.collectMemorySignal('format-error', 'handoff-failed', run, stepIndex, execution, { error: message })
+      this.finishStepWithError(run, stepIndex, execution, message)
+      return
+    }
+
     this.completeLiveStep(run.id, execution.id, templateStep?.interactive === true)
     this.aggregateStepCost(run, execution)
     execution.handoff = handoff
@@ -1530,6 +1540,60 @@ function readBashCommand(input: unknown): string | null {
     if (typeof command === 'string') return command
   }
   return null
+}
+
+interface TodoSnapshotItem {
+  content: string
+  status: string
+}
+
+function findUnfinishedTodoItems(events: AgentEvent[]): TodoSnapshotItem[] {
+  for (let i = events.length - 1; i >= 0; i--) {
+    const event = events[i]
+    if (event.kind !== 'tool-call' || event.name !== 'todo_write') continue
+    const todos = readTodoWriteItems(event.input)
+    if (!todos) return []
+    return todos.filter((todo) => todo.status.toLowerCase() !== 'completed')
+  }
+  return []
+}
+
+function readTodoWriteItems(input: unknown): TodoSnapshotItem[] | null {
+  const value = parseMaybeJsonObject(input)
+  if (!value) return null
+  const todos = value.todos
+  if (!Array.isArray(todos)) return null
+  return todos.flatMap((item): TodoSnapshotItem[] => {
+    if (!isRecord(item)) return []
+    const content = typeof item.content === 'string' ? item.content.trim() : ''
+    const status = typeof item.status === 'string' ? item.status.trim() : ''
+    if (!content || !status) return []
+    return [{ content, status }]
+  })
+}
+
+function parseMaybeJsonObject(value: unknown): Record<string, unknown> | null {
+  if (isRecord(value)) return value
+  if (typeof value !== 'string') return null
+  try {
+    const parsed = JSON.parse(value) as unknown
+    return isRecord(parsed) ? parsed : null
+  } catch {
+    return null
+  }
+}
+
+function formatUnfinishedTodoError(items: TodoSnapshotItem[]): string {
+  const shown = items
+    .slice(0, 5)
+    .map((item) => `${item.status}: ${item.content}`)
+    .join('; ')
+  const more = items.length > 5 ? `; +${items.length - 5} more` : ''
+  return `Step reported unfinished todo items before completion: ${shown}${more}`
+}
+
+function isRecord(value: unknown): value is Record<string, unknown> {
+  return value !== null && typeof value === 'object' && !Array.isArray(value)
 }
 
 function changedArtifacts(events: AgentEvent[], projectPath: string): HandoffArtifact['artifacts'] {

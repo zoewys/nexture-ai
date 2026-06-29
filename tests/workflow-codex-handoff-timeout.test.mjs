@@ -206,3 +206,38 @@ test('workflow synthesizes a step result when a non-interactive step completes w
     }
   ])
 })
+
+test('workflow does not advance when the latest todo list is unfinished', async () => {
+  const { savedRuns, started } = await createWorkflowHarness()
+
+  started[0].onEvent(started[0].id, {
+    kind: 'tool-call',
+    id: 'todo-1',
+    name: 'todo_write',
+    input: {
+      todos: [
+        { content: 'Analyze CSV data structure', status: 'completed' },
+        { content: 'Write analysis script', status: 'in_progress' },
+        { content: 'Generate analysis Excel output file', status: 'pending' }
+      ]
+    }
+  })
+  started[0].onEvent(started[0].id, {
+    kind: 'message',
+    role: 'assistant',
+    text: '{"summary":"analysis complete","artifacts":[{"path":"summary.json","description":"partial summary","type":"other"}]}'
+  })
+  started[0].onEvent(started[0].id, {
+    kind: 'turn-done',
+    sessionId: 'codex-product',
+    reason: 'complete'
+  })
+
+  const latestRun = savedRuns.at(-1)
+  assert.equal(started.length, 1)
+  assert.equal(latestRun.status, 'error')
+  assert.equal(latestRun.steps[0].status, 'error')
+  assert.match(latestRun.steps[0].executions.at(-1).error, /unfinished todo items/)
+  assert.match(latestRun.steps[0].executions.at(-1).error, /Write analysis script/)
+  assert.match(latestRun.steps[0].executions.at(-1).error, /Generate analysis Excel output file/)
+})
