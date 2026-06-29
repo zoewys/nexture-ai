@@ -5752,7 +5752,7 @@ button.icon-only {
 }
 
 .cb.checked { background: var(--accent); border-color: var(--accent); }
-.cb.checked::after { content: none; }
+.cb.checked::after { content: '✓'; color: #fff; font-size: 12px; font-weight: 700; line-height: 1; }
 .cb.disabled { opacity: .3; }
 
 /* ── import specific ── */
@@ -7445,6 +7445,7 @@ button.icon-only {
   --bg-header: var(--neutral-surface-raised);
   --bg-panel: var(--neutral-surface);
   --bg-surface: var(--neutral-surface-raised);
+  --bg-card: var(--neutral-surface-raised);
   --bg-input: rgba(255, 255, 255, 0.72);
   --border: var(--neutral-border);
   --border-soft: var(--neutral-border-subtle);
@@ -10405,7 +10406,7 @@ select:focus,
 }
 
 .cb.checked { background: var(--accent); border-color: var(--accent); }
-.cb.checked::after { content: none; }
+.cb.checked::after { content: '✓'; color: #fff; font-size: 12px; font-weight: 700; line-height: 1; }
 .cb.disabled { opacity: .3; }
 
 /* ── import specific ── */
