@@ -1,11 +1,5 @@
 name: Release
 
-# macOS is NOT built here. CI has no Apple signing cert, and an unsigned
-# macOS update fails Squirrel.Mac code-sign validation in the installed app
-# ("检查更新失败"). Publish signed macOS builds from a local Mac instead:
-#   GH_TOKEN=<pat> CSC_NAME="Apple Development: ..." npm run release:mac
-# This workflow only builds and publishes Windows.
-
 on:
   push:
     tags:
@@ -15,6 +9,40 @@ permissions:
   contents: write
 
 jobs:
+  macos:
+    name: macOS package
+    runs-on: macos-15
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: pnpm/action-setup@v6
+        with:
+          version: 10.32.1
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 20
+
+      - run: pnpm config set store-dir .pnpm-store
+      - run: pnpm install
+        env:
+          ELECTRON_SKIP_BINARY_DOWNLOAD: '1'
+      - run: pnpm run typecheck
+      - run: node --test tests/app-update-release.test.mjs
+      - run: pnpm run build
+      - run: pnpm exec electron-builder --mac --publish never
+
+      - uses: actions/upload-artifact@v4
+        with:
+          name: macos-release-assets
+          path: |
+            dist/*.dmg
+            dist/*.zip
+            dist/*.blockmap
+            dist/latest-mac.yml
+          if-no-files-found: error
+          retention-days: 7
+
   windows:
     name: Windows package
     runs-on: windows-latest
@@ -53,6 +81,7 @@ jobs:
   publish:
     name: GitHub release
     needs:
+      - macos
       - windows
     runs-on: ubuntu-latest
     env:
