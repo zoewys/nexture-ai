@@ -19,10 +19,11 @@ export function buildToolSet(
   cwd: string,
   signal: AbortSignal,
   guard: PermissionGuard,
-  onFileChanged?: FileChangedCallback
+  onFileChanged?: FileChangedCallback,
+  env?: NodeJS.ProcessEnv
 ) {
   return {
-    bash: createBashTool(cwd, signal, guard, onFileChanged),
+    bash: createBashTool(cwd, signal, guard, onFileChanged, env),
     ls: createLsTool(cwd),
     file_read: createFileReadTool(cwd),
     file_edit: createFileEditTool(cwd, guard, onFileChanged),

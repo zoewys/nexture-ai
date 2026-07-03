@@ -33,6 +33,7 @@ export interface RunTurnInput {
   permissionMode?: PermissionMode
   headless?: boolean
   allowPermissionPrompts?: boolean
+  env?: Record<string, string>
   abortSignal: AbortSignal
 }
 

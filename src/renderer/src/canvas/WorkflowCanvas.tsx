@@ -26,6 +26,7 @@ import {
   Sparkles,
   GitFork,
   Info,
+  KeyRound,
   Shield,
   Plus,
   Pencil,
@@ -39,12 +40,15 @@ import type {
   FailureStrategy,
   ModelCatalog,
   WorkflowTemplate,
-  StepRule
+  StepRule,
+  Credential
 } from '@shared/types'
 import { isParallelGroup } from '@shared/types'
 import type { AgentDraft } from '../useAgents'
+import type { CredentialSaveInput } from '../useCredentials'
 import { AgentEditForm } from '../AgentEditForm'
 import { AgentQuickCreateDrawer } from '../AgentQuickCreateDrawer'
+import { CredentialDrawer } from '../CredentialDrawer'
 import { AgentNode, type AgentNodeData } from './AgentNode'
 import { ConditionalEdge } from './ConditionalEdge'
 import { useCanvasState } from './useCanvasState'
@@ -88,7 +92,12 @@ interface WorkflowCanvasProps {
   onSaveAgent: (draft: AgentDraft) => Promise<AgentDefinition | null>
   onMarkDirty: () => void
   templateDescription?: string
+  credentials?: Credential[]
+  credentialsLoading?: boolean
+  templateCredentialIds?: string[]
   onTemplateDescriptionChange?: (description: string) => void
+  onTemplateCredentialIdsChange?: (credentialIds: string[]) => void
+  onSaveCredential?: (input: CredentialSaveInput) => Promise<Credential>
   onStepsChange?: (steps: import('@shared/types').WorkflowStepNode[]) => void
   onSave?: (steps: import('@shared/types').WorkflowStepNode[]) => void
 }
@@ -117,7 +126,12 @@ function CanvasInner({
   onSaveAgent,
   onMarkDirty,
   templateDescription,
+  credentials,
+  credentialsLoading,
+  templateCredentialIds,
   onTemplateDescriptionChange,
+  onTemplateCredentialIdsChange,
+  onSaveCredential,
   onStepsChange,
   onSave
 }: WorkflowCanvasProps) {
@@ -822,7 +836,12 @@ function CanvasInner({
               <TemplatePropertyPanel
                 template={template}
                 description={templateDescription}
+                credentials={credentials ?? []}
+                credentialsLoading={credentialsLoading ?? false}
+                credentialIds={templateCredentialIds ?? template?.credentialIds ?? []}
                 onDescriptionChange={onTemplateDescriptionChange}
+                onCredentialIdsChange={onTemplateCredentialIdsChange}
+                onSaveCredential={onSaveCredential}
               />
             )}
           </div>
@@ -1464,12 +1483,23 @@ function permissionModeLabel(mode: AgentDefinition['permissionMode']): string {
 function TemplatePropertyPanel({
   template,
   description,
-  onDescriptionChange
+  credentials,
+  credentialsLoading,
+  credentialIds,
+  onDescriptionChange,
+  onCredentialIdsChange,
+  onSaveCredential
 }: {
   template: WorkflowTemplate | null
   description?: string
+  credentials: Credential[]
+  credentialsLoading: boolean
+  credentialIds: string[]
   onDescriptionChange?: (description: string) => void
+  onCredentialIdsChange?: (credentialIds: string[]) => void
+  onSaveCredential?: (input: CredentialSaveInput) => Promise<Credential>
 }) {
+  const [credentialDrawerOpen, setCredentialDrawerOpen] = useState(false)
   if (!template) {
     return (
       <div style={{ fontSize: 12, color: colors.textDim, fontStyle: 'italic' }}>
@@ -1479,6 +1509,19 @@ function TemplatePropertyPanel({
   }
 
   const descriptionValue = description ?? template.description ?? ''
+  const selectedCredentialIds = new Set(credentialIds)
+  const updateCredentialSelection = (id: string, checked: boolean): void => {
+    const next = checked
+      ? [...new Set([...credentialIds, id])]
+      : credentialIds.filter((credentialId) => credentialId !== id)
+    onCredentialIdsChange?.(next)
+  }
+  const saveAndSelectCredential = async (input: CredentialSaveInput): Promise<Credential> => {
+    if (!onSaveCredential) throw new Error('Credential save API is unavailable')
+    const saved = await onSaveCredential(input)
+    onCredentialIdsChange?.([...new Set([...credentialIds, saved.id])])
+    return saved
+  }
 
   return (
     <div className="workflow-canvas-template-panel">
@@ -1499,8 +1542,69 @@ function TemplatePropertyPanel({
           Budget: <strong style={{ color: colors.text }}>${template.budgetUsd}</strong>
         </div>
       )}
+      <div className="workflow-template-credentials">
+        <div className="workflow-template-credential-head">
+          <div className="workflow-template-credential-title">
+            <KeyRound size={13} />
+            <span>环境变量</span>
+          </div>
+          {onSaveCredential && (
+            <button
+              type="button"
+              className="workflow-template-credential-add"
+              title="添加新凭据"
+              aria-label="添加新凭据"
+              onClick={() => setCredentialDrawerOpen(true)}
+            >
+              <Plus size={13} />
+            </button>
+          )}
+        </div>
+
+        {credentialsLoading ? (
+          <div className="workflow-template-credential-empty">加载中...</div>
+        ) : credentials.length === 0 ? (
+          <div className="workflow-template-credential-empty">还没有可用凭据，可先添加一个。</div>
+        ) : (
+          <div className="workflow-template-credential-list">
+            {credentials.map((credential) => (
+              <label key={credential.id} className="workflow-template-credential-item">
+                <input
+                  type="checkbox"
+                  checked={selectedCredentialIds.has(credential.id)}
+                  disabled={!onCredentialIdsChange}
+                  onChange={(event) => updateCredentialSelection(credential.id, event.target.checked)}
+                />
+                <span>
+                  <strong>{credential.name}</strong>
+                  <code>{credential.envKey}</code>
+                  <small>{formatCredentialCreatedAt(credential.createdAt)}</small>
+                </span>
+              </label>
+            ))}
+          </div>
+        )}
+      </div>
+      {credentialDrawerOpen && onSaveCredential && (
+        <CredentialDrawer
+          credential={null}
+          credentials={credentials}
+          title="添加新凭据"
+          onSave={saveAndSelectCredential}
+          onClose={() => setCredentialDrawerOpen(false)}
+        />
+      )}
     </div>
   )
+}
+
+function formatCredentialCreatedAt(value: number): string {
+  const date = new Date(value)
+  const month = String(date.getMonth() + 1).padStart(2, '0')
+  const day = String(date.getDate()).padStart(2, '0')
+  const hours = String(date.getHours()).padStart(2, '0')
+  const minutes = String(date.getMinutes()).padStart(2, '0')
+  return `${month}/${day} ${hours}:${minutes}`
 }
 
 // ── Toolbar Button ────────────────────────────────────────────────────────────

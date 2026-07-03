@@ -12,7 +12,13 @@ const MAX_OUTPUT_BYTES = 100 * 1024
 const SNAPSHOT_LIMIT = 5000
 const SNAPSHOT_IGNORE = new Set(['.git', 'node_modules', 'dist', 'out', '.tmp'])
 
-export function createBashTool(cwd: string, signal: AbortSignal, guard: PermissionGuard, onFileChanged?: FileChangedCallback) {
+export function createBashTool(
+  cwd: string,
+  signal: AbortSignal,
+  guard: PermissionGuard,
+  onFileChanged?: FileChangedCallback,
+  env?: NodeJS.ProcessEnv
+) {
   let currentCwd = cwd
   return tool({
     description: 'Run a shell command from the project. Use this for tests, builds, and commands that cannot be done with file tools; use file_read/file_edit/file_write for direct file operations.',
@@ -27,7 +33,7 @@ export function createBashTool(cwd: string, signal: AbortSignal, guard: Permissi
       }
       const commandCwd = currentCwd
       const before = snapshotFiles(commandCwd)
-      const result = await runCommand(commandCwd, signal, input.command, Math.min(input.timeout ?? DEFAULT_TIMEOUT_MS, MAX_TIMEOUT_MS))
+      const result = await runCommand(commandCwd, signal, input.command, Math.min(input.timeout ?? DEFAULT_TIMEOUT_MS, MAX_TIMEOUT_MS), env)
       const after = snapshotFiles(commandCwd)
       for (const change of diffSnapshots(before, after)) onFileChanged?.(change.path, change.op)
       if (result.cwd && existsSync(result.cwd)) currentCwd = normalizeCwd(commandCwd, result.cwd)
@@ -42,7 +48,7 @@ interface CommandResult {
   cwd?: string
 }
 
-function runCommand(cwd: string, signal: AbortSignal, command: string, timeoutMs: number): Promise<CommandResult> {
+function runCommand(cwd: string, signal: AbortSignal, command: string, timeoutMs: number, env?: NodeJS.ProcessEnv): Promise<CommandResult> {
   return new Promise((resolveResult) => {
     const shell = process.env.SHELL || '/bin/bash'
     const marker = `__AGENT_STUDIO_CWD_${Date.now()}_${Math.random().toString(16).slice(2)}__`
@@ -54,7 +60,7 @@ function runCommand(cwd: string, signal: AbortSignal, command: string, timeoutMs
     ].join('\n')
     const child = spawn(shell, ['-lc', wrappedCommand], {
       cwd,
-      env: process.env,
+      env: env ? { ...process.env, ...env } : process.env,
       stdio: ['ignore', 'pipe', 'pipe'],
       detached: process.platform !== 'win32'
     })

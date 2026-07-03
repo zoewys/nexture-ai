@@ -10,6 +10,7 @@ import { isParallelGroup, type AgentDefinition, type CliCheckResult, type ModelC
 import type { WorkflowDraft } from './useWorkflows'
 import type { AgentDraft } from './useAgents'
 import { ChevronsLeft, ChevronsRight, Download, Copy, Plus, Save, Trash2 } from 'lucide-react'
+import { useCredentials } from './useCredentials'
 
 const WorkflowCanvas = lazy(() => import('./canvas/WorkflowCanvas'))
 
@@ -47,8 +48,10 @@ export function TemplatesView({
   const [sidebarCollapsed, setSidebarCollapsed] = useState(false)
   const [editName, setEditName] = useState('')
   const [editDescription, setEditDescription] = useState('')
+  const [editCredentialIds, setEditCredentialIds] = useState<string[]>([])
   const pendingStepsRef = useRef<WorkflowStepNode[] | null>(null)
   const [contextMenu, setContextMenu] = useState<{ templateId: string; x: number; y: number } | null>(null)
+  const credentialState = useCredentials()
 
   const selectedTemplate = useMemo(
     () => templates.find((t) => t.id === selectedId) ?? null,
@@ -70,16 +73,19 @@ export function TemplatesView({
       setSelectedId(sortedTemplates[0].id)
       setEditName(sortedTemplates[0].name)
       setEditDescription(sortedTemplates[0].description ?? '')
+      setEditCredentialIds(sortedTemplates[0].credentialIds ?? [])
     }
     if (selectedId && !templates.some((t) => t.id === selectedId)) {
       setSelectedId(sortedTemplates[0]?.id ?? null)
       setEditName(sortedTemplates[0]?.name ?? '')
       setEditDescription(sortedTemplates[0]?.description ?? '')
+      setEditCredentialIds(sortedTemplates[0]?.credentialIds ?? [])
     }
   }, [selectedId, templates, sortedTemplates])
 
   useEffect(() => {
     pendingStepsRef.current = selectedTemplate?.steps ?? null
+    setEditCredentialIds(selectedTemplate?.credentialIds ?? [])
   }, [selectedTemplate])
 
   const handleSelect = useCallback(
@@ -91,6 +97,7 @@ export function TemplatesView({
       if (t) {
         setEditName(t.name)
         setEditDescription(t.description ?? '')
+        setEditCredentialIds(t.credentialIds ?? [])
       }
     },
     [isDirty, templates]
@@ -102,7 +109,7 @@ export function TemplatesView({
     if (isDirty && !window.confirm('You have unsaved changes. Discard?')) return
     setSaving(true)
     try {
-      const saved = await onSave({ name: 'New Workflow', description: '', steps: [] })
+      const saved = await onSave({ name: 'New Workflow', description: '', steps: [], credentialIds: [] })
       setSelectedId(saved.id)
       setEditName(saved.name)
       setEditDescription(saved.description ?? '')
@@ -125,7 +132,8 @@ export function TemplatesView({
       const saved = await onSave({
         name: `${selectedTemplate.name} Copy`,
         description: selectedTemplate.description,
-        steps: selectedTemplate.steps
+        steps: selectedTemplate.steps,
+        credentialIds: selectedTemplate.credentialIds ?? []
       })
       setSelectedId(saved.id)
       setEditName(saved.name)
@@ -145,6 +153,7 @@ export function TemplatesView({
         name: editName.trim() || selectedTemplate.name,
         description: editDescription.trim() || undefined,
         steps,
+        credentialIds: editCredentialIds,
         budgetUsd: selectedTemplate.budgetUsd
       })
       setSelectedId(saved.id)
@@ -154,7 +163,7 @@ export function TemplatesView({
     } finally {
       setSaving(false)
     }
-  }, [selectedTemplate, onSave, saving, editName, editDescription])
+  }, [selectedTemplate, onSave, saving, editName, editDescription, editCredentialIds])
 
   const handleCanvasSaveFromButton = useCallback(() => {
     if (!selectedTemplate) return
@@ -319,10 +328,18 @@ export function TemplatesView({
                   onSaveAgent={onSaveAgent}
                   onMarkDirty={markDirty}
                   templateDescription={editDescription}
+                  credentials={credentialState.credentials}
+                  credentialsLoading={credentialState.loading}
+                  templateCredentialIds={editCredentialIds}
                   onTemplateDescriptionChange={(description) => {
                     setEditDescription(description)
                     markDirty()
                   }}
+                  onTemplateCredentialIdsChange={(credentialIds) => {
+                    setEditCredentialIds(credentialIds)
+                    markDirty()
+                  }}
+                  onSaveCredential={credentialState.save}
                   onStepsChange={(steps) => {
                     pendingStepsRef.current = steps
                   }}

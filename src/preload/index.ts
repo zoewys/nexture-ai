@@ -28,6 +28,7 @@ import {
   type AppSettings,
   type ApiProviderConfig,
   type ApiCallLogEntry,
+  type Credential,
   type FeishuConnectionStatus,
   type ExportOptions,
   type ImportPreview,
@@ -101,6 +102,18 @@ const api = {
 
   fetchProviderModels: (provider: ApiProviderConfig, providerId?: string): Promise<{ models: string[]; error?: string }> =>
     ipcRenderer.invoke(IPC.providersFetchModels, provider, providerId),
+
+  credentialsList: (): Promise<Credential[]> =>
+    ipcRenderer.invoke(IPC.credentialsList),
+
+  credentialsSave: (input: Omit<Credential, 'id' | 'createdAt'> & { id?: string; createdAt?: number }): Promise<Credential> =>
+    ipcRenderer.invoke(IPC.credentialsSave, input),
+
+  credentialsDelete: (id: string): Promise<void> =>
+    ipcRenderer.invoke(IPC.credentialsDelete, id),
+
+  credentialsGetDecrypted: (id: string): Promise<Credential> =>
+    ipcRenderer.invoke(IPC.credentialsGetDecrypted, id),
 
   respondPermission: (requestId: string, allowed: boolean): Promise<void> =>
     ipcRenderer.invoke(IPC.permissionRespond, requestId, allowed),

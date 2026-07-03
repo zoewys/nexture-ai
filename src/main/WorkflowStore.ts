@@ -32,6 +32,7 @@ export class WorkflowStore {
       name: input.name,
       description: input.description,
       steps: input.steps,
+      credentialIds: input.credentialIds ?? [],
       budgetUsd: input.budgetUsd,
       createdAt: existing?.createdAt ?? input.createdAt ?? Date.now()
     }
@@ -122,6 +123,7 @@ function writeArray<T>(path: string, list: T[]): void {
 function normalizeTemplate(t: WorkflowTemplate): WorkflowTemplate {
   return {
     ...t,
+    credentialIds: t.credentialIds ?? [],
     steps: t.steps.map((node: WorkflowStepNode) => {
       if (isParallelGroup(node)) return { ...node, join: node.join ?? true }
       return node

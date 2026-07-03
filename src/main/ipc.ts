@@ -35,6 +35,7 @@ import {
   type ApiProviderConfig,
   type ApiCallLogEntry,
   type ApiCallLogStatus,
+  type Credential,
   type ExportOptions,
   type ImportOptions,
   type PastedImageInput,
@@ -62,6 +63,7 @@ import { SignalCollector } from './memory/SignalCollector'
 import { AppSettingsStore } from './AppSettingsStore'
 import { getRecommendation } from './routeRecommendation'
 import { ProviderStore } from './ProviderStore'
+import { CredentialStore } from './CredentialStore'
 import { ApiCallLogStore } from './ApiCallLogStore'
 import { respondToPermissionRequest } from './adapters/api-tools/PermissionGuard'
 import { normalizeProviderBaseUrl, resolveModel, shouldUseAnthropicBearerAuth } from './adapters/apiAdapter'
@@ -164,6 +166,7 @@ export function registerIpc(
   const scheduleStore = new ScheduleStore()
   const appSettingsStore = new AppSettingsStore()
   const providerStore = new ProviderStore()
+  const credentialStore = new CredentialStore()
   const apiCallLogStore = new ApiCallLogStore()
   const recordProviderApiLog = (input: {
     source: 'provider-test' | 'model-fetch'
@@ -285,7 +288,8 @@ export function registerIpc(
     transcriptStore,
     emitWorkflow,
     signalCollector,
-    memoryInjector
+    memoryInjector,
+    credentialStore
   )
   const singleSessionManager = new SingleSessionManager(
     singleSessionStore,
@@ -404,6 +408,22 @@ export function registerIpc(
   ipcMain.handle(IPC.providersGetDecrypted, (_e, id: string): ApiProviderConfig => providerStore.getDecrypted(id))
 
   ipcMain.handle(IPC.providersDelete, (_e, id: string): void => providerStore.remove(id))
+
+  ipcMain.handle(IPC.credentialsList, (): Credential[] => credentialStore.list())
+
+  ipcMain.handle(IPC.credentialsSave, (_e, input): Credential => credentialStore.save(input))
+
+  ipcMain.handle(IPC.credentialsGetDecrypted, (_e, id: string): Credential => credentialStore.getDecrypted(id))
+
+  ipcMain.handle(IPC.credentialsDelete, (_e, id: string): void => {
+    const referencing = workflowStore
+      .listTemplates()
+      .filter((template) => (template.credentialIds ?? []).includes(id))
+    if (referencing.length > 0) {
+      throw new Error(`该凭据正在被 ${referencing.length} 个 Workflow 使用，请先在对应 Workflow 中取消勾选`)
+    }
+    credentialStore.remove(id)
+  })
 
   ipcMain.handle(IPC.providersTest, async (_e, id: string): Promise<{ ok: boolean; message: string }> => {
     const startedAt = Date.now()

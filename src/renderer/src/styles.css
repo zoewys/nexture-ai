@@ -5761,7 +5761,14 @@ button.icon-only {
 }
 
 .cb.checked { background: var(--accent); border-color: var(--accent); }
-.cb.checked::after { content: '✓'; color: #fff; font-size: 12px; font-weight: 700; line-height: 1; }
+.cb.checked::after {
+  content: '';
+  width: 4px;
+  height: 8px;
+  border: solid #fff;
+  border-width: 0 2px 2px 0;
+  transform: rotate(45deg);
+}
 .cb.disabled { opacity: .3; }
 
 /* ── import specific ── */
@@ -10440,7 +10447,14 @@ select:focus,
 }
 
 .cb.checked { background: var(--accent); border-color: var(--accent); }
-.cb.checked::after { content: '✓'; color: #fff; font-size: 12px; font-weight: 700; line-height: 1; }
+.cb.checked::after {
+  content: '';
+  width: 4px;
+  height: 8px;
+  border: solid #fff;
+  border-width: 0 2px 2px 0;
+  transform: rotate(45deg);
+}
 .cb.disabled { opacity: .3; }
 
 /* ── import specific ── */
@@ -15449,4 +15463,317 @@ button:disabled,
 
 [data-theme="dark"] .composer-skill-menu-header {
   background: rgba(12, 22, 30, 0.94);
+}
+
+.credential-settings {
+  display: grid;
+  gap: 12px;
+}
+
+.credential-settings-toolbar {
+  display: flex;
+  justify-content: flex-end;
+  gap: 8px;
+  flex-wrap: wrap;
+}
+
+.credential-list {
+  display: grid;
+  gap: 8px;
+}
+
+.credential-row {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) auto;
+  align-items: center;
+  gap: 12px;
+  padding: 10px 12px;
+  border: 1px solid var(--neutral-border);
+  border-radius: 8px;
+  background: var(--neutral-surface-raised);
+}
+
+.credential-row-main {
+  min-width: 0;
+  display: grid;
+  gap: 4px;
+}
+
+.credential-row-main code {
+  width: fit-content;
+  max-width: 100%;
+  padding: 3px 6px;
+  border-radius: 5px;
+  border: 1px solid color-mix(in srgb, var(--brand-primary) 24%, transparent);
+  background: color-mix(in srgb, var(--brand-primary) 8%, transparent);
+  color: var(--brand-primary);
+  font-size: 11px;
+  overflow-wrap: anywhere;
+}
+
+.credential-row-main strong {
+  color: var(--neutral-text-primary);
+  font-size: 13px;
+  overflow-wrap: anywhere;
+}
+
+.credential-row-main span {
+  color: var(--neutral-text-muted);
+  font-size: 11px;
+}
+
+.credential-row-actions {
+  display: flex;
+  gap: 6px;
+}
+
+.credential-row-actions button {
+  width: 30px;
+  height: 30px;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  border-radius: 6px;
+  border: 1px solid var(--neutral-border);
+  background: var(--neutral-surface);
+  color: var(--neutral-text-secondary);
+  cursor: pointer;
+}
+
+.credential-row-actions button:hover {
+  color: var(--brand-primary);
+  border-color: color-mix(in srgb, var(--brand-primary) 35%, transparent);
+}
+
+.credential-empty {
+  min-height: 120px;
+  display: grid;
+  place-items: center;
+  align-content: center;
+  gap: 10px;
+  padding: 18px;
+  border: 1px dashed var(--neutral-border);
+  border-radius: 8px;
+  color: var(--neutral-text-muted);
+  font-size: 13px;
+}
+
+.credential-message,
+.credential-form-error {
+  padding: 9px 10px;
+  border-radius: 7px;
+  border: 1px solid color-mix(in srgb, var(--red, #e8606a) 34%, transparent);
+  background: color-mix(in srgb, var(--red, #e8606a) 8%, transparent);
+  color: var(--red, #e8606a);
+  font-size: 12px;
+  line-height: 1.45;
+}
+
+.credential-drawer-overlay {
+  position: fixed !important;
+  inset: 0 !important;
+  z-index: 90 !important;
+  display: flex !important;
+  align-items: stretch !important;
+  justify-content: flex-end !important;
+  background: transparent !important;
+}
+
+.credential-drawer.workflow-new-run-drawer {
+  position: relative !important;
+  top: auto !important;
+  right: auto !important;
+  bottom: auto !important;
+  z-index: auto !important;
+  width: min(620px, 100vw) !important;
+  min-width: min(520px, 100vw) !important;
+  box-sizing: border-box !important;
+  height: 100vh !important;
+  max-height: 100vh !important;
+  border-radius: 0 !important;
+  overflow: hidden !important;
+  animation: credential-drawer-slide-in 160ms ease-out !important;
+}
+
+.credential-drawer-body {
+  gap: 14px;
+}
+
+.credential-input-error {
+  border-color: var(--red, #e8606a) !important;
+}
+
+.credential-preset-box {
+  display: grid;
+  gap: 8px;
+  padding: 10px;
+  border: 1px solid var(--neutral-border);
+  border-radius: 8px;
+  background: var(--neutral-surface);
+}
+
+.credential-preset-title {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  color: var(--neutral-text-secondary);
+  font-size: 11px;
+  font-weight: 700;
+}
+
+.credential-preset-grid {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px;
+}
+
+.credential-preset-grid button {
+  min-height: 28px;
+  padding: 5px 8px;
+  border-radius: 6px;
+  border: 1px solid var(--neutral-border);
+  background: var(--neutral-surface-raised);
+  color: var(--neutral-text-secondary);
+  font-family: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, monospace;
+  font-size: 10px;
+  cursor: pointer;
+}
+
+.credential-preset-grid button:hover {
+  color: var(--brand-primary);
+  border-color: color-mix(in srgb, var(--brand-primary) 30%, transparent);
+}
+
+.credential-value-wrap {
+  position: relative;
+}
+
+.credential-value-wrap textarea {
+  width: 100%;
+  padding-right: 42px;
+  resize: vertical;
+  font-family: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, monospace;
+}
+
+.credential-value-secret {
+  -webkit-text-security: disc;
+}
+
+.credential-value-toggle {
+  position: absolute;
+  top: 8px;
+  right: 8px;
+  width: 28px;
+  height: 28px;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  border-radius: 6px;
+  border: 1px solid var(--neutral-border);
+  background: var(--neutral-surface-raised);
+  color: var(--neutral-text-secondary);
+  cursor: pointer;
+}
+
+.workflow-template-credentials {
+  display: grid;
+  gap: 8px;
+}
+
+.workflow-template-credential-head {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 8px;
+}
+
+.workflow-template-credential-title {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  color: var(--neutral-text-secondary);
+  font-size: 11px;
+  font-weight: 700;
+}
+
+.workflow-template-credential-add {
+  width: 26px;
+  height: 26px;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  border-radius: 6px;
+  border: 1px solid var(--neutral-border);
+  background: var(--neutral-surface);
+  color: var(--neutral-text-secondary);
+  cursor: pointer;
+}
+
+.workflow-template-credential-list {
+  display: grid;
+  gap: 6px;
+}
+
+.workflow-template-credential-item {
+  display: grid;
+  grid-template-columns: 18px minmax(0, 1fr);
+  gap: 8px;
+  align-items: start;
+  padding: 8px;
+  border: 1px solid var(--neutral-border);
+  border-radius: 7px;
+  background: var(--neutral-surface);
+  color: var(--neutral-text-secondary);
+  font-size: 11px;
+}
+
+.workflow-template-credential-item strong,
+.workflow-template-credential-item code,
+.workflow-template-credential-item small {
+  display: block;
+  min-width: 0;
+  overflow-wrap: anywhere;
+}
+
+.workflow-template-credential-item strong {
+  color: var(--neutral-text-primary);
+  margin-bottom: 3px;
+}
+
+.workflow-template-credential-item code {
+  color: var(--brand-primary);
+  font-size: 10px;
+}
+
+.workflow-template-credential-item small {
+  margin-top: 3px;
+  color: var(--neutral-text-muted);
+  font-size: 10px;
+}
+
+.workflow-template-credential-empty {
+  padding: 9px;
+  border: 1px dashed var(--neutral-border);
+  border-radius: 7px;
+  color: var(--neutral-text-muted);
+  font-size: 11px;
+  line-height: 1.4;
+}
+
+@keyframes credential-drawer-slide-in {
+  from {
+    transform: translateX(100%);
+  }
+
+  to {
+    transform: translateX(0);
+  }
+}
+
+@media (max-width: 900px) {
+  .credential-drawer.workflow-new-run-drawer {
+    width: 100vw !important;
+    min-width: 0 !important;
+    max-height: 100vh !important;
+  }
 }

@@ -24,6 +24,7 @@ import type { AgentStore } from './AgentStore'
 import type { RunManager } from './RunManager'
 import type { TranscriptStore } from './TranscriptStore'
 import type { WorkflowStore } from './WorkflowStore'
+import type { CredentialStore } from './CredentialStore'
 import { inspectWorkflowGitSafety } from './gitSafety'
 import type { MemoryInjector } from './memory/MemoryInjector'
 import type { SignalCollector } from './memory/SignalCollector'
@@ -138,7 +139,8 @@ export class WorkflowManager {
     private readonly transcripts: TranscriptStore,
     private readonly emit: EmitWorkflow,
     private readonly signalCollector?: SignalCollector,
-    private readonly memoryInjector?: MemoryInjector
+    private readonly memoryInjector?: MemoryInjector,
+    private readonly credentialStore?: CredentialStore
   ) {
     for (const run of this.markInterruptedRunsOnStartup(workflowStore.listRuns())) {
       this.runs.set(run.id, run)
@@ -192,6 +194,7 @@ export class WorkflowManager {
       budgetUsd: template.budgetUsd,
       autoConfirm: input.autoConfirm,
       scheduledBy: input.scheduledBy,
+      credentialIds: template.credentialIds ?? [],
       steps: this.flattenTemplateSteps(template)
     }
     if (input.useWorktree && safety.isGitRepo) {
@@ -468,6 +471,7 @@ export class WorkflowManager {
       appendSystemPrompt: agent.systemPrompt,
       outputSchema: HANDOFF_OUTPUT_SCHEMA,
       permissionMode: agent.permissionMode,
+      env: this.credentialEnvForRun(run),
       resumeFrom: {
         sessionId: previous.sessionId,
         vendor: agent.vendor,
@@ -636,7 +640,8 @@ export class WorkflowManager {
       appendSystemPrompt: agent.systemPrompt,
       outputSchema: HANDOFF_OUTPUT_SCHEMA,
       keepStdinOpenAfterTurnDone: templateStep?.interactive === true,
-      permissionMode: agent.permissionMode
+      permissionMode: agent.permissionMode,
+      env: this.credentialEnvForRun(run)
     }
 
     const childRunId = this.runManager.start(config, (_childRunId, event) => {
@@ -928,6 +933,7 @@ export class WorkflowManager {
       appendSystemPrompt: agent.systemPrompt,
       outputSchema: HANDOFF_OUTPUT_SCHEMA,
       permissionMode: agent.permissionMode,
+      env: this.credentialEnvForRun(run),
       resumeFrom: previous.sessionId
         ? {
             sessionId: previous.sessionId,
@@ -1577,6 +1583,23 @@ export class WorkflowManager {
       prompt: text ? `${text}\n${mainPrompt}` : mainPrompt,
       injectedMemoryIds
     }
+  }
+
+  private credentialEnvForRun(run: WorkflowRun): Record<string, string> | undefined {
+    const ids = run.credentialIds ?? []
+    if (!this.credentialStore || ids.length === 0) return undefined
+
+    const env: Record<string, string> = {}
+    for (const id of ids) {
+      try {
+        const credential = this.credentialStore.getDecrypted(id)
+        env[credential.envKey] = credential.value
+      } catch (err) {
+        const message = err instanceof Error ? err.message : String(err)
+        console.warn(`[CredentialStore] Skipping credential ${id}: ${message}`)
+      }
+    }
+    return Object.keys(env).length > 0 ? env : undefined
   }
 }
 

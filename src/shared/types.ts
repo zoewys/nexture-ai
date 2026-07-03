@@ -25,6 +25,14 @@ export interface ApiProviderConfig {
   maxOutputTokens?: number
 }
 
+export interface Credential {
+  id: string
+  name: string
+  envKey: string
+  value: string
+  createdAt: number
+}
+
 // ── CLI model catalogs ──────────────────────────────────────────────────────
 
 export interface ModelOption {
@@ -316,6 +324,8 @@ export interface RunConfig {
   cliPath?: string
   /** CLI permission mode. Defaults to bypassPermissions when unset. */
   permissionMode?: PermissionMode
+  /** Extra environment variables injected into spawned agent processes. */
+  env?: Record<string, string>
 }
 
 // ── Agent definitions ───────────────────────────────────────────────────────
@@ -405,6 +415,8 @@ export interface WorkflowTemplate {
   name: string
   description?: string
   steps: WorkflowStepNode[]
+  /** Credential ids allowed for runs started from this template. */
+  credentialIds?: string[]
   /** Optional per-run budget cap in USD applied to runs started from this template. */
   budgetUsd?: number
   /** Epoch ms of creation; newest sorts first in the template list. */
@@ -536,6 +548,8 @@ export interface WorkflowRun {
   autoConfirm?: boolean
   /** Schedule id that launched this run, when started by the scheduler. */
   scheduledBy?: string
+  /** Credential ids injected into this run's agent processes. */
+  credentialIds?: string[]
 }
 
 export interface WorkflowStartInput {
@@ -833,6 +847,14 @@ export const IPC = {
   providersFetchModels: 'providers:fetch-models',
   /** renderer → main: get a provider with decrypted apiKey. */
   providersGetDecrypted: 'providers:get-decrypted',
+  /** renderer → main: list saved credentials. */
+  credentialsList: 'credentials:list',
+  /** renderer → main: create or update a credential. */
+  credentialsSave: 'credentials:save',
+  /** renderer → main: delete one credential. */
+  credentialsDelete: 'credentials:delete',
+  /** renderer → main: get one credential with decrypted value. */
+  credentialsGetDecrypted: 'credentials:get-decrypted',
   /** renderer → main: list recent local API call logs. */
   apiLogsList: 'apiLogs:list',
   /** renderer → main: clear local API call logs. */

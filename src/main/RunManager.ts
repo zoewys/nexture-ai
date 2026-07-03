@@ -146,6 +146,7 @@ export class RunManager {
       permissionMode: config.permissionMode,
       headless: config.headless,
       allowPermissionPrompts: config.allowPermissionPrompts,
+      env: config.env,
       abortSignal: abort.signal
     })
 

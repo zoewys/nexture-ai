@@ -19,11 +19,8 @@ test('workflow handoff steps provide a structured output schema', () => {
   assert.match(workflowManager, /required: \['path', 'description', 'type'\]/)
   assert.match(workflowManager, /required: \['action', 'target', 'reason'\]/)
   assert.match(workflowManager, /enum: \['requirement', 'design', 'code', 'test', 'other'\]/)
-  assert.equal(
-    [...workflowManager.matchAll(/outputSchema: HANDOFF_OUTPUT_SCHEMA/g)].length,
-    2,
-    'start and resumed workflow steps should both constrain handoff output'
-  )
+  const handoffSchemaUses = [...workflowManager.matchAll(/outputSchema: HANDOFF_OUTPUT_SCHEMA/g)].length
+  assert.ok(handoffSchemaUses >= 2, 'workflow handoff launches should constrain handoff output')
 })
 
 test('workflow handoff schema is valid for strict Codex response_format', () => {

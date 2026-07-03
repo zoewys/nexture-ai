@@ -1,11 +1,13 @@
 import { useCallback, useEffect, useState } from 'react'
-import { Bell, Bot, Code2, Database, Download, FolderOpen, Globe, MessageSquare, Moon, RefreshCw, Sliders, Sun, Terminal, Trash2, Upload } from 'lucide-react'
+import { Bell, Bot, Code2, Database, Download, FolderOpen, Globe, KeyRound, MessageSquare, Moon, RefreshCw, Sliders, Sun, Terminal, Trash2, Upload } from 'lucide-react'
 import type { ApiCallLogEntry, AppSettings, AppUpdateState, FeishuConnectionStatus, FeishuConfig } from '@shared/types'
 import { DEFAULT_FEISHU_CONFIG } from '@shared/types'
 import { ExportDialog } from './ExportDialog'
 import { ImportDialog } from './ImportDialog'
 import { ProviderSettings } from './ProviderSettings'
 import { useProviders } from './useProviders'
+import { CredentialSettings } from './CredentialSettings'
+import { useCredentials } from './useCredentials'
 
 interface SettingsPanelProps {
   settings: AppSettings
@@ -28,6 +30,7 @@ const CLI_DEFS = [
 const SETTINGS_NAV = [
   { key: 'cli', label: 'CLI 工具', Icon: Terminal },
   { key: 'provider', label: 'API Provider', Icon: Globe },
+  { key: 'credentials', label: 'Credentials', Icon: KeyRound },
   { key: 'logs', label: 'API 日志', Icon: RefreshCw },
   { key: 'data', label: '数据管理', Icon: Database },
   { key: 'feishu', label: '飞书通知', Icon: Bell },
@@ -62,6 +65,7 @@ export function SettingsPanel({ settings, loading, onSave }: SettingsPanelProps)
     currentVersion: '',
     canInstall: false
   })
+  const credentialState = useCredentials()
 
   const refresh = useCallback(async () => {
     setRefreshing(true)
@@ -295,6 +299,18 @@ export function SettingsPanel({ settings, loading, onSave }: SettingsPanelProps)
           </div>
         </div>
         <ProviderSettings {...providerState} />
+      </section>
+
+      <hr className="settings-divider" />
+
+      <section id="section-credentials" className="settings-section">
+        <div className="settings-section-head">
+          <div>
+            <h3 className="settings-section-title">Credentials</h3>
+            <p className="settings-section-desc">管理可注入 Workflow 的环境变量凭据。</p>
+          </div>
+        </div>
+        <CredentialSettings {...credentialState} />
       </section>
 
       <hr className="settings-divider" />

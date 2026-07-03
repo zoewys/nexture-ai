@@ -43,7 +43,13 @@ export class CodexAdapter implements CliAdapter {
     )
 
     const handle = spawnProcess(
-      { cmd, args, cwd: input.cwd, abortSignal: input.abortSignal },
+      {
+        cmd,
+        args,
+        cwd: input.cwd,
+        env: input.env ? { ...process.env, ...input.env } : undefined,
+        abortSignal: input.abortSignal
+      },
       {
         onStdoutLine: (line) => {
           for (const ev of parseCodexLine(line)) {

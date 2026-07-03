@@ -85,7 +85,7 @@ export class ApiAdapter implements CliAdapter {
       const system = buildSystemPrompt(this.config, input, modelId)
       const tools = buildToolSet(input.cwd, input.abortSignal, this.guard, (path, op) => {
         queue.push({ kind: 'file-changed', path, op })
-      })
+      }, input.env ? { ...process.env, ...input.env } : undefined)
       const baseOptions = {
         model: resolveModel(this.config, modelId) as any,
         messages,
