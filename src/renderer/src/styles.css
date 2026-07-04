@@ -13776,7 +13776,6 @@ button:disabled,
   gap: 14px !important;
 }
 
-.workflow-dashboard-empty,
 .schedule-empty {
   min-height: 150px !important;
   display: flex !important;

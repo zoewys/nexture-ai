@@ -126,12 +126,6 @@ export function WorkflowRunsList({
       </div>
 
       <div className="workflow-run-cards cards-grid">
-        {filteredRuns.length === 0 && runs.length > 0 && (
-          <div className="workflow-dashboard-empty">
-            <Activity size={18} />
-            <span>暂无匹配的任务</span>
-          </div>
-        )}
         {filteredRuns.map((run, index) => (
           <WorkflowRunCard
             key={run.id}
