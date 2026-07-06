@@ -743,6 +743,46 @@ test('ApiAdapter uses a conservative Kimi input estimate for long single-agent t
   assert.ok(calls[0].maxOutputTokens >= 180_000)
 })
 
+test('ApiAdapter does not count image bytes as text when reserving Kimi output space', async () => {
+  const calls = []
+  const project = tempProject()
+  const imagePath = join(project.dir, 'screen.png')
+  writeFileSync(imagePath, Buffer.alloc(320_000, 1))
+
+  try {
+    const { ApiAdapter } = await importApiAdapter(mocksFor([
+      { type: 'text-delta', textDelta: 'ok' },
+      { type: 'finish' }
+    ], calls))
+    const adapter = new ApiAdapter({
+      id: 'kimi',
+      name: 'Kimi',
+      format: 'openai-compatible',
+      apiKey: 'sk-test',
+      baseUrl: 'https://api.moonshot.cn/v1',
+      models: ['kimi-k2.6'],
+      defaultModel: 'kimi-k2.6',
+      maxOutputTokens: 262_144
+    }, guard)
+
+    await collect(adapter.runTurn({
+      prompt: 'redesign this screen',
+      cwd: root,
+      attachments: [{ path: imagePath, kind: 'image', mediaType: 'image/png' }],
+      abortSignal: new AbortController().signal
+    }))
+
+    assert.ok(calls[0].maxOutputTokens <= 262_144 - 8192)
+    assert.ok(calls[0].maxOutputTokens >= 200_000)
+    const content = calls[0].messages[0].content
+    assert.equal(Array.isArray(content), true)
+    const imagePart = content.find((part) => part.type === 'image')
+    assert.equal(Buffer.isBuffer(imagePart.image), true)
+  } finally {
+    project.cleanup()
+  }
+})
+
 test('ApiAdapter retries a concise structured handoff after max output truncation', async () => {
   const calls = []
   const logs = []

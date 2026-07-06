@@ -311,6 +311,9 @@ function safeTokenEstimateText(value: unknown): string {
     return JSON.stringify(value, (_key, current) => {
       if (typeof current === 'function') return `[Function ${current.name || 'anonymous'}]`
       if (typeof current === 'bigint') return current.toString()
+      if (current instanceof ArrayBuffer) return `[ArrayBuffer ${current.byteLength} bytes]`
+      if (ArrayBuffer.isView(current)) return `[${current.constructor.name} ${current.byteLength} bytes]`
+      if (isSerializedBuffer(current)) return `[Buffer ${current.data.length} bytes]`
       if (current && typeof current === 'object') {
         if (seen.has(current)) return '[Circular]'
         seen.add(current)
@@ -320,6 +323,10 @@ function safeTokenEstimateText(value: unknown): string {
   } catch {
     return String(value)
   }
+}
+
+function isSerializedBuffer(value: unknown): value is { type: 'Buffer'; data: unknown[] } {
+  return isRecord(value) && value.type === 'Buffer' && Array.isArray(value.data)
 }
 
 function roughTokenCount(text: string): number {
