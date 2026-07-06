@@ -13770,10 +13770,10 @@ button:disabled,
 }
 
 .schedule-cards.cards-grid {
-  grid-template-columns: repeat(auto-fill, minmax(min(360px, 100%), 420px)) !important;
+  grid-template-columns: repeat(auto-fill, minmax(min(240px, 100%), 280px)) !important;
   align-items: start !important;
   justify-content: start !important;
-  gap: 14px !important;
+  gap: 12px !important;
 }
 
 .schedule-empty {
@@ -14231,8 +14231,9 @@ button:disabled,
   min-height: 0 !important;
   align-items: stretch !important;
   justify-content: flex-start !important;
-  gap: 10px !important;
-  padding: 16px !important;
+  gap: 7px !important;
+  padding: 12px !important;
+  border-radius: 12px !important;
   text-align: left !important;
 }
 
@@ -14242,10 +14243,12 @@ button:disabled,
 
 .schedule-card-header {
   align-items: flex-start !important;
+  gap: 8px !important;
 }
 
 .schedule-card-name {
   flex: 1 1 auto !important;
+  font-size: 14px !important;
   text-align: left !important;
 }
 
@@ -14253,13 +14256,13 @@ button:disabled,
   width: fit-content !important;
   max-width: 100% !important;
   display: inline-flex !important;
-  padding: 4px 10px !important;
+  padding: 3px 8px !important;
   border-radius: 999px !important;
   border: 1px solid rgba(61, 142, 134, 0.2) !important;
   background: rgba(61, 142, 134, 0.08) !important;
   color: var(--brand-primary) !important;
   font-family: "JetBrains Mono", monospace !important;
-  font-size: 11px !important;
+  font-size: 10px !important;
   overflow: hidden !important;
   text-overflow: ellipsis !important;
   white-space: nowrap !important;
@@ -14269,7 +14272,7 @@ button:disabled,
   min-width: 0 !important;
   display: flex !important;
   align-items: center !important;
-  gap: 6px 8px !important;
+  gap: 4px 6px !important;
   flex-wrap: wrap !important;
 }
 
@@ -14284,21 +14287,21 @@ button:disabled,
 .schedule-countdown {
   color: var(--brand-primary) !important;
   font-family: "JetBrains Mono", monospace !important;
-  font-size: 16px !important;
+  font-size: 14px !important;
   font-weight: 800 !important;
   line-height: 1.2 !important;
 }
 
 .schedule-countdown.dim {
   color: var(--neutral-text-muted) !important;
-  font-size: 15px !important;
+  font-size: 13px !important;
 }
 
 .schedule-next-time {
   min-width: 0 !important;
   flex: 1 1 auto !important;
   color: var(--neutral-text-secondary) !important;
-  font-size: 11px !important;
+  font-size: 10px !important;
   overflow: hidden !important;
   text-overflow: ellipsis !important;
   white-space: nowrap !important;
@@ -14308,13 +14311,13 @@ button:disabled,
   display: flex !important;
   align-items: center !important;
   justify-content: space-between !important;
-  gap: 10px !important;
+  gap: 8px !important;
 }
 
 .schedule-stats-text {
   flex: 0 0 auto !important;
   color: var(--neutral-text-muted) !important;
-  font-size: 11px !important;
+  font-size: 10px !important;
 }
 
 .schedule-stats-text strong {
@@ -14323,8 +14326,8 @@ button:disabled,
 
 .schedule-stats-bar {
   flex: 1 1 auto !important;
-  max-width: 130px !important;
-  height: 5px !important;
+  max-width: 104px !important;
+  height: 4px !important;
   border-radius: 999px !important;
   background: var(--neutral-border-subtle) !important;
   overflow: hidden !important;
@@ -14341,14 +14344,14 @@ button:disabled,
   width: fit-content !important;
   display: inline-flex !important;
   align-items: center !important;
-  gap: 6px !important;
-  padding: 4px 10px !important;
+  gap: 5px !important;
+  padding: 3px 8px !important;
   border: 1px solid var(--neutral-border-subtle) !important;
   border-radius: 999px !important;
   background: var(--glass-bg) !important;
   color: var(--neutral-text-secondary) !important;
   font-family: "JetBrains Mono", monospace !important;
-  font-size: 11px !important;
+  font-size: 10px !important;
 }
 
 .schedule-last-run.success {
@@ -14377,7 +14380,24 @@ button:disabled,
 }
 
 .schedule-create-card {
-  min-height: 218px !important;
+  min-height: 166px !important;
+  gap: 6px !important;
+}
+
+.schedule-create-card .dashboard-create-card-icon {
+  width: 34px !important;
+  height: 34px !important;
+  border-radius: 10px !important;
+}
+
+.schedule-create-card .dashboard-create-card-title {
+  font-size: 13px !important;
+}
+
+.schedule-create-card .dashboard-create-card-desc {
+  max-width: 190px !important;
+  font-size: 11px !important;
+  line-height: 1.35 !important;
 }
 
 .dashboard-create-card:hover,
@@ -14426,9 +14446,9 @@ button:disabled,
   display: flex !important;
   align-items: center !important;
   justify-content: space-between !important;
-  gap: 10px !important;
-  margin-top: 2px !important;
-  padding-top: 8px !important;
+  gap: 8px !important;
+  margin-top: 0 !important;
+  padding-top: 6px !important;
   border-top: 1px solid var(--neutral-border-subtle) !important;
 }
 
@@ -14624,7 +14644,7 @@ button:disabled,
   }
 
   .schedule-cards.cards-grid {
-    grid-template-columns: repeat(auto-fill, minmax(min(360px, 100%), 420px)) !important;
+    grid-template-columns: repeat(auto-fill, minmax(min(240px, 100%), 280px)) !important;
   }
 }
 
