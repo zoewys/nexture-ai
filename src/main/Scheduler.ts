@@ -115,7 +115,8 @@ export class Scheduler {
       initialPrompt: schedule.initialPrompt,
       runName: `[scheduled] ${schedule.name}`,
       autoConfirm: true,
-      scheduledBy: schedule.id
+      scheduledBy: schedule.id,
+      useWorktree: schedule.useWorktree ?? true
     }
 
     if (schedule.targetType === 'agent') {

@@ -13006,6 +13006,11 @@ button:disabled,
   opacity: 0.5;
 }
 
+.schedule-worktree-checkbox {
+  justify-self: start;
+  margin-left: 0;
+}
+
 .workflow-worktree-crumbs {
   display: flex;
   align-items: center;

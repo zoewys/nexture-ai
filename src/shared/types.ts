@@ -435,6 +435,8 @@ export interface WorkflowSchedule {
   enabled: boolean
   projectPath: string
   initialPrompt: string
+  /** When true, scheduled runs execute in a fresh git worktree when possible. */
+  useWorktree?: boolean
   createdAt: number
   lastTriggeredAt?: number
   lastRunId?: string

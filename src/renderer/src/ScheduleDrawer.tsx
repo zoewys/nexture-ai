@@ -81,6 +81,7 @@ export function ScheduleDrawer({
     scheduleCronStateFromCron(schedule?.cron)
   )
   const [initialPrompt, setInitialPrompt] = useState(schedule?.initialPrompt ?? '')
+  const [useWorktree, setUseWorktree] = useState(schedule?.useWorktree ?? true)
   const [cronValid, setCronValid] = useState(false)
   const [cronPreview, setCronPreview] = useState<CronPreview | null>(null)
   const [saving, setSaving] = useState(false)
@@ -187,6 +188,7 @@ export function ScheduleDrawer({
         enabled: schedule?.enabled ?? true,
         projectPath: projectPath.trim(),
         initialPrompt: initialPrompt.trim(),
+        useWorktree,
         createdAt: schedule?.createdAt,
         lastTriggeredAt: schedule?.lastTriggeredAt,
         lastRunId: schedule?.lastRunId,
@@ -260,6 +262,18 @@ export function ScheduleDrawer({
             </button>
           </div>
         </label>
+
+        <div className={`workflow-worktree-toggle${useWorktree ? ' workflow-worktree-toggle-on' : ''}`}>
+          <span className="workflow-worktree-toggle-title">在隔离副本中运行</span>
+          <label className="workflow-worktree-checkbox schedule-worktree-checkbox">
+            <input
+              type="checkbox"
+              checked={useWorktree}
+              onChange={(event) => setUseWorktree(event.target.checked)}
+            />
+            <span>worktree</span>
+          </label>
+        </div>
 
         <section className="schedule-picker-box" aria-label="Schedule interval picker">
           <div className="schedule-picker-head">
